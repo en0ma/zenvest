@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { registerSchema } from "@/lib/validation";
 import { issueToken, tokenLink } from "@/lib/account-tokens";
 import { sendAccountEmail } from "@/lib/email";
+import { zenvestEmailSubject } from "@/lib/email-branding";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
       const recent=await prisma.actionToken.findFirst({where:{userId:existing.id,purpose:"VERIFY_EMAIL",createdAt:{gt:new Date(Date.now()-60_000)}}});
       if (!recent) {
         const token=await issueToken(existing.id,"VERIFY_EMAIL");
-        await sendAccountEmail(email,"Activate your Zenvest account","Activate your account using this link:",tokenLink("/verify-email",token),existing.name);
+        await sendAccountEmail(email,zenvestEmailSubject("account_activation"),"Activate your account using this link:",tokenLink("/verify-email",token),existing.name);
       }
     } catch {console.error("Activation reissue failed")}
     return NextResponse.json({ok:true,code:"CHECK_EMAIL",message:"If this address is awaiting activation, check your inbox or request another activation link."},{status:202});
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
   const passwordHash = await bcrypt.hash(password, 12);
   try {
     const user = await prisma.user.create({ data: { name, email, passwordHash, role: "INVESTOR", portfolio: { create: { mode: "SANDBOX" } } } });
-    try { const token = await issueToken(user.id,"VERIFY_EMAIL"); await sendAccountEmail(email,"Activate your Zenvest account","Activate your account using this link:",tokenLink("/verify-email",token),user.name); } catch { console.error("Activation delivery failed; user can request another link"); }
+    try { const token = await issueToken(user.id,"VERIFY_EMAIL"); await sendAccountEmail(email,zenvestEmailSubject("account_activation"),"Activate your account using this link:",tokenLink("/verify-email",token),user.name); } catch { console.error("Activation delivery failed; user can request another link"); }
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {

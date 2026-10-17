@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { issueToken, tokenLink } from "@/lib/account-tokens";
 import { sendAccountEmail } from "@/lib/email";
+import { zenvestEmailSubject } from "@/lib/email-branding";
 export const runtime = "nodejs";
 const schema=z.object({email:z.string().trim().toLowerCase().email().max(254),purpose:z.enum(["VERIFY_EMAIL","RESET_PASSWORD"])}).strict();
 export async function POST(request:Request){
@@ -13,13 +14,13 @@ export async function POST(request:Request){
  try{
   const user=await prisma.user.findUnique({where:{email}});
   if(user?.isActive){
-   const effectivePurpose = user.emailVerifiedAt ? purpose : "VERIFY_EMAIL";
-   if(effectivePurpose==="VERIFY_EMAIL" && user.emailVerifiedAt) return NextResponse.json(generic);
+   const effectivePurpose = purpose;
+   if((effectivePurpose==="VERIFY_EMAIL" && user.emailVerifiedAt)||(effectivePurpose==="RESET_PASSWORD" && !user.emailVerifiedAt)) return NextResponse.json(generic);
    const recent=await prisma.actionToken.findFirst({where:{userId:user.id,purpose:effectivePurpose,createdAt:{gt:new Date(Date.now()-60_000)}}});
    if(recent) return NextResponse.json(generic);
    const token=await issueToken(user.id,effectivePurpose);
    const path=effectivePurpose==="VERIFY_EMAIL"?"/verify-email":"/reset-password";
-   await sendAccountEmail(user.email,effectivePurpose==="VERIFY_EMAIL"?"Verify your Zenvest email":"Reset your Zenvest password",effectivePurpose==="VERIFY_EMAIL"?"Activate your account using this link:":"Reset your password using this link:",tokenLink(path,token),user.name);
+   await sendAccountEmail(user.email,zenvestEmailSubject(effectivePurpose==="VERIFY_EMAIL"?"account_activation":"password_reset"),effectivePurpose==="VERIFY_EMAIL"?"Activate your account using this link:":"Reset your password using this link:",tokenLink(path,token),user.name);
   }
  }catch{console.error("Account email request failed")}
  return NextResponse.json(generic);
