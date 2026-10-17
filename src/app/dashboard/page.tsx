@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, Layers3, Wallet, TrendingUp } from "lucide-react";
 import { Shell } from "@/components/shell";
 import { requireUser } from "@/lib/access";
@@ -18,7 +17,7 @@ export default async function Dashboard(){
  const equity=allocated+unallocated+realized;
  return <Shell><header><h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-[#292725]">Welcome, {session.name??"Investor"}</h1></header>
  <section className="rounded-3xl bg-forest text-white p-7 sm:p-9 mt-9 shadow-soft"><p className="text-white/70">Portfolio summary</p><h2 className="mt-2 text-4xl sm:text-5xl font-semibold">{formatKobo(equity)}</h2><div className="mt-5 flex items-center gap-2 text-mint"><TrendingUp size={18}/><strong>{formatKobo(realized)}</strong><span className="text-white/60 text-sm">recorded P&L</span></div></section>
- <nav aria-label="Portfolio shortcuts" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 mt-5">{[["Deposit","/deposits"],["Transactions","/transactions"],["Withdrawal","/withdrawals"],["Bot monitor","/bot"]].map(([title,href])=><Link key={href} href={href} className="rounded-xl border border-[#e8ddce] bg-white px-5 py-4 font-semibold text-sm text-[#292725] hover:border-[#b77d52] hover:bg-[#faf8f3] transition-colors">{title} <span className="float-right text-[#b77d52]">↗</span></Link>)}</nav>
+
  <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mt-5" id="allocations">
  <Metric icon={Layers3} label="Allocated capital" value={allocated} detail="Recorded investment allocation"/>
  <Metric icon={Wallet} label="Unallocated capital" value={unallocated} detail="Not currently allocated to trades"/>
