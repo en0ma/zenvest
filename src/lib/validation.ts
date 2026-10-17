@@ -1,5 +1,5 @@
 import { z } from "zod";
-import {isValidPassword} from "@/lib/password-policy";
+import {isValidPassword} from "./password-policy.ts";
 export const passwordSchema = z.string().min(5).max(72).refine(isValidPassword,"Use at least five characters, including one uppercase letter, one number, and one special character.");
 export const registerSchema = z.object({
  name:z.string().trim().min(2).max(120),
