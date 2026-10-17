@@ -19,7 +19,7 @@ export async function POST(request:Request){
    if(recent) return NextResponse.json(generic);
    const token=await issueToken(user.id,effectivePurpose);
    const path=effectivePurpose==="VERIFY_EMAIL"?"/verify-email":"/reset-password";
-   await sendAccountEmail(user.email,effectivePurpose==="VERIFY_EMAIL"?"Verify your Zenvest email":"Reset your Zenvest password",effectivePurpose==="VERIFY_EMAIL"?"Activate your account using this link:":"Reset your password using this link:",tokenLink(path,token));
+   await sendAccountEmail(user.email,effectivePurpose==="VERIFY_EMAIL"?"Verify your Zenvest email":"Reset your Zenvest password",effectivePurpose==="VERIFY_EMAIL"?"Activate your account using this link:":"Reset your password using this link:",tokenLink(path,token),user.name);
   }
  }catch{console.error("Account email request failed")}
  return NextResponse.json(generic);

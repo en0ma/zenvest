@@ -4,7 +4,7 @@ import { TokenPurpose } from "@prisma/client";
 export const digest = (token: string) => createHash("sha256").update(token).digest("hex");
 export function makeToken() { return randomBytes(32).toString("hex"); }
 export function tokenLink(path: string, token: string) {
- const origin = process.env.NEXTAUTH_URL;
+ const origin = process.env.NODE_ENV === "production" ? "https://www.zenvest.market" : process.env.NEXTAUTH_URL;
  if (!origin) throw new Error("NEXTAUTH_URL missing");
  const base = new URL(origin);
  if (process.env.NODE_ENV === "production" && base.protocol !== "https:") throw new Error("HTTPS required");
