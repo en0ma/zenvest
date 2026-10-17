@@ -15,7 +15,8 @@ export function tokenLink(path: string, token: string) {
 export async function issueToken(userId: string, purpose: TokenPurpose) {
  const token = makeToken();
  await prisma.$transaction(async tx => {
-  await tx.actionToken.deleteMany({where:{userId,purpose,...(purpose==="VERIFY_EMAIL"?{consumedAt:null}:{})}});
+  if(purpose==="VERIFY_EMAIL") await tx.actionToken.updateMany({where:{userId,purpose,consumedAt:null},data:{expiresAt:new Date()}});
+  else await tx.actionToken.deleteMany({where:{userId,purpose}});
   await tx.actionToken.create({data:{userId,purpose,hash:digest(token),expiresAt:new Date(Date.now()+(purpose==="VERIFY_EMAIL"?24*60:30)*60*1000)}});
  });
  return token;
