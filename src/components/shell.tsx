@@ -20,7 +20,7 @@ export function Shell({ admin = false, preview = false, children }: {admin?:bool
       <details className="relative"><summary aria-label="Open investor navigation" className="list-none cursor-pointer rounded-lg border border-[#f5ece0] p-2 text-[#292725]"><Menu size={22}/></summary>
         <nav aria-label="Investor navigation" className="absolute right-0 top-12 z-50 w-60 rounded-2xl border border-[#eadfce] bg-white p-4 shadow-xl flex flex-col gap-1 text-sm text-[#292725]">
           {items.map(({href,text,icon:Icon})=><Link key={text} href={href} className="flex items-center gap-3 rounded-lg px-3 py-3 font-semibold hover:bg-[#faf8f3]"><Icon size={17}/>{text}</Link>)}
-          {!preview&&<div className="border-t border-[#eee5dc] mt-2 pt-2 px-3"><Signout/></div>}
+          {!preview&&<div className="border-t border-[#eee5dc] mt-2 pt-2 px-3"><Signout mobile/></div>}
         </nav>
       </details>
     </header>
