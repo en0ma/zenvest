@@ -12,7 +12,8 @@
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:validate": "prisma validate",
-    "db:seed:sandbox": "node scripts/seed-investor-sandbox.mjs"
+    "db:seed:sandbox": "node scripts/seed-investor-sandbox.mjs",
+    "db:seed:bots": "node scripts/seed-bots.mjs"
   },
   "dependencies": {
     "next": "^15.5.0",
