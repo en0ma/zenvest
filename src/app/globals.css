@@ -4,14 +4,14 @@
 :root{color-scheme:light}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{background:#f6f8f6;color:#123a31;-webkit-font-smoothing:antialiased}
+body{background:#faf8f3;color:#2d2a27;-webkit-font-smoothing:antialiased}
 a{text-decoration:none}
 summary::-webkit-details-marker{display:none}
-::selection{background:#9aebc7;color:#093a2c}
+::selection{background:#eadac7;color:#302d29}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 
 /* A subtle rotating example for choosing a display name. */
-.zen-name-suggestions{display:inline-grid;vertical-align:baseline;min-width:5.5rem;color:#087858;font-weight:700}
+.zen-name-suggestions{display:inline-grid;vertical-align:baseline;min-width:5.5rem;color:#302d29;font-weight:700}
 .zen-name-suggestions>span{grid-area:1/1;opacity:0;animation:zen-name-cycle 9s infinite}
 .zen-name-suggestions>span:nth-child(2){animation-delay:3s}
 .zen-name-suggestions>span:nth-child(3){animation-delay:6s}
