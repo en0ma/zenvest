@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       const recent=await prisma.actionToken.findFirst({where:{userId:existing.id,purpose:"VERIFY_EMAIL",createdAt:{gt:new Date(Date.now()-60_000)}}});
       if (!recent) {
         const token=await issueToken(existing.id,"VERIFY_EMAIL");
-        await sendAccountEmail(email,"Activate your Zenvest account","Activate your account using this link:",tokenLink("/verify-email",token));
+        await sendAccountEmail(email,"Activate your Zenvest account","Activate your account using this link:",tokenLink("/verify-email",token),existing.name);
       }
     } catch {console.error("Activation reissue failed")}
     return NextResponse.json({ok:true,code:"CHECK_EMAIL",message:"If this address is awaiting activation, check your inbox or request another activation link."},{status:202});
