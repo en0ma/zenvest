@@ -11,7 +11,8 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:validate": "prisma validate"
+    "db:validate": "prisma validate",
+    "db:seed:sandbox": "node scripts/seed-investor-sandbox.mjs"
   },
   "dependencies": {
     "next": "^15.5.0",
