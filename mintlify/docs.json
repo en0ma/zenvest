@@ -4,8 +4,8 @@
   "name": "Zenvest",
   "colors": {
     "primary": "#08785D",
-    "light": "#3CC9A0",
-    "dark": "#064536"
+    "light": "#16A27F",
+    "dark": "#0B5A45"
   },
   "navigation": {
     "tabs": [
@@ -47,7 +47,19 @@
           }
         ]
       }
-    ]
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "Zenvest",
+          "href": "https://zenvest-rust.vercel.app"
+        },
+        {
+          "anchor": "Sign in",
+          "href": "https://zenvest-rust.vercel.app/login"
+        }
+      ]
+    }
   },
   "footer": {
     "socials": {
@@ -58,14 +70,17 @@
   "navbar": {
     "links": [
       {
-        "label": "Zenvest",
+        "label": "Website",
         "href": "https://zenvest-rust.vercel.app"
+      },
+      {
+        "label": "Log in",
+        "href": "https://zenvest-rust.vercel.app/login"
       }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Create account",
-      "href": "https://zenvest-rust.vercel.app/register"
-    }
+    ]
+  },
+  "appearance": {
+    "default": "light",
+    "strict": false
   }
 }
