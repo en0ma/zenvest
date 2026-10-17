@@ -19,7 +19,7 @@ export const authOptions: NextAuthOptions = {
         const email = credentials.email.trim().toLowerCase();
         if (email.length > 254 || credentials.password.length > 72) return null;
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user?.isActive) return null;
+        if (!user?.isActive || !user.emailVerifiedAt) return null;
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);
         return valid ? { id: user.id, email: user.email, name: user.name } : null;
       },
@@ -27,12 +27,13 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.sub = user.id;
+      if (user) { token.sub = user.id; token.sessionVersion = undefined; }
       // Check permissions against the database on every session request.
       // Never trust a role supplied by the browser or an old JWT claim.
       if (!token.sub) return token;
-      const record = await prisma.user.findUnique({ where: { id: token.sub }, select: { isActive: true, role: true } });
-      token.active = Boolean(record?.isActive);
+      const record = await prisma.user.findUnique({ where: { id: token.sub }, select: { isActive: true, role: true, emailVerifiedAt: true, sessionVersion: true } });
+      if (token.sessionVersion === undefined && user && record) token.sessionVersion = record.sessionVersion;
+      token.active = Boolean(record?.isActive && record.emailVerifiedAt && token.sessionVersion === record.sessionVersion);
       token.role = record?.role ?? "INVESTOR";
       return token;
     },
