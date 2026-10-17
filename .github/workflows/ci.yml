@@ -29,7 +29,6 @@ jobs:
     needs: verify
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: production-db
     concurrency:
       group: zenvest-production-db-migrations
       cancel-in-progress: false
@@ -48,7 +47,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           if [ -z "$DATABASE_URL" ]; then
-            echo "::error::Set DATABASE_URL in the production-db GitHub environment secrets."
+            echo "::error::Set DATABASE_URL in GitHub repository Actions secrets."
             exit 1
           fi
       - name: Apply pending migrations
