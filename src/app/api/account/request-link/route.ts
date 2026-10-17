@@ -14,8 +14,8 @@ export async function POST(request:Request){
  try{
   const user=await prisma.user.findUnique({where:{email}});
   if(user?.isActive){
-   const effectivePurpose = user.emailVerifiedAt ? purpose : "VERIFY_EMAIL";
-   if(effectivePurpose==="VERIFY_EMAIL" && user.emailVerifiedAt) return NextResponse.json(generic);
+   const effectivePurpose = purpose;
+   if((effectivePurpose==="VERIFY_EMAIL" && user.emailVerifiedAt)||(effectivePurpose==="RESET_PASSWORD" && !user.emailVerifiedAt)) return NextResponse.json(generic);
    const recent=await prisma.actionToken.findFirst({where:{userId:user.id,purpose:effectivePurpose,createdAt:{gt:new Date(Date.now()-60_000)}}});
    if(recent) return NextResponse.json(generic);
    const token=await issueToken(user.id,effectivePurpose);
