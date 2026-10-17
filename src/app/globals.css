@@ -9,3 +9,11 @@ a{text-decoration:none}
 summary::-webkit-details-marker{display:none}
 ::selection{background:#9aebc7;color:#093a2c}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* A subtle rotating example for choosing a display name. */
+.zen-name-suggestions{display:inline-grid;vertical-align:baseline;min-width:5.5rem;color:#087858;font-weight:700}
+.zen-name-suggestions>span{grid-area:1/1;opacity:0;animation:zen-name-cycle 9s infinite}
+.zen-name-suggestions>span:nth-child(2){animation-delay:3s}
+.zen-name-suggestions>span:nth-child(3){animation-delay:6s}
+@keyframes zen-name-cycle{0%,30%{opacity:1}33.33%,100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.zen-name-suggestions>span{animation:none;opacity:0}.zen-name-suggestions>span:first-child{opacity:1}}
