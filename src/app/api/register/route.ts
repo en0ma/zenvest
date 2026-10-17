@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request" }, { status: 400 }); }
   const parsed = registerSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Check your name, email and password (minimum 12 characters)." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: "Check your display name, email and password requirements." }, { status: 400 });
   const { name, email, password } = parsed.data;
   const passwordHash = await bcrypt.hash(password, 12);
   try {

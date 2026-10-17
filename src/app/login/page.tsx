@@ -1,25 +1,12 @@
 "use client";
-import { FormEvent, useState } from "react";
+import {FormEvent,useState} from "react";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
-export default function Login() {
- const [error, setError] = useState("");
- const [pending,setPending] = useState(false);
- async function submit(event:FormEvent<HTMLFormElement>) {
-  event.preventDefault();setPending(true);setError("");
-  const form = new FormData(event.currentTarget);
-  try {
-   const result = await signIn("credentials", {email:form.get("email"),password:form.get("password"),redirect:false,callbackUrl:"/dashboard"});
-   if (!result?.ok) setError("Invalid email or password.");
-   else window.location.assign("/dashboard");
-  } catch { setError("Could not sign in. Try again."); }
-  finally {setPending(false);}
- }
- return <main className="min-h-screen flex items-center justify-center p-6 bg-[#f0f8f2]"><section className="bg-white rounded-[28px] border border-[#d7e9db] shadow-xl w-full max-w-md p-9 md:p-11">
- <Link href="/" className="text-3xl text-forest font-bold">zenvest.</Link><h1 className="text-2xl font-semibold mt-9">Welcome back</h1><p className="text-sm text-muted mt-2">Sign in to your Zenvest account.</p>
- <form className="mt-8 space-y-5" onSubmit={submit}><label className="block text-sm">Email<input autoComplete="email" required type="email" name="email" className="w-full mt-2 border rounded-lg px-4 py-3"/></label>
- <label className="block text-sm">Password<input required autoComplete="current-password" type="password" name="password" className="w-full mt-2 border rounded-lg px-4 py-3"/></label>
- {error&&<p role="alert" className="text-red-700 text-sm">{error}</p>}<button disabled={pending} className="w-full bg-forest text-white py-3 rounded-lg disabled:opacity-50">{pending?"Signing in...":"Sign in"}</button></form>
- <p className="mt-4 text-sm"><Link href="/forgot-password" className="text-forest underline">Forgot password?</Link> · <Link href="/resend-activation" className="text-forest underline">Resend activation</Link></p><p className="mt-7 text-sm text-muted">No account? <Link className="text-forest font-semibold" href="/register">Register</Link></p><p className="mt-4 text-xs text-muted">Account access only. Investment funding and withdrawals are not currently available through the website.</p>
- </section></main>;
+import {signIn} from "next-auth/react";
+import {ArrowRight,Eye,EyeOff,ShieldCheck} from "lucide-react";
+export default function Login(){
+ const [email,setEmail]=useState("");const [password,setPassword]=useState("");const [show,setShow]=useState(false);const [error,setError]=useState("");const [pending,setPending]=useState(false);
+ const emailValid=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)&&email.length<=254;
+ async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();if(!emailValid||!password||pending)return;setPending(true);setError("");try{const result=await signIn("credentials",{email:email.trim(),password,redirect:false,callbackUrl:"/dashboard"});if(!result?.ok)setError("Incorrect email or password, or your email has not been activated.");else window.location.assign("/dashboard")}catch{setError("Sign in is temporarily unavailable.")}finally{setPending(false)}}
+ const field="mt-2 w-full rounded-xl border border-[#d4e4dd] px-4 py-3.5 text-[#173a30] outline-none transition focus:border-[#0b906b] focus:ring-4 focus:ring-[#9ee7c8]/30";
+ return <main className="min-h-screen lg:grid lg:grid-cols-2 bg-white"><aside className="hidden lg:flex relative flex-col justify-between bg-[#06382f] p-14 xl:p-20 text-white overflow-hidden"><div className="absolute h-96 w-96 rounded-full bg-[#13765e] blur-[100px] -right-32 top-24 opacity-70"/><Link href="/" className="relative text-3xl font-black tracking-tight">zenvest<span className="text-[#5ee3b6]">.</span></Link><div className="relative max-w-lg"><p className="text-[#79dfb7] uppercase tracking-[.2em] text-xs font-bold">YOUR INVESTOR ACCOUNT</p><h2 className="text-5xl xl:text-6xl tracking-[-.06em] font-semibold leading-[1.08] mt-5">A clearer view of your investments.</h2><p className="mt-7 text-lg leading-8 text-white/65">The right information, thoughtfully organized. Pick up where you left off.</p><div className="flex items-center gap-3 mt-12 border-t border-white/20 pt-8 text-sm text-[#bcebd8]"><ShieldCheck size={20}/> Protected account access.</div></div><span className="relative text-sm text-white/40">© Zenvest</span></aside><section className="flex items-center justify-center px-5 sm:px-10 py-12 lg:py-16"><div className="w-full max-w-[450px]"><Link href="/" className="lg:hidden text-3xl font-black text-[#064c3c]">zenvest.</Link><p className="uppercase tracking-[.17em] text-xs font-bold text-[#098666] mt-12 lg:mt-0">Investor access</p><h1 className="text-4xl sm:text-5xl font-semibold tracking-[-.055em] text-[#0b3b2e] mt-4">Welcome back.</h1><p className="text-[#668074] mt-4 leading-7">Sign in to your Zenvest account.</p><form noValidate className="space-y-5 mt-9" onSubmit={submit}><label className="block text-sm font-semibold text-[#23473a]">Email address<input className={field} type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)} required/>{email.length>0&&!emailValid&&<span className="mt-2 block text-xs text-[#b34d48]">Enter a valid email address</span>}</label><label className="block text-sm font-semibold text-[#23473a]">Password<div className="relative"><input className={field+" pr-14"} type={show?"text":"password"} autoComplete="current-password" placeholder="Your password" value={password} onChange={e=>setPassword(e.target.value)} required/><button className="absolute right-4 top-[25px] text-[#617f72]" type="button" onClick={()=>setShow(!show)} aria-label={show?"Hide password":"Show password"}>{show?<EyeOff size={18}/>:<Eye size={18}/>}</button></div></label><div className="flex flex-wrap justify-between gap-3 text-sm"><Link href="/forgot-password" className="text-[#087858] font-semibold">Forgot password?</Link><Link href="/resend-activation" className="text-[#587769]">Resend activation</Link></div>{error&&<p role="alert" className="text-sm text-[#a43b36]">{error}</p>}<button disabled={!emailValid||!password||pending} className="w-full rounded-xl bg-[#064734] text-white py-4 font-bold inline-flex items-center justify-center gap-3 hover:bg-[#0d7354] disabled:opacity-45">{pending?"Signing in…":"Log in"}<ArrowRight size={18}/></button></form><p className="mt-7 text-center text-sm text-[#60796e]">New to Zenvest? <Link className="text-[#087858] font-bold" href="/register">Register</Link></p><p className="mt-10 text-xs text-[#84998e]">Protected sign in. <Link className="underline" href="/privacy">Privacy notice</Link></p></div></section></main>;
 }
