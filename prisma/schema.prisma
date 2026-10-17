@@ -84,3 +84,18 @@ model BotTrade {
   @@index([botId, openedAt])
   @@map("bot_trades")
 }
+
+model InvestorPortfolio {
+  id String @id @default(cuid())
+  userId String @unique @map("user_id")
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  mode String @default("SANDBOX") @db.VarChar(16)
+  depositedKobo BigInt @default(0) @map("deposited_kobo")
+  allocatedKobo BigInt @default(0) @map("allocated_kobo")
+  unallocatedKobo BigInt @default(0) @map("unallocated_kobo")
+  realizedPnlKobo BigInt @default(0) @map("realized_pnl_kobo")
+  pendingDepositsKobo BigInt @default(0) @map("pending_deposits_kobo")
+  pendingWithdrawalsKobo BigInt @default(0) @map("pending_withdrawals_kobo")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@map("investor_portfolios")
+}
