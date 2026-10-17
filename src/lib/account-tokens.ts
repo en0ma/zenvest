@@ -26,7 +26,7 @@ export async function consumeToken(token: string, purpose: TokenPurpose, passwor
  return prisma.$transaction(async tx => {
   const record = await tx.actionToken.findUnique({where:{hash:digest(token)},include:{user:true}});
   if (!record || record.purpose!==purpose || record.expiresAt.getTime() <= Date.now() || record.consumedAt || !record.user.isActive) return false;
-  const updated = purpose==="VERIFY_EMAIL" ? await tx.actionToken.updateMany({where:{id:record.id,consumedAt:null},data:{consumedAt:new Date()}}) : await tx.actionToken.deleteMany({where:{id:record.id,hash:record.hash}}});
+  const updated = purpose==="VERIFY_EMAIL" ? await tx.actionToken.updateMany({where:{id:record.id,consumedAt:null},data:{consumedAt:new Date()}}) : await tx.actionToken.deleteMany({where:{id:record.id,hash:record.hash}});
   if(updated.count!==1)return false;
   if (purpose==="VERIFY_EMAIL") await tx.user.update({where:{id:record.userId},data:{emailVerifiedAt:new Date()}});
   else {
