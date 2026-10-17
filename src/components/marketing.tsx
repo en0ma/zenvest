@@ -21,7 +21,6 @@ export const featureCards=[
  {icon:Clock3,title:"Cutoff-based eligibility",body:"Participation in trade P&L is determined by a timestamped allocation snapshot."},
  {icon:ChartNoAxesCombined,title:"Performance attribution",body:"Follow market activity and the distinction between realized and unrealized P&L."},
  {icon:ShieldCheck,title:"Risk-first reporting",body:"Clear settlement and withdrawal limitations, not promises of risk-free yield."},
- {icon:Fingerprint,title:"Account security",body:"Email activation, secure login, and one-time password-recovery links."},
  {icon:Gauge,title:"Market monitoring",body:"The platform is designed to consume status data from an independently operated trading system."}
 ];
 export { ArrowRight, BookOpen, CheckCircle2, ChevronRight, CircleHelp, LockKeyhole, TrendingUp };
