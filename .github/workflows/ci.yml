@@ -54,6 +54,10 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: npx prisma migrate deploy
+      - name: Seed example bot and active market snapshot
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run db:seed:bots
       - name: Check migration status
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
