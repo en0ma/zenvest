@@ -39,3 +39,48 @@ model ActionToken {
   @@index([expiresAt])
   @@map("action_tokens")
 }
+
+enum BotRunState {
+  OFFLINE
+  IDLE
+  MONITORING
+  TRADING
+  PAUSED
+  ERROR
+}
+
+model BotStatus {
+  botId                     String @id @map("bot_id") @db.VarChar(64)
+  state                     BotRunState @default(OFFLINE)
+  currentEventTicker        String? @map("current_event_ticker") @db.VarChar(200)
+  currentEventClosesAt      DateTime? @map("current_event_closes_at")
+  inventoryYesContracts     Int @default(0) @map("inventory_yes_contracts")
+  inventoryNoContracts      Int @default(0) @map("inventory_no_contracts")
+  availableFundsUsdcMicros  BigInt @default(0) @map("available_funds_usdc_micros")
+  releasableFundsUsdcMicros BigInt @default(0) @map("releasable_funds_usdc_micros")
+  realizedPnlUsdcMicros     BigInt @default(0) @map("realized_pnl_usdc_micros")
+  unrealizedPnlUsdcMicros   BigInt @default(0) @map("unrealized_pnl_usdc_micros")
+  asOf                      DateTime @map("as_of")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+  trades                    BotTrade[]
+  @@map("bot_status")
+}
+
+model BotTrade {
+  id                      String @id @default(cuid())
+  botId                   String @map("bot_id") @db.VarChar(64)
+  bot                     BotStatus @relation(fields: [botId], references: [botId])
+  externalTradeId         String @unique @map("external_trade_id") @db.VarChar(180)
+  eventTicker             String @map("event_ticker") @db.VarChar(200)
+  side                    String @db.VarChar(12)
+  outcome                 String? @db.VarChar(12)
+  contracts               Int
+  entryCostUsdcMicros     BigInt @map("entry_cost_usdc_micros")
+  payoutUsdcMicros        BigInt? @map("payout_usdc_micros")
+  feesUsdcMicros          BigInt @default(0) @map("fees_usdc_micros")
+  realizedPnlUsdcMicros   BigInt? @map("realized_pnl_usdc_micros")
+  openedAt                DateTime @map("opened_at")
+  settledAt               DateTime? @map("settled_at")
+  @@index([botId, openedAt])
+  @@map("bot_trades")
+}
