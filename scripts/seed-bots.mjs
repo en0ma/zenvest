@@ -1,7 +1,7 @@
 /**
- * Optional idempotent development/demo seed. Run with: npm run db:seed:bots
- * Never overwrites an existing bot or trade snapshot.
- * The seeded row is deliberately stale, OFFLINE and has zero inventory/cost.
+ * Idempotent demo seed executed after production migrations.
+ * Never overwrites an existing real bot snapshot or a Python bot update.
+ * Example amounts are simulated and must not be presented as live trades.
  */
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
@@ -19,13 +19,13 @@ try {
   const snapshot = await prisma.activeBotTrade.findUnique({where:{botId}});
   if (!snapshot) {
     await prisma.activeBotTrade.create({data:{
-      botId, status:"OFFLINE", eventTicker:null,
-      yesContracts:0, noContracts:0,
-      yesCostUsdcMicros:0n, noCostUsdcMicros:0n,
+      botId, status:"MONITORING", eventTicker:"DEMO-BTC-15M",
+      yesContracts:42, noContracts:27,
+      yesCostUsdcMicros:12_600_000n, noCostUsdcMicros:8_100_000n,
       asOf:new Date("2020-01-01T00:00:00.000Z")
     }});
   }
-  console.log("Bot registry and inactive sample snapshot seeded:",botId);
+  console.log("Demo bot and simulated active inventory seeded if absent:",botId);
 } finally {
   await prisma.$disconnect();
 }
