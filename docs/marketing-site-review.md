@@ -20,3 +20,11 @@ No real trading bot code, bank account, custody flow, return projection or dashb
 - Public pages do not link to /admin or /preview/admin
 - Reduced motion, contrast and focus keyboard behavior
 - Legal copy review and approved public links required before distribution
+
+## Mintlify setup
+The standalone Mintlify project lives under `mintlify/`, with `docs.json` and MDX source. In Mintlify, connect GitHub `en0ma/zenvest` with the docs root set to `mintlify`. Once Mintlify provides a hosted documentation URL, set `NEXT_PUBLIC_DOCS_URL` in Vercel to that URL and redeploy so all marketing Docs links open the Mintlify site. Until then they fall back to the existing `/docs` route, not a nonfunctional placeholder. 
+
+Twitter and Telegram links intentionally use the requested `@demo` placeholders (`https://x.com/demo`, `https://t.me/demo`) and must be replaced with Zenvest's actual accounts when issued.
+
+## Responsive details
+Mobile < 1024px uses a native disclosure menu for the public navigation; login and create account remain independently accessible. Hero text, feature grid, process cards, flow diagram and footer use responsive sizing and wrapping.
