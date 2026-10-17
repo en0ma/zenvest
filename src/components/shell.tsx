@@ -4,14 +4,14 @@ import { LayoutDashboard, ArrowDownToLine, ArrowUpFromLine, ChartNoAxesCombined,
 export function Shell({ admin = false, preview = false, children }: {admin?:boolean;preview?:boolean;children:React.ReactNode}) {
   const nav = admin ? [
     {text:"Overview",href:"/admin",icon:LayoutDashboard},
-    {text:"Investor demo",href:"/dashboard",icon:Wallet},
+    {text:"Investor account",href:"/dashboard",icon:Wallet},
   ] : [
     {text:"Overview",href:"/dashboard",icon:LayoutDashboard},
     {text:"Deposits",href:"/dashboard#deposits",icon:ArrowDownToLine},
     {text:"Withdrawals",href:"/dashboard#withdrawals",icon:ArrowUpFromLine},
     {text:"Allocations",href:"/dashboard#allocations",icon:ChartNoAxesCombined},
     {text:"Activity",href:"/dashboard#activity",icon:Clock3},
-    {text:"Admin demo",href:"/admin",icon:ShieldCheck},
+ 
   ];
   const items = preview ? nav.map(item => ({ ...item, href: item.href.replace("/dashboard", "/preview/investor").replace("/admin", "/preview/admin") })) : nav;
   return <div className="min-h-screen lg:flex">
@@ -21,7 +21,7 @@ export function Shell({ admin = false, preview = false, children }: {admin?:bool
       <nav className="mt-12 flex flex-wrap lg:flex-col gap-2">{items.map(({href,text,icon:Icon})=>
         <Link key={text} href={href} className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm hover:bg-white/10"><Icon size={17}/>{text}</Link>
       )}</nav>
-      {!preview && <Signout/>}<div className="mt-12 rounded-xl bg-white/10 p-4 text-xs leading-5 text-white/75">Development demo only. No real funds, orders, or returns.</div>
+      {!preview && <Signout/>}<div className="mt-12 rounded-xl bg-white/10 p-4 text-xs leading-5 text-white/75">Account reporting only. Trading, funding and withdrawals are not currently enabled.</div>
     </aside>
     <main className="flex-1 min-w-0 px-5 py-8 sm:px-10 lg:px-12 lg:py-10 max-w-[1500px] mx-auto">{children}</main>
   </div>;
