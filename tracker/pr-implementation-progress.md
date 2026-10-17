@@ -1,34 +1,38 @@
 # PR implementation progress
 
-## Objective
-Harden the initial Zenvest **demo financial-accounting foundation** by enforcing deterministic trade-snapshot P&L allocation and documenting its bounds. This is not a production launch of deposits, trading, authentication or payments.
+## Objective and acceptance criteria
+Harden Zenvest's **demo trade allocation helper** with deterministic exact integer P&L distribution, cutoff enforcement, invalid-input rejection, unit tests, and CI. Production deposit processing, investor authentication, custodial reconciliation, external payment rails and live Kalshi trades are **not part of this scoped PR**.
 
-## Audit — 2026-10-17
-- Repository `en0ma/zenvest` currently contains a Next.js demo scaffold on `main`.
-- No open PR was found. Working branch: `feat/financial-accounting-foundation`, base: `main`.
-- Existing accounting helper `src/lib/finance.ts` implements pro-rata allocation with bigint but has no tests or robust snapshot validity checks.
-- Demo portal `src/app/dashboard/page.tsx` has non-transactional sample balances and no backend; admin operations are intentionally disabled.
-- Production funding/Kalshi/KYC/compliance workflows are **outside this PR**; no real customer funds accepted.
+## Phase 1 audit
+- Repository `en0ma/zenvest`; base `main`, implementation branch `feat/financial-accounting-foundation`.
+- No open PR existed when work began. No PR-specific acceptance criteria, review comments or linked issue were available.
+- Existing Next.js demo and admin placeholders remain intentionally non-operational. There is no server ledger or authenticated API.
+- Existing pro-rata calculator used bigint, but lacked validation and tests.
 
 ## Requirement-to-implementation matrix
-| Requirement | Files | Implementation | Verification | Status |
-|---|---|---|---|---|
-| Exclude late and zero/unallocated capital | `src/lib/finance.ts` | cutoff eligibility | unit tests | Pending |
-| Distribute positive and negative P&L exactly | `src/lib/finance.ts` | bigint largest remainder | unit tests | Pending |
-| Reject invalid allocations and snapshots | `src/lib/finance.ts` | input validation, duplicate checks | unit tests | Pending |
-| Prevent accounting mutation surprises | `src/lib/finance.ts` | independent deterministic output | unit tests | Pending |
-| Provide documented usage and boundaries | `README.md`, tracker | scope and execution instructions | manual review | Pending |
+| Requirement | Affected files | Evidence/status |
+|---|---|---|
+| Eligible capital only at cutoff | `src/lib/finance.ts` | Implemented; regression test added `late, zero...`; execution pending |
+| Exact pro-rata profit and loss allocation | `src/lib/finance.ts` | Implemented; positive/negative/huge bigint tests added; execution pending |
+| Reject invalid snapshot data | `src/lib/finance.ts` | Implemented; invalid data tests added; execution pending |
+| Determinism, no input mutation | `src/lib/finance.ts` | Deterministic tie-breaking by investor ID; order-independence test added; execution pending |
+| Automated test command and CI | `package.json`, `.github/workflows/ci.yml` | Implemented; GitHub CI status pending |
+| Scoped docs and tracking | `README.md`, `tracker/pr-implementation-progress.md` | Tracker implemented; existing README describes demo limitations |
 
-## Planned implementation sequence
-1. Enhance pure accounting helper with validation.
-2. Add test coverage for boundary cases, negative amounts, rounding, and invariance.
-3. Run available verification: tests, TypeScript check, production build.
-4. Re-audit diff and close gaps, update this tracker.
+## Implementation sequence completed
+1. Audited demo existing files and found no live integrations.
+2. Added checks for valid IDs, nonnegative bigint capital, timestamps and unique investors.
+3. Added comprehensive Node built-in unit tests.
+4. Added `npm test` and GitHub Actions test/typecheck/build workflow.
 
-## Risks
-- Kalshi trade settlement, FX reconciliation, and custody records are not available.
-- This pure function is **not** an investor ledger or proof of live profit.
-- Cannot claim acceptance of a full investor product from this narrow implementation.
+## Verification state
+- GitHub connector writes succeeded.
+- Local `git ls-remote` failed: execution environment could not resolve github.com.
+- **Tests, TypeScript checks and build have NOT been executed successfully in this environment.** Review GitHub Actions after PR creation.
+- PR diff re-audit and CI review remain pending.
 
-## Outstanding work
-All implementation and verification pending.
+## Risks and outstanding work
+- Review CI results and fix any discovered failures before marking ready.
+- Review PR diff against base.
+- Live financial accounting requires a transactional ledger, recorded NGN/USDC FX and custody reconciliation, authorization and compliance review; explicitly out of scope.
+- Do not merge while checks are incomplete.
