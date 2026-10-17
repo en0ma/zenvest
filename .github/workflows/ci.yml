@@ -4,11 +4,15 @@ on:
     branches: [main, "feat/**"]
   pull_request:
     branches: [main]
+permissions:
+  contents: read
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -19,3 +23,39 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
+
+  migrate-production:
+    name: Apply production database migrations
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production-db
+    concurrency:
+      group: zenvest-production-db-migrations
+      cancel-in-progress: false
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Prisma CLI
+        run: npm install --no-audit --no-fund
+      - name: Validate production database secret
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Set DATABASE_URL in the production-db GitHub environment secrets."
+            exit 1
+          fi
+      - name: Apply pending migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npx prisma migrate deploy
+      - name: Check migration status
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npx prisma migrate status
