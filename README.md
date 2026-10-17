@@ -32,3 +32,13 @@ Only capital included in an **immutable allocation snapshot at/before a trade cu
 3. Trade allocation snapshots, per-trade P&L and high-water-mark fee accounting.
 4. Admin settlement and withdrawal workflow with authorization and audit logs.
 5. Reconciliation with the existing Kalshi bot in a paper environment.
+
+## Authentication and database (PR #2)
+This app has PostgreSQL-backed credentials login and registration. Create a PostgreSQL database, copy `.env.example` to `.env.local`, and set `DATABASE_URL`, `NEXTAUTH_SECRET` and `NEXTAUTH_URL`. Then run `npm install`, `npx prisma migrate deploy` and `npm run dev`.
+
+Only public registration into the `INVESTOR` role is supported. Admin role assignments must be performed by a trusted database administrator via audited deployment procedures; **there is no public admin registration endpoint**. `/dashboard` requires a valid account; `/admin` additionally requires an active administrator role. No KYC UI is included.
+
+**Security boundary:** This is not production-ready: public signup still needs email verification, credential rate limiting, recovery flows, CSRF/abuse monitoring and deployment hardening before public exposure. There are no real funds, investment accounts, bank transfer operations or custody integrations in this milestone.
+
+### Email activation and password recovery
+Configure `RESEND_API_KEY` and `EMAIL_FROM` for a verified sender domain. New users require email activation before login. The login screen includes forgot-password and resend-activation flows. Activation links expire after 24 hours, password reset links after 30 minutes; only hashed one-use tokens are stored. Successful password reset increments `sessionVersion` so previously issued sessions are rejected. Request endpoints return non-disclosing responses. Production deployment also requires rate limiting, spam protection and an email delivery job/retry strategy; these are not yet implemented.

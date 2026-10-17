@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+enum Role {
+  INVESTOR
+  ADMIN
+}
+enum TokenPurpose {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique @db.VarChar(254)
+  name         String   @db.VarChar(120)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  role         Role     @default(INVESTOR)
+  isActive     Boolean  @default(true) @map("is_active")
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  sessionVersion Int @default(0) @map("session_version")
+  tokens       ActionToken[]
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  @@map("users")
+}
+model ActionToken {
+  id String @id @default(cuid())
+  userId String @map("user_id")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose TokenPurpose
+  hash String @unique @db.Char(64)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([userId, purpose])
+  @@index([expiresAt])
+  @@map("action_tokens")
+}
