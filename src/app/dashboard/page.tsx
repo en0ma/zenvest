@@ -14,7 +14,7 @@ export default async function Dashboard(){
  const unallocated=portfolio?.unallocatedKobo??0n;
  const realized=portfolio?.realizedPnlKobo??0n;
  const equity=allocated+unallocated+realized;
- return <Shell><header className="flex flex-wrap justify-between items-start gap-4"><div><p className="text-sm text-muted">Authenticated account · Portfolio reporting</p><h1 className="text-3xl font-semibold mt-2">Welcome, {session.name??"Investor"}</h1><p className="mt-2 text-muted">Account: {session.email}</p></div><span className="rounded-full bg-[#e5f5e9] px-4 py-2 text-sm text-forest font-medium">● Account reporting</span></header>
+ return <Shell><header className="flex flex-wrap justify-between items-start gap-4"><div><p className="text-sm text-muted">Authenticated account · Portfolio reporting</p><h1 className="text-3xl font-semibold mt-2">Welcome, {session.name??"Investor"}</h1><p className="mt-2 text-muted">Account: {session.email}</p></div><span className="rounded-full bg-[#f5ece0] px-4 py-2 text-sm text-forest font-medium">● Account reporting</span></header>
  <section className="rounded-3xl bg-forest text-white p-7 sm:p-9 mt-9 shadow-soft"><p className="text-white/70">Portfolio summary</p><h2 className="mt-2 text-4xl sm:text-5xl font-semibold">{formatKobo(equity)}</h2><div className="mt-5 flex items-center gap-2 text-mint"><TrendingUp size={18}/><strong>{formatKobo(realized)}</strong><span className="text-white/60 text-sm">recorded P&L</span></div></section>
  <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mt-5" id="allocations">
  <Metric icon={Layers3} label="Allocated capital" value={allocated} detail="Never live capital"/>
