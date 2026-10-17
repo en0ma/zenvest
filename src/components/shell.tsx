@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Signout } from "@/components/signout";
-import { LayoutDashboard, ArrowDownToLine, ArrowUpFromLine, Bot, ReceiptText, Wallet } from "lucide-react";
+import { LayoutDashboard, ArrowDownToLine, ArrowUpFromLine, Bot, ReceiptText, Settings, Wallet } from "lucide-react";
 export function Shell({ admin = false, preview = false, children }: {admin?:boolean;preview?:boolean;children:React.ReactNode}) {
   const nav = admin ? [
     {text:"Overview",href:"/admin",icon:LayoutDashboard},
@@ -11,6 +11,7 @@ export function Shell({ admin = false, preview = false, children }: {admin?:bool
     {text:"Transactions",href:"/transactions",icon:ReceiptText},
     {text:"Withdrawal",href:"/withdrawals",icon:ArrowUpFromLine},
     {text:"Bot",href:"/bot",icon:Bot},
+    {text:"Settings",href:"/settings",icon:Settings},
     ];
   const items = preview ? nav.map(item => ({ ...item, href: item.href.replace("/dashboard", "/preview/investor").replace("/admin", "/preview/admin") })) : nav;
   return <div className="min-h-screen lg:flex">
