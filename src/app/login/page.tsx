@@ -2,24 +2,10 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-export default function Login() {
- const [error, setError] = useState("");
- const [pending,setPending] = useState(false);
- async function submit(event:FormEvent<HTMLFormElement>) {
-  event.preventDefault();setPending(true);setError("");
-  const form = new FormData(event.currentTarget);
-  try {
-   const result = await signIn("credentials", {email:form.get("email"),password:form.get("password"),redirect:false,callbackUrl:"/dashboard"});
-   if (!result?.ok) setError("Invalid email or password.");
-   else window.location.assign("/dashboard");
-  } catch { setError("Could not sign in. Try again."); }
-  finally {setPending(false);}
+export default function Login(){
+ const [error,setError]=useState("");const [pending,setPending]=useState(false);
+ async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();setError("");setPending(true);const form=new FormData(event.currentTarget);
+  try{const result=await signIn("credentials",{email:form.get("email"),password:form.get("password"),redirect:false,callbackUrl:"/dashboard"});if(!result?.ok)setError("The email or password was not recognized, or the account has not been activated.");else window.location.assign("/dashboard");}catch{setError("Sign-in is unavailable. Please try again.");}finally{setPending(false);}
  }
- return <main className="min-h-screen flex items-center justify-center p-6 bg-canvas"><section className="bg-white rounded-3xl shadow-soft w-full max-w-md p-9">
- <Link href="/" className="text-3xl text-forest font-bold">zenvest.</Link><h1 className="text-2xl font-semibold mt-9">Welcome back</h1><p className="text-sm text-muted mt-2">Sign in to your Zenvest account.</p>
- <form className="mt-8 space-y-5" onSubmit={submit}><label className="block text-sm">Email<input autoComplete="email" required type="email" name="email" className="w-full mt-2 border rounded-lg px-4 py-3"/></label>
- <label className="block text-sm">Password<input required autoComplete="current-password" type="password" name="password" className="w-full mt-2 border rounded-lg px-4 py-3"/></label>
- {error&&<p role="alert" className="text-red-700 text-sm">{error}</p>}<button disabled={pending} className="w-full bg-forest text-white py-3 rounded-lg disabled:opacity-50">{pending?"Signing in...":"Sign in"}</button></form>
- <p className="mt-4 text-sm"><Link href="/forgot-password" className="text-forest underline">Forgot password?</Link> · <Link href="/resend-activation" className="text-forest underline">Resend activation</Link></p><p className="mt-7 text-sm text-muted">No account? <Link className="text-forest font-semibold" href="/register">Register</Link></p><p className="mt-4 text-xs text-muted">Demo dashboards only. Real funds are not supported.</p>
- </section></main>;
+ return <main className="min-h-screen grid lg:grid-cols-2 bg-[#f8fbf9] text-[#123c31]"><section className="hidden lg:flex bg-[#0b4035] text-white p-14 flex-col justify-between"><Link href="/" className="text-3xl font-bold">zenvest.</Link><div className="max-w-lg"><p className="text-xs uppercase tracking-[.22em] text-[#94e1b8] font-semibold">Your investor account</p><h1 className="text-5xl font-semibold tracking-tight leading-tight mt-5">Built for clarity at every step.</h1><p className="text-lg leading-8 text-white/65 mt-7">Understand where capital is allocated, see account activity and follow the strategy with more context.</p><div className="mt-12 border-t border-white/20 pt-6 text-sm text-white/60">Trading returns are variable and capital may be lost. Funding features are not yet active.</div></div><p className="text-white/45 text-sm">A Smarter Way to Invest.</p></section><section className="flex flex-col justify-center px-6 sm:px-16 py-12"><div className="max-w-md mx-auto w-full"><Link href="/" className="lg:hidden font-bold text-3xl text-[#0b4035]">zenvest.</Link><p className="text-[#158966] uppercase tracking-[.18em] text-xs font-bold mt-14 lg:mt-0">Welcome back</p><h2 className="text-4xl font-semibold tracking-tight mt-4">Sign in to Zenvest</h2><p className="text-[#6b8276] mt-4">Access your account securely.</p><form className="space-y-5 mt-10" onSubmit={submit}><label className="block text-sm font-semibold">Email address<input name="email" type="email" autoComplete="email" required placeholder="you@example.com" className="block w-full mt-2 bg-white border border-[#d6e6dc] rounded-xl py-3.5 px-4 outline-none focus:border-[#138d68]"/></label><label className="block text-sm font-semibold">Password<input name="password" type="password" autoComplete="current-password" required placeholder="Your password" className="block w-full mt-2 bg-white border border-[#d6e6dc] rounded-xl py-3.5 px-4 outline-none focus:border-[#138d68]"/></label>{error&&<p role="alert" className="rounded-lg bg-red-50 text-red-800 p-3 text-sm">{error}</p>}<button disabled={pending} className="w-full rounded-xl bg-[#0b4939] text-white py-4 font-semibold disabled:opacity-50">{pending?"Signing in...":"Sign in →"}</button></form><div className="flex flex-wrap gap-4 text-sm text-[#117858] mt-6"><Link href="/forgot-password" className="underline">Forgot password?</Link><Link href="/resend-activation" className="underline">Resend activation email</Link></div><p className="text-sm text-[#607a6d] mt-10">New to Zenvest? <Link href="/register" className="font-semibold text-[#0a644e]">Create your account</Link></p><p className="mt-9 text-xs text-[#788d80]">By accessing your account, you acknowledge the <Link href="/terms" className="underline">website terms</Link> and <Link href="/privacy" className="underline">privacy notice</Link>.</p></div></section></main>
 }
