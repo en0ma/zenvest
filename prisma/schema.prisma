@@ -22,6 +22,7 @@ model User {
   isActive     Boolean  @default(true) @map("is_active")
   emailVerifiedAt DateTime? @map("email_verified_at")
   sessionVersion Int @default(0) @map("session_version")
+  portfolio InvestorPortfolio?
   tokens       ActionToken[]
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
