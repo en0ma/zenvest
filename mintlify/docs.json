@@ -1,0 +1,71 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Zenvest",
+  "colors": {
+    "primary": "#08785D",
+    "light": "#3CC9A0",
+    "dark": "#064536"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Start here",
+        "groups": [
+          {
+            "group": "Introduction",
+            "pages": [
+              "index",
+              "getting-started",
+              "how-it-works"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Strategy",
+        "groups": [
+          {
+            "group": "Methodology",
+            "pages": [
+              "strategy/yield",
+              "strategy/allocations",
+              "strategy/risk"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Account",
+        "groups": [
+          {
+            "group": "Account operations",
+            "pages": [
+              "account/security",
+              "account/deposits-and-withdrawals"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "x": "https://x.com/demo",
+      "telegram": "https://t.me/demo"
+    }
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Zenvest",
+        "href": "https://zenvest-rust.vercel.app"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Create account",
+      "href": "https://zenvest-rust.vercel.app/register"
+    }
+  }
+}
