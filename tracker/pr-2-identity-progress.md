@@ -36,3 +36,13 @@ Implement persistent PostgreSQL investor identity records and secure login/regis
 
 ## Status
 Implementation committed. GitHub Actions run 39042114060 succeeded: npm install, Prisma schema validate, npm test, TypeScript typecheck and production build. Actual database migration against a live PostgreSQL instance was not run, and end-to-end login/browser tests remain out of scope for this CI run. Review role gating and external deployment configuration before public access.
+
+## Email verification & recovery extension (2026-10-17)
+- Added `emailVerifiedAt`, `sessionVersion`, and hashed expiring `ActionToken` records with PostgreSQL migration.
+- Added email activation, resend activation, forgot-password and password-reset screens and API endpoints.
+- Verification required for credentials sign-in; successful password reset invalidates prior JWT sessions using DB-backed session version.
+- Tokens are 32 random bytes, SHA-256 hashed at rest, purpose-bound, time-limited and one-use.
+- Provider: Resend, configured via `RESEND_API_KEY` and `EMAIL_FROM`. No credentials committed.
+- Per-user email link request throttling added (60 seconds); **IP-based global abuse protection still required before public deployment**.
+- CI run 39042608808 passed install, Prisma validation, tests, typecheck and build before final throttle change; recheck the latest commit.
+- **Integration work outstanding before production**: apply migrations to a provisioned PostgreSQL database, verify real email delivery, test registration/activation/reset end-to-end, and configure anti-abuse controls. No live capital flows enabled.
