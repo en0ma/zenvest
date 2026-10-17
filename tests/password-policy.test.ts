@@ -6,6 +6,7 @@ test("enforces required uppercase, number, symbol and length",()=>{
  assert.equal(isValidPassword("ab1!x"),false);
  assert.equal(isValidPassword("Abc!x"),false);
  assert.equal(isValidPassword("Ab123"),false);
- assert.equal(isValidPassword("A1!xx"+"x".repeat(68)),false);
+ assert.equal(isValidPassword("A1!xx"+"x".repeat(11)),false);
+ assert.equal(isValidPassword("A1!xx"+"x".repeat(10)),true);
  assert.equal(passwordChecks("Ab1!x").every(x=>x.passed),true);
 });
