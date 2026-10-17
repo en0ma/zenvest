@@ -1,26 +1,43 @@
-/** All amounts are minor units (kobo for NGN); never use floats for live monetary ledgers. */
+/** Demo accounting utility; amounts are integer minor units (kobo), not floating point. */
 export type TradeAllocation = Readonly<{ investorId: string; allocatedKobo: bigint; effectiveAt: number }>;
 export type TradeSnapshot = Readonly<{ tradeId: string; cutoffAt: number; allocations: readonly TradeAllocation[] }>;
-/** Largest remainder pro-rata distribution preserves the exact aggregate result, including losses. */
+
+/** Exact, deterministic pro-rata P&L. Only allocations effective by cutoff participate. */
 export function distributeTradePnl(snapshot: TradeSnapshot, netPnlKobo: bigint): Map<string, bigint> {
+  if (!snapshot.tradeId.trim()) throw new Error("Trade ID is required");
+  if (!Number.isSafeInteger(snapshot.cutoffAt) || snapshot.cutoffAt < 0) throw new Error("Invalid trade cutoff");
+  if (typeof netPnlKobo !== "bigint") throw new Error("P&L must be bigint");
+  const seen = new Set<string>();
+  for (const allocation of snapshot.allocations) {
+    if (!allocation.investorId.trim()) throw new Error("Investor ID is required");
+    if (seen.has(allocation.investorId)) throw new Error("Duplicate investor allocation");
+    seen.add(allocation.investorId);
+    if (typeof allocation.allocatedKobo !== "bigint" || allocation.allocatedKobo < 0n) throw new Error("Invalid allocated capital");
+    if (!Number.isSafeInteger(allocation.effectiveAt) || allocation.effectiveAt < 0) throw new Error("Invalid allocation effective time");
+  }
   const active = snapshot.allocations.filter(x => x.effectiveAt <= snapshot.cutoffAt && x.allocatedKobo > 0n);
-  if (new Set(active.map(x => x.investorId)).size !== active.length) throw new Error("Duplicate investor allocation");
-  const total = active.reduce((s, x) => s + x.allocatedKobo, 0n);
+  const total = active.reduce((sum, x) => sum + x.allocatedKobo, 0n);
   if (total === 0n) {
-    if (netPnlKobo !== 0n) throw new Error("Cannot distribute P&L without allocated funds");
+    if (netPnlKobo !== 0n) throw new Error("Cannot distribute nonzero P&L without eligible allocated capital");
     return new Map();
   }
   const negative = netPnlKobo < 0n;
   const magnitude = negative ? -netPnlKobo : netPnlKobo;
   const items = active.map(x => {
     const numerator = magnitude * x.allocatedKobo;
-    return { id: x.investorId, base: numerator / total, remainder: numerator % total };
+    return { id: x.investorId, amount: numerator / total, remainder: numerator % total };
   });
-  let leftover = magnitude - items.reduce((s, x) => s + x.base, 0n);
+  let leftover = magnitude - items.reduce((sum, x) => sum + x.amount, 0n);
   items.sort((a, b) => a.remainder === b.remainder ? a.id.localeCompare(b.id) : a.remainder > b.remainder ? -1 : 1);
-  for (const item of items) { if (leftover === 0n) break; item.base += 1n; leftover -= 1n; }
-  return new Map(items.map(x => [x.id, negative ? -x.base : x.base]));
+  for (const item of items) {
+    if (leftover === 0n) break;
+    item.amount++;
+    leftover--;
+  }
+  return new Map(items.map(x => [x.id, negative ? -x.amount : x.amount]));
 }
+
 export function formatNgn(kobo: number) {
-  return new Intl.NumberFormat("en-NG", {style:"currency", currency:"NGN", maximumFractionDigits:0}).format(kobo / 100);
+  if (!Number.isSafeInteger(kobo)) throw new Error("Amount must be an integer number of kobo");
+  return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(kobo / 100);
 }
