@@ -6,7 +6,9 @@ import { ArrowRight, BookOpen, ChartNoAxesCombined, CheckCircle2, ChevronRight, 
 
 export const faqs=[
  ["What is Zenvest?","Zenvest is building an investor platform for reporting capital allocations and the results of an independently operated, rules-based trading strategy in short-duration Bitcoin event markets. Account holders can review capital allocation and performance information."],
- ["Where could returns come from?","Potential gains arise when the underlying BTC 15-minute event-market positions settle profitably, net of applicable trading fees and costs. Unprofitable positions can reduce capital. These are trading profits or losses, not interest or a fixed yield."],
+ ["Where could returns come from?","The strategy looks for opportunities to acquire contracts on both YES and NO sides of short-duration Bitcoin event markets. The goal is for matched settlement payouts to exceed the combined acquisition cost and fees. Execution and settlement risks mean losses remain possible."],
+ ["Does the bot predict Bitcoin’s direction?","No. This is a two-sided, non-directional inventory strategy that aims to exploit favorable combined pricing, rather than bet solely on a YES or NO outcome."],
+ ["How is AI involved?","The strategy was developed with assistance from a frontier large language model. Execution follows trading rules and depends on market conditions; AI assistance does not guarantee results."],
  ["Is the return fixed or guaranteed?","No. There is no promised rate of return or guaranteed principal. Trading can lose some or all allocated capital, and execution, liquidity, counterparty and technology risks also apply."],
  ["When would funds participate in trading?","Only when explicitly allocated before the applicable trade cutoff and recorded in that trade's allocation snapshot. Funds arriving after a cutoff cannot share that earlier trade's outcome."],
  ["Do unallocated funds generate returns?","No. Unallocated capital is excluded from trade P&L. Estimated available funds reported by a trading bot are not the same as investor funds cleared for withdrawal."],
