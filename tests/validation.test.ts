@@ -3,7 +3,7 @@ import test from "node:test";
 import { registerSchema } from "../src/lib/validation.ts";
 
 test("normalizes investor email and name", () => {
- const parsed = registerSchema.parse({ name: "  Ada User  ", email: "  ADA@Example.COM ", password: "a-long-password-123" });
+ const parsed = registerSchema.parse({ name: "  Ada User  ", email: "  ADA@Example.COM ", password: "A-long-password-123!" });
  assert.equal(parsed.email, "ada@example.com");
  assert.equal(parsed.name, "Ada User");
 });
