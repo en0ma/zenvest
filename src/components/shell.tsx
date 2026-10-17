@@ -1,27 +1,26 @@
 import Link from "next/link";
 import { Signout } from "@/components/signout";
-import { LayoutDashboard, ArrowDownToLine, ArrowUpFromLine, ChartNoAxesCombined, Clock3, ShieldCheck, Wallet } from "lucide-react";
+import { LayoutDashboard, ArrowDownToLine, ArrowUpFromLine, Bot, ReceiptText, Wallet } from "lucide-react";
 export function Shell({ admin = false, preview = false, children }: {admin?:boolean;preview?:boolean;children:React.ReactNode}) {
   const nav = admin ? [
     {text:"Overview",href:"/admin",icon:LayoutDashboard},
     {text:"Investor account",href:"/dashboard",icon:Wallet},
   ] : [
-    {text:"Overview",href:"/dashboard",icon:LayoutDashboard},
-    {text:"Deposits",href:"/dashboard#deposits",icon:ArrowDownToLine},
-    {text:"Withdrawals",href:"/dashboard#withdrawals",icon:ArrowUpFromLine},
-    {text:"Allocations",href:"/dashboard#allocations",icon:ChartNoAxesCombined},
-    {text:"Activity",href:"/dashboard#activity",icon:Clock3},
- 
-  ];
+    {text:"Dashboard",href:"/dashboard",icon:LayoutDashboard},
+    {text:"Deposit",href:"/deposits",icon:ArrowDownToLine},
+    {text:"Transactions",href:"/transactions",icon:ReceiptText},
+    {text:"Withdrawal",href:"/withdrawals",icon:ArrowUpFromLine},
+    {text:"Bot",href:"/bot",icon:Bot},
+    ];
   const items = preview ? nav.map(item => ({ ...item, href: item.href.replace("/dashboard", "/preview/investor").replace("/admin", "/preview/admin") })) : nav;
   return <div className="min-h-screen lg:flex">
-    <aside className="bg-[#292725] text-white lg:w-64 p-7 lg:min-h-screen">
+    <aside className="bg-[#292725] text-white lg:w-64 p-5 sm:p-7 lg:min-h-screen">
       <Link href="/" className="text-3xl font-bold tracking-tight text-[#d6a16f]">zenvest<span className="text-white">.</span></Link>
       <p className="text-xs tracking-[.16em] text-white/50 uppercase mt-2">Investment Portal</p>
-      <nav className="mt-12 flex flex-wrap lg:flex-col gap-2">{items.map(({href,text,icon:Icon})=>
-        <Link key={text} href={href} className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm hover:bg-[#d6a16f]/20"><Icon size={17}/>{text}</Link>
+      <nav className="mt-7 lg:mt-12 flex flex-wrap lg:flex-col gap-2">{items.map(({href,text,icon:Icon})=>
+        <Link key={text} href={href} className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium hover:bg-[#d6a16f]/20 focus-visible:outline-2 focus-visible:outline-[#d6a16f]"><Icon size={17}/>{text}</Link>
       )}</nav>
-      {!preview && <Signout/>}<div className="mt-12 rounded-xl bg-white/10 p-4 text-xs leading-5 text-white/75">Account reporting only. Trading, funding and withdrawals are not currently enabled.</div>
+      {!preview && <Signout/>}<div className="mt-12 rounded-xl bg-white/10 p-4 text-xs leading-5 text-white/75">Portfolio and bot information is read-only. Funding and withdrawals are not yet enabled.</div>
     </aside>
     <main className="flex-1 min-w-0 px-5 py-8 sm:px-10 lg:px-12 lg:py-10 max-w-[1500px] mx-auto">{children}</main>
   </div>;
