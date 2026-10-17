@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   const { name, email, password } = parsed.data;
   const passwordHash = await bcrypt.hash(password, 12);
   try {
-    const user = await prisma.user.create({ data: { name, email, passwordHash, role: "INVESTOR" } });
+    const user = await prisma.user.create({ data: { name, email, passwordHash, role: "INVESTOR", portfolio: { create: { mode: "SANDBOX" } } } });
     try { const token = await issueToken(user.id,"VERIFY_EMAIL"); await sendAccountEmail(email,"Activate your Zenvest account","Activate your account using this link:",tokenLink("/verify-email",token)); } catch { console.error("Activation delivery failed; user can request another link"); }
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
