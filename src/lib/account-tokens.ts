@@ -15,7 +15,8 @@ export function tokenLink(path: string, token: string) {
 export async function issueToken(userId: string, purpose: TokenPurpose) {
  const token = makeToken();
  await prisma.$transaction(async tx => {
-  await tx.actionToken.deleteMany({where:{userId,purpose}});
+  if(purpose==="VERIFY_EMAIL") await tx.actionToken.updateMany({where:{userId,purpose,consumedAt:null},data:{expiresAt:new Date()}});
+  else await tx.actionToken.deleteMany({where:{userId,purpose}});
   await tx.actionToken.create({data:{userId,purpose,hash:digest(token),expiresAt:new Date(Date.now()+(purpose==="VERIFY_EMAIL"?24*60:30)*60*1000)}});
  });
  return token;
@@ -24,9 +25,9 @@ export async function consumeToken(token: string, purpose: TokenPurpose, passwor
  if (!/^[a-f0-9]{64}$/.test(token)) return false;
  return prisma.$transaction(async tx => {
   const record = await tx.actionToken.findUnique({where:{hash:digest(token)},include:{user:true}});
-  if (!record || record.purpose!==purpose || record.expiresAt.getTime() <= Date.now() || !record.user.isActive) return false;
-  const deleted = await tx.actionToken.deleteMany({where:{id:record.id,hash:record.hash}});
-  if (deleted.count!==1) return false;
+  if (!record || record.purpose!==purpose || record.expiresAt.getTime() <= Date.now() || record.consumedAt || !record.user.isActive) return false;
+  const updated = purpose==="VERIFY_EMAIL" ? await tx.actionToken.updateMany({where:{id:record.id,consumedAt:null},data:{consumedAt:new Date()}}) : await tx.actionToken.deleteMany({where:{id:record.id,hash:record.hash}});
+  if(updated.count!==1)return false;
   if (purpose==="VERIFY_EMAIL") await tx.user.update({where:{id:record.userId},data:{emailVerifiedAt:new Date()}});
   else {
    if (!passwordHash) throw new Error("Password hash required");
@@ -34,5 +35,20 @@ export async function consumeToken(token: string, purpose: TokenPurpose, passwor
    await tx.actionToken.deleteMany({where:{userId:record.userId,purpose:"RESET_PASSWORD"}});
   }
   return true;
+ });
+}
+
+/** Distinguish first activation, already verified accounts and invalid links without exposing accounts by email. */
+export async function activateEmailFromLink(token:string):Promise<{status:"activated"|"already_active";name:string}|null> {
+ if(!/^[a-f0-9]{64}$/.test(token))return null;
+ return prisma.$transaction(async tx=>{
+  const record=await tx.actionToken.findUnique({where:{hash:digest(token)},include:{user:true}});
+  if(!record||record.purpose!=="VERIFY_EMAIL"||!record.user.isActive)return null;
+  if(record.user.emailVerifiedAt)return {status:"already_active",name:record.user.name};
+  if(record.expiresAt.getTime()<=Date.now()||record.consumedAt)return null;
+  const updated=await tx.actionToken.updateMany({where:{id:record.id,consumedAt:null},data:{consumedAt:new Date()}});
+  if(updated.count!==1)return null;
+  await tx.user.update({where:{id:record.userId},data:{emailVerifiedAt:new Date()}});
+  return {status:"activated",name:record.user.name};
  });
 }
