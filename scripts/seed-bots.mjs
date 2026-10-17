@@ -17,13 +17,19 @@ try {
     }});
   }
   const snapshot = await prisma.activeBotTrade.findUnique({where:{botId}});
-  if (!snapshot) {
-    await prisma.activeBotTrade.create({data:{
-      botId, status:"MONITORING", eventTicker:"DEMO-BTC-15M",
+  const exampleData={
+      status:"MONITORING", eventTicker:"DEMO-BTC-15M",
       yesContracts:42, noContracts:27,
       yesCostUsdcMicros:12_600_000n, noCostUsdcMicros:8_100_000n,
       asOf:new Date("2020-01-01T00:00:00.000Z")
+    };
+  if (!snapshot) {
+    await prisma.activeBotTrade.create({data:{
+      botId, ...exampleData
     }});
+  } else if (snapshot.status==="OFFLINE" && snapshot.asOf.getTime()===exampleData.asOf.getTime() && !snapshot.eventTicker && snapshot.yesContracts===0 && snapshot.noContracts===0) {
+    // Upgrade only the exact earlier empty demo seed, never a genuine telemetry row.
+    await prisma.activeBotTrade.update({where:{botId},data:exampleData});
   }
   console.log("Demo bot and simulated active inventory seeded if absent:",botId);
 } finally {
