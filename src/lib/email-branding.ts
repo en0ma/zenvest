@@ -8,7 +8,7 @@ const eventLabels: Record<ZenvestEmailEvent,string> = {
  withdrawal_confirmed:"Withdrawal confirmed",
 };
 export function zenvestEmailSubject(event:ZenvestEmailEvent):string {
- return `Zenvest - ${eventLabels[event]}`;
+ return eventLabels[event];
 }
 /** Resend expects a formatted mailbox when a sender's display name is specified. */
 export function zenvestSender(configured:string):string {

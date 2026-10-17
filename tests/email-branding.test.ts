@@ -7,8 +7,8 @@ test("uses Zenvest as sender display name without changing verified mailbox",()=
  assert.throws(()=>zenvestSender("not-an-email"));
 });
 test("standardizes email subjects across event types",()=>{
- assert.equal(zenvestEmailSubject("account_activation"),"Zenvest - Account activation");
- assert.equal(zenvestEmailSubject("password_reset"),"Zenvest - Password reset");
- assert.equal(zenvestEmailSubject("deposit_confirmed"),"Zenvest - Deposit confirmed");
- assert.equal(zenvestEmailSubject("withdrawal_requested"),"Zenvest - Withdrawal requested");
+ assert.equal(zenvestEmailSubject("account_activation"),"Account activation");
+ assert.equal(zenvestEmailSubject("password_reset"),"Password reset");
+ assert.equal(zenvestEmailSubject("deposit_confirmed"),"Deposit confirmed");
+ assert.equal(zenvestEmailSubject("withdrawal_requested"),"Withdrawal requested");
 });

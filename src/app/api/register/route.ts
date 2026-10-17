@@ -22,9 +22,9 @@ export async function POST(request: Request) {
         await sendAccountEmail(email,zenvestEmailSubject("account_activation"),"Activate your account using this link:",tokenLink("/verify-email",token),existing.name);
       }
     } catch {console.error("Activation reissue failed")}
-    return NextResponse.json({ok:true,code:"CHECK_EMAIL",message:"If this address is awaiting activation, check your inbox or request another activation link."},{status:202});
+    return NextResponse.json({ok:true,code:"CHECK_EMAIL",message:"Check your inbox for your activation link."},{status:202});
   }
-  if (existing) return NextResponse.json({code:"ACCOUNT_EXISTS",error:"An account is associated with this email. Log in, reset your password, or resend activation."},{status:409});
+  if (existing) return NextResponse.json({code:"ACCOUNT_EXISTS",error:"An account already exists with this email. If this is your account, please log in."},{status:409});
   const passwordHash = await bcrypt.hash(password, 12);
   try {
     const user = await prisma.user.create({ data: { name, email, passwordHash, role: "INVESTOR", portfolio: { create: { mode: "SANDBOX" } } } });
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return NextResponse.json({ code:"ACCOUNT_EXISTS", error: "An account is associated with this email. Log in, reset your password, or resend activation." }, { status: 409 });
+      return NextResponse.json({ code:"ACCOUNT_EXISTS", error: "An account already exists with this email. If this is your account, please log in." }, { status: 409 });
     }
     console.error("Registration storage error");
     return NextResponse.json({ error: "Registration unavailable" }, { status: 503 });
