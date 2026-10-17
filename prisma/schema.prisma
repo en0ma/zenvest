@@ -98,5 +98,31 @@ model InvestorPortfolio {
   pendingDepositsKobo BigInt @default(0) @map("pending_deposits_kobo")
   pendingWithdrawalsKobo BigInt @default(0) @map("pending_withdrawals_kobo")
   updatedAt DateTime @updatedAt @map("updated_at")
+  activity InvestorActivity[]
   @@map("investor_portfolios")
+}
+
+enum InvestorActivityType {
+  DEPOSIT_REQUESTED
+  DEPOSIT_CONFIRMED
+  ALLOCATION
+  DEALLOCATION
+  TRADE_SETTLEMENT
+  WITHDRAWAL_REQUESTED
+  WITHDRAWAL_COMPLETED
+  ADJUSTMENT
+}
+
+model InvestorActivity {
+  id String @id @default(cuid())
+  portfolioId String @map("portfolio_id")
+  portfolio InvestorPortfolio @relation(fields:[portfolioId],references:[id],onDelete:Restrict)
+  type InvestorActivityType
+  amountKobo BigInt @map("amount_kobo")
+  reference String? @unique @db.VarChar(180)
+  description String @db.VarChar(320)
+  occurredAt DateTime @default(now()) @map("occurred_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([portfolioId,occurredAt])
+  @@map("investor_activity")
 }

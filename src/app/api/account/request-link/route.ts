@@ -12,12 +12,14 @@ export async function POST(request:Request){
  const generic={message:"If your account is eligible, an email will be sent."};
  try{
   const user=await prisma.user.findUnique({where:{email}});
-  if(user?.isActive && (purpose==="RESET_PASSWORD" || !user.emailVerifiedAt)){
-   const recent=await prisma.actionToken.findFirst({where:{userId:user.id,purpose,createdAt:{gt:new Date(Date.now()-60_000)}}});
+  if(user?.isActive){
+   const effectivePurpose = user.emailVerifiedAt ? purpose : "VERIFY_EMAIL";
+   if(effectivePurpose==="VERIFY_EMAIL" && user.emailVerifiedAt) return NextResponse.json(generic);
+   const recent=await prisma.actionToken.findFirst({where:{userId:user.id,purpose:effectivePurpose,createdAt:{gt:new Date(Date.now()-60_000)}}});
    if(recent) return NextResponse.json(generic);
-   const token=await issueToken(user.id,purpose);
-   const path=purpose==="VERIFY_EMAIL"?"/verify-email":"/reset-password";
-   await sendAccountEmail(user.email,purpose==="VERIFY_EMAIL"?"Verify your Zenvest email":"Reset your Zenvest password",purpose==="VERIFY_EMAIL"?"Activate your account using this link:":"Reset your password using this link:",tokenLink(path,token));
+   const token=await issueToken(user.id,effectivePurpose);
+   const path=effectivePurpose==="VERIFY_EMAIL"?"/verify-email":"/reset-password";
+   await sendAccountEmail(user.email,effectivePurpose==="VERIFY_EMAIL"?"Verify your Zenvest email":"Reset your Zenvest password",effectivePurpose==="VERIFY_EMAIL"?"Activate your account using this link:":"Reset your password using this link:",tokenLink(path,token));
   }
  }catch{console.error("Account email request failed")}
  return NextResponse.json(generic);
