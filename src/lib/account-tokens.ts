@@ -36,3 +36,16 @@ export async function consumeToken(token: string, purpose: TokenPurpose, passwor
   return true;
  });
 }
+
+/** Atomically activate a valid, unexpired verification token and return the account display name. */
+export async function activateEmailFromLink(token:string):Promise<string|null> {
+ if(!/^[a-f0-9]{64}$/.test(token))return null;
+ return prisma.$transaction(async tx=>{
+  const record=await tx.actionToken.findUnique({where:{hash:digest(token)},include:{user:true}});
+  if(!record||record.purpose!=="VERIFY_EMAIL"||record.expiresAt.getTime()<=Date.now()||!record.user.isActive)return null;
+  const deleted=await tx.actionToken.deleteMany({where:{id:record.id,hash:record.hash}});
+  if(deleted.count!==1)return null;
+  await tx.user.update({where:{id:record.userId},data:{emailVerifiedAt:new Date()}});
+  return record.user.name;
+ });
+}
