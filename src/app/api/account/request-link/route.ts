@@ -13,6 +13,8 @@ export async function POST(request:Request){
  try{
   const user=await prisma.user.findUnique({where:{email}});
   if(user?.isActive && (purpose==="RESET_PASSWORD" || !user.emailVerifiedAt)){
+   const recent=await prisma.actionToken.findFirst({where:{userId:user.id,purpose,createdAt:{gt:new Date(Date.now()-60_000)}}});
+   if(recent) return NextResponse.json(generic);
    const token=await issueToken(user.id,purpose);
    const path=purpose==="VERIFY_EMAIL"?"/verify-email":"/reset-password";
    await sendAccountEmail(user.email,purpose==="VERIFY_EMAIL"?"Verify your Zenvest email":"Reset your Zenvest password",purpose==="VERIFY_EMAIL"?"Activate your account using this link:":"Reset your password using this link:",tokenLink(path,token));
