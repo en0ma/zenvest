@@ -68,9 +68,19 @@ model BotStatus {
   @@map("bot_status")
 }
 
+/** Registered trading bots; each bot has at most one active market snapshot. */
+model Bot {
+  id String @id @db.VarChar(64)
+  name String @db.VarChar(120)
+  description String @db.VarChar(500)
+  activeTrade ActiveBotTrade?
+  @@map("bots")
+}
+
 /** Latest active 15-minute market snapshot: Python bot upserts by bot_id. */
 model ActiveBotTrade {
   botId String @id @map("bot_id") @db.VarChar(64)
+  bot Bot @relation(fields:[botId],references:[id],onDelete:Restrict)
   status BotRunState @default(OFFLINE)
   eventTicker String? @map("event_ticker") @db.VarChar(200)
   yesContracts Int @default(0) @map("yes_contracts")
