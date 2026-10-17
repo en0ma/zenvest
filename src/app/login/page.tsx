@@ -20,6 +20,6 @@ export default function Login() {
  <form className="mt-8 space-y-5" onSubmit={submit}><label className="block text-sm">Email<input autoComplete="email" required type="email" name="email" className="w-full mt-2 border rounded-lg px-4 py-3"/></label>
  <label className="block text-sm">Password<input required autoComplete="current-password" type="password" name="password" className="w-full mt-2 border rounded-lg px-4 py-3"/></label>
  {error&&<p role="alert" className="text-red-700 text-sm">{error}</p>}<button disabled={pending} className="w-full bg-forest text-white py-3 rounded-lg disabled:opacity-50">{pending?"Signing in...":"Sign in"}</button></form>
- <p className="mt-7 text-sm text-muted">No account? <Link className="text-forest font-semibold" href="/register">Register</Link></p><p className="mt-4 text-xs text-muted">Demo dashboards only. Real funds are not supported.</p>
+ <p className="mt-4 text-sm"><Link href="/forgot-password" className="text-forest underline">Forgot password?</Link> · <Link href="/resend-activation" className="text-forest underline">Resend activation</Link></p><p className="mt-7 text-sm text-muted">No account? <Link className="text-forest font-semibold" href="/register">Register</Link></p><p className="mt-4 text-xs text-muted">Demo dashboards only. Real funds are not supported.</p>
  </section></main>;
 }
