@@ -15,11 +15,11 @@ export function Shell({ admin = false, preview = false, children }: {admin?:bool
   ];
   const items = preview ? nav.map(item => ({ ...item, href: item.href.replace("/dashboard", "/preview/investor").replace("/admin", "/preview/admin") })) : nav;
   return <div className="min-h-screen lg:flex">
-    <aside className="bg-forest text-white lg:w-64 p-7 lg:min-h-screen">
-      <Link href="/" className="text-3xl font-bold tracking-tight text-mint">zenvest<span className="text-white">.</span></Link>
+    <aside className="bg-[#292725] text-white lg:w-64 p-7 lg:min-h-screen">
+      <Link href="/" className="text-3xl font-bold tracking-tight text-[#d6a16f]">zenvest<span className="text-white">.</span></Link>
       <p className="text-xs tracking-[.16em] text-white/50 uppercase mt-2">Investment Portal</p>
       <nav className="mt-12 flex flex-wrap lg:flex-col gap-2">{items.map(({href,text,icon:Icon})=>
-        <Link key={text} href={href} className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm hover:bg-white/10"><Icon size={17}/>{text}</Link>
+        <Link key={text} href={href} className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm hover:bg-[#d6a16f]/20"><Icon size={17}/>{text}</Link>
       )}</nav>
       {!preview && <Signout/>}<div className="mt-12 rounded-xl bg-white/10 p-4 text-xs leading-5 text-white/75">Account reporting only. Trading, funding and withdrawals are not currently enabled.</div>
     </aside>

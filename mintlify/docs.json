@@ -3,9 +3,9 @@
   "theme": "mint",
   "name": "Zenvest",
   "colors": {
-    "primary": "#08785D",
-    "light": "#16A27F",
-    "dark": "#0B5A45"
+    "primary": "#9C6139",
+    "light": "#B77D52",
+    "dark": "#D6A16F"
   },
   "navigation": {
     "tabs": [
