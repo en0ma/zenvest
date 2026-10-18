@@ -33,3 +33,11 @@
 The strategy section is visually subordinate to investor holdings. The dashboard retains reporting status and timestamps; demo records must not be construed as live executions. The mobile layout stacks each functional section naturally without horizontal scroll.
 
 Inspired by Stripe's strong typography, whitespace, and disciplined design systems, not Stripe's brand assets, specific product interface, or exact blurple palette.
+
+## Brand positioning and voice
+
+**Positioning:** Intelligent strategy. Transparent investing.
+
+**Homepage headline:** Capital. With context.
+
+Lead with the investor experience, clear portfolio reporting, and methodical capital allocation. Explain non-directional trading mechanics in the yield section rather than the hero. Use precise, measured copy rather than claims of institutional status, guaranteed performance, custody, or live funding infrastructure. Distinguish operational bot data from verified investor performance.
