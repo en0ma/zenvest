@@ -1,8 +1,8 @@
 import "server-only";
 
 export function blockradarConfig() {
-  const key = process.env.BLOCKRADAR_API_KEY;
-  const walletId = process.env.BLOCKRADAR_SOLANA_WALLET_ID;
+  const key = process.env.BLOCK_RADAR_API_KEY;
+  const walletId = process.env.BLOCK_RADAR_MASTER_WALLET_ID;
   if (!key || !walletId) throw new Error("Blockradar Solana wallet is not configured");
   return { key, walletId };
 }
