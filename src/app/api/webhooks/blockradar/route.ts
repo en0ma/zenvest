@@ -28,10 +28,6 @@ export async function POST(request: Request) {
   const log = (outcome: string, status: number, extra: Record<string, string | boolean | number> = {}) =>
     console.info(JSON.stringify({ component: "blockradar-webhook", requestId, outcome, status, durationMs: Date.now() - startedAt, ...extra }));
 
-  if (process.env.BLOCKRADAR_DEPOSITS_ENABLED !== "true") {
-    log("disabled", 503);
-    return NextResponse.json({ error: "Deposit processing disabled" }, { status: 503 });
-  }
   let apiKey: string, masterWalletId: string;
   try { const config = blockradarConfig(); apiKey = config.key; masterWalletId = config.walletId; }
   catch { log("unconfigured", 503); return NextResponse.json({ error: "Deposit processing unconfigured" }, { status: 503 }); }
@@ -56,6 +52,10 @@ export async function POST(request: Request) {
       console.error(JSON.stringify({component:"withdrawal-webhook",requestId,outcome:"processing_error",errorType:error instanceof Error?error.name:"unknown"}));
       return NextResponse.json({error:"Withdrawal processing unavailable"},{status:503});
     }
+  }
+  if (process.env.BLOCKRADAR_DEPOSITS_ENABLED !== "true") {
+    log("deposit_processing_disabled", 503);
+    return NextResponse.json({ error: "Deposit processing disabled" }, { status: 503 });
   }
   if (event.event !== "deposit.success") { log("ignored_event", 200); return NextResponse.json({ message: "success" }, { status: 200, headers: { "Cache-Control": "no-store" } }); }
   const data = event.data;
