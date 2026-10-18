@@ -35,3 +35,10 @@ summary::-webkit-details-marker{display:none}
  .zen-link:hover{text-decoration:underline}
 }
 :focus-visible{outline:2px solid var(--zen-focus);outline-offset:3px}
+
+/* Investment House editorial overlay and chapter rhythm. */
+.zen-editorial-nav{visibility:hidden;opacity:0;pointer-events:none;transition:opacity .22s ease,visibility .22s ease;}
+.zen-editorial-nav:target{visibility:visible;opacity:1;pointer-events:auto;}
+.zen-editorial-section{border-top:1px solid #DEE3ED;}
+.zen-editorial-index{font-variant-numeric:tabular-nums;letter-spacing:.14em;text-transform:uppercase;font-size:.7rem;color:#5145A8;font-weight:700;}
+@media(prefers-reduced-motion:reduce){.zen-editorial-nav{transition:none}}
