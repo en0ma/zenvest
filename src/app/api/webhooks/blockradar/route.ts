@@ -52,7 +52,7 @@ export async function POST(request: Request) {
   if (data.confirmed !== true || data.status !== "SUCCESS" || data.type !== "DEPOSIT" ||
     asset.symbol !== "USDC" || asset.address !== allowedMint || asset.decimals !== 6 ||
     typeof depositId !== "string" || typeof target !== "string" || typeof data.hash !== "string" ||
-    !amount || (network !== "mainnet" && network !== "mainnet-beta") ||
+    !amount || (network !== "devnet" && network !== "testnet") ||
     (addressRecord.address && addressRecord.address !== target)) {
     return NextResponse.json({ received: true, credited: false });
   }
