@@ -30,8 +30,8 @@ export async function GET(request:Request) {
     item=await prisma.$transaction(async tx=>{
       const first=await tx.investorWithdrawal.findFirst({where:{status:"PENDING"},orderBy:[{createdAt:"asc"},{id:"asc"}]});
       if(!first) return null;
-      const balance=await tx.masterWalletBalance.findUnique({where:{walletId}});
-      if(!balance || balance.confirmedUsdcMicros-balance.reservedUsdcMicros-balance.feeReserveUsdcMicros<first.amountUsdcMicros) return null;
+      const liquidity=await tx.$queryRaw<{funded:boolean}[]>`SELECT ("confirmed_usdc_micros" - "reserved_usdc_micros" - "fee_reserve_usdc_micros") >= ${first.amountUsdcMicros} AS funded FROM "master_wallet_balances" WHERE "wallet_id" = ${walletId}`;
+      if(!liquidity[0]?.funded) return null;
       const claim=await tx.investorWithdrawal.updateMany({where:{id:first.id,status:"PENDING"},data:{status:"PROCESSING"}});
       if(claim.count!==1) return null;
       await tx.masterWalletBalance.update({where:{walletId},data:{reservedUsdcMicros:{increment:first.amountUsdcMicros}}});
@@ -42,7 +42,8 @@ export async function GET(request:Request) {
     return json({error:"Queue claim failed"},503);
   }
   if(!item) return json({status:"idle_or_insufficient_master_liquidity"});
-  const amount=(item.amountUsdcMicros/1000000n).toString()+"."+(item.amountUsdcMicros%1000000n).toString().padStart(6,"0");
+  const digits=item.amountUsdcMicros.toString().padStart(7,"0");
+  const amount=digits.slice(0,-6)+"."+digits.slice(-6);
   const payload={assetId,address:item.destinationAddress,amount,reference:`zenvest-withdrawal:${item.id}`};
   try{
     // Failure before any broadcast is safe to requeue, but uncertain submissions
