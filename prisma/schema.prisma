@@ -241,6 +241,7 @@ model MasterWalletBalance {
   walletId String @id @map("wallet_id")
   confirmedUsdcMicros BigInt @default(0) @map("confirmed_usdc_micros")
   reservedUsdcMicros BigInt @default(0) @map("reserved_usdc_micros")
+  feeReserveUsdcMicros BigInt @default(0) @map("fee_reserve_usdc_micros")
   updatedAt DateTime @updatedAt @map("updated_at")
   @@map("master_wallet_balances")
 }
