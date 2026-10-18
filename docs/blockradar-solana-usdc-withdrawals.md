@@ -28,3 +28,12 @@ This feature is **disabled by default**. Do not enable in production until the m
 - This implementation provides an approval and send workflow; it does not include separate MFA, travel-rule checks, sanctions/AML screening, destination allowlists, withdrawal limits, or independent treasury reconciliation. These controls are required for an actual investor-funds production launch.
 
 API reference: https://docs.blockradar.co/en/use-cases/withdraw-stablecoins
+
+## Deposit availability: sweep-gated
+- `deposit.success` creates a `CONFIRMING` deposit and increases `pendingDepositsUsdcMicros` only. It does **not** make USDC withdrawable.
+- `deposit.swept.success` must carry the same provider deposit ID, original hash, verified mint/amount, and proof-of-sweep fields: `assetSwept: true`, `assetSweptHash`, `assetSweptSenderAddress` equal to the user's deposit address, and `assetSweptRecipientAddress` equal to the signed master-wallet address. On acceptance the deposit becomes `CONFIRMED`; pending decreases and deposited/unallocated increase atomically.
+- `deposit.swept.failed` is logged but never credits or refunds funds. Investigate and retry sweeping with Blockradar; no automatic availability change.
+- A `deposit.swept.success` notification arriving before `deposit.success` can create and confirm the deposit in one database transaction. Duplicate and out-of-order webhooks do not credit twice.
+- Existing credited deposit records migrate to `CONFIRMED` to prevent retroactive double crediting.
+- The deposit history UI displays `Confirming · awaiting sweep` separately from `Confirmed`.
+- **Operational gap:** a missing sweep-success notification can leave a deposit confirming indefinitely. Implement sweep-status reconciliation and alerting before deploying with real funds; Blockradar transaction history and signed webhook resends can be used for recovery.
