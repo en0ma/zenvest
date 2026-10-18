@@ -4,8 +4,8 @@ import { MarketingHeader, MarketingFooter } from "@/components/marketing";
 
 function WindowArtwork() {
  return <svg aria-hidden="true" viewBox="0 0 900 440" fill="none" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
-  <defs><linearGradient id={light?"windows-light":"windows-dark"} x1="0" y1="0" x2="900" y2="440" gradientUnits="userSpaceOnUse"><stop stopColor={light?"#FFFFFF":"#635BFF"}/><stop offset=".48" stopColor={light?"#C6C3FF":"#7F72FF"}/><stop offset="1" stopColor={light?"#92E0EE":"#2ABAD8"}/></linearGradient></defs>
-  {Array.from({length:12},(_,i)=><path key={i} d={`M ${-230+i*112} 520 C ${140+i*112} 420, ${-210+i*112} 110, ${170+i*112} -80`} stroke={`url(#${light?"windows-light":"windows-dark"})`} strokeWidth={i===5?20:9} strokeOpacity={i === 5 ? 0.9 : 0.36} strokeLinecap="round" className="zen-opportunity-window"/>)}
+  <defs><linearGradient id={"windows-dark"} x1="0" y1="0" x2="900" y2="440" gradientUnits="userSpaceOnUse"><stop stopColor={"#635BFF"}/><stop offset=".48" stopColor={"#7F72FF"}/><stop offset="1" stopColor={"#2ABAD8"}/></linearGradient></defs>
+  {Array.from({length:12},(_,i)=><path key={i} d={`M ${-230+i*112} 520 C ${140+i*112} 420, ${-210+i*112} 110, ${170+i*112} -80`} stroke={`url(#${"windows-dark"})`} strokeWidth={i===5?20:9} strokeOpacity={i === 5 ? 0.9 : 0.36} strokeLinecap="round" className="zen-opportunity-window"/>)}
  </svg>;
 }
 
