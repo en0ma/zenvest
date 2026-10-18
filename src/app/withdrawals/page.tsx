@@ -10,9 +10,11 @@ export const dynamic="force-dynamic";
 
 export default async function Withdrawals() {
   const user=await requireUser();
-  const [portfolio,records]=await Promise.all([
+  const [portfolio,records,deallocations]=await Promise.all([
     prisma.investorPortfolio.findUnique({where:{userId:user.id}}),
     prisma.investorWithdrawal.findMany({where:{userId:user.id},orderBy:{createdAt:"desc"},take:30}),
+    prisma.withdrawalDeallocation.findMany({where:{userId:user.id},orderBy:{createdAt:"desc"},take:30,
+      include:{withdrawal:{select:{status:true,destinationAddress:true}}}}),
   ]);
   const enabled=process.env.BLOCKRADAR_WITHDRAWALS_ENABLED==="true";
   const allocated=portfolio?.allocatedUsdcMicros??0n;
@@ -30,6 +32,22 @@ export default async function Withdrawals() {
     <section className="mt-6 rounded-2xl border border-[#E3E8EE] bg-white p-6">
       <div className="flex items-center gap-3"><ShieldCheck size={20} className="text-[#635BFF]"/><h2 className="text-xl font-semibold">Request a withdrawal</h2></div>
       {enabled?<WithdrawalForm balanceMicros={available.toString()}/>:<p className="mt-4 text-sm text-[#425466]">Withdrawal requests are not enabled yet.</p>}
+    </section>
+    <section className="mt-6 rounded-2xl border border-[#E3E8EE] bg-white p-6">
+      <h2 className="text-xl font-semibold">Deallocation requests</h2>
+      <p className="mt-2 text-sm text-[#425466]">Funds being returned from allocated capital. Completed deallocations increase unallocated capital independently of withdrawal payout status.</p>
+      {deallocations.length===0?<p className="mt-4 text-sm text-[#425466]">No deallocation requests.</p>:
+      <div className="mt-4 divide-y divide-[#E3E8EE]">
+        {deallocations.map(item=><div key={item.id} className="flex flex-wrap items-start justify-between gap-4 py-4">
+          <div>
+            <p className="font-semibold">{formatUsdc(item.amountUsdcMicros)} USDC deallocation</p>
+            <p className="mt-1 text-xs text-[#425466]">Requested {item.createdAt.toLocaleString("en-US",{timeZone:"UTC",dateStyle:"medium",timeStyle:"short"})} UTC</p>
+            <p className="mt-1 text-xs text-[#425466]">Related withdrawal: {item.withdrawal.status}</p>
+            {item.completedAt&&<p className="mt-1 text-xs text-[#425466]">Returned {item.completedAt.toLocaleString("en-US",{timeZone:"UTC",dateStyle:"medium",timeStyle:"short"})} UTC</p>}
+          </div>
+          <span className="rounded-full bg-[#F6F9FC] px-3 py-1 text-xs font-semibold">{item.status}</span>
+        </div>)}
+      </div>}
     </section>
     <section className="mt-6 rounded-2xl border border-[#E3E8EE] bg-white p-6">
       <h2 className="text-xl font-semibold">Withdrawal history</h2>
