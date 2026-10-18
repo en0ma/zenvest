@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowUpFromLine, Clock3, ShieldCheck } from "lucide-react";
 import { Shell } from "@/components/shell";
 import { PageIntro, BalanceTile } from "@/components/investor-ui";
-import { WithdrawalForm } from "@/components/withdrawal-actions";
+import { WithdrawalForm, CancelWithdrawal } from "@/components/withdrawal-actions";
 import { requireUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { formatUsdc } from "@/lib/usdc-money";
@@ -34,6 +34,7 @@ export default async function Withdrawals() {
               <p className="mt-1 break-all font-mono text-xs text-[#425466]">{record.destinationAddress}</p>
               <p className="mt-1 text-xs text-[#425466]">{record.createdAt.toLocaleString("en-US",{timeZone:"UTC",dateStyle:"medium",timeStyle:"short"})} UTC</p>
               {record.transactionHash&&<p className="mt-1 break-all font-mono text-xs text-[#425466]">Transaction: {record.transactionHash}</p>}
+              {record.status==="REQUESTED"&&<CancelWithdrawal id={record.id}/>}
             </div>
             <span className="rounded-full bg-[#F6F9FC] px-3 py-1 text-xs font-semibold">{record.status}</span>
           </div>)}
