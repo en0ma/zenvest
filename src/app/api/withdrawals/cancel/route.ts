@@ -23,10 +23,10 @@ export async function POST(request:Request) {
       });
       if(changed.count!==1) return false;
       const total=item.grossUsdcMicros;
+      await tx.withdrawalDeallocation.deleteMany({where:{withdrawalId:id,status:"PENDING"}});
       await tx.investorPortfolio.update({
         where:{id:item.portfolioId},
-        data:{pendingWithdrawalsUsdcMicros:{decrement:total},
-          unallocatedUsdcMicros:{increment:total}},
+        data:{pendingWithdrawalsUsdcMicros:{decrement:total}},
       });
       return true;
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
