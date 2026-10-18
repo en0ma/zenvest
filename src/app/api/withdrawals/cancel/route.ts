@@ -23,7 +23,7 @@ export async function POST(request:Request) {
       });
       if(changed.count!==1) return false;
       const total=item.grossUsdcMicros;
-      await tx.withdrawalDeallocation.deleteMany({where:{withdrawalId:id,status:"PENDING"}});
+      await tx.withdrawalDeallocation.updateMany({where:{withdrawalId:id,status:"PENDING"},data:{status:"FAILED"}});
       await tx.investorPortfolio.update({
         where:{id:item.portfolioId},
         data:{pendingWithdrawalsUsdcMicros:{decrement:total}},
