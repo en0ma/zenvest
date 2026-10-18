@@ -11,7 +11,6 @@ export const onRequestError: Instrumentation.onRequestError = (error, request, c
     method: request.method,
     routerKind: context.routerKind,
     routeType: context.routeType,
-    errorType: error.name ?? "Error",
-    digest: error.digest ?? null,
+    errorType: error instanceof Error ? error.name : "unknown",
   }));
 };
