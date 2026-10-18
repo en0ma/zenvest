@@ -37,18 +37,19 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
         ...(targetStatus === "COMPLETED" ? {completedAt:new Date()} : {failureCode:event})},
     });
     if (updated.count !== 1) return false;
+    const reservedTotal=item.amountUsdcMicros+item.feeUsdcMicros;
     await tx.investorPortfolio.update({
       where:{id:item.portfolioId},
       data:{
-        pendingWithdrawalsUsdcMicros:{decrement:item.amountUsdcMicros},
-        ...(targetStatus === "FAILED" ? {unallocatedUsdcMicros:{increment:item.amountUsdcMicros}} : {}),
+        pendingWithdrawalsUsdcMicros:{decrement:reservedTotal},
+        ...(targetStatus === "FAILED" ? {unallocatedUsdcMicros:{increment:reservedTotal}} : {}),
       },
     });
     if (targetStatus === "COMPLETED") {
       await tx.investorActivity.create({
         data:{portfolioId:item.portfolioId,type:"WITHDRAWAL_COMPLETED",amountKobo:0n,
           amountUsdcMicros:item.amountUsdcMicros,reference:`withdrawal:${id}:completed`,
-          description:"Confirmed Solana USDC withdrawal"},
+          description:`Confirmed Solana USDC withdrawal (fee: ${item.feeUsdcMicros.toString()} micros)`},
       });
     }
     return true;
