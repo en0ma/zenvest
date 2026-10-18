@@ -17,3 +17,21 @@ summary::-webkit-details-marker{display:none}
 .zen-name-suggestions>span:nth-child(3){animation-delay:6s}
 @keyframes zen-name-cycle{0%,30%{opacity:1}33.33%,100%{opacity:0}}
 @media(prefers-reduced-motion:reduce){.zen-name-suggestions>span{animation:none;opacity:0}.zen-name-suggestions>span:first-child{opacity:1}}
+
+/* Zenvest design system: restrained, functional and accessible. */
+:root{
+ --zen-ink:#14253D;--zen-accent:#5145A8;--zen-accent-soft:#EEECFB;
+ --zen-canvas:#F6F8FB;--zen-surface:#FFFFFF;--zen-border:#DEE3ED;
+ --zen-secondary:#52637B;--zen-focus:#5145A8;
+ --zen-radius:18px;--zen-shadow:0 12px 36px rgba(20,37,61,.045);
+}
+@layer components {
+ .zen-panel{@apply rounded-2xl border bg-white; border-color:var(--zen-border);box-shadow:var(--zen-shadow)}
+ .zen-eyebrow{@apply text-xs font-semibold uppercase tracking-widest; color:var(--zen-secondary)}
+ .zen-value{@apply font-semibold tracking-tight tabular-nums; color:var(--zen-ink)}
+ .zen-action{@apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors; background:var(--zen-accent);color:white}
+ .zen-action:hover{background:#42368C}
+ .zen-link{@apply text-sm font-semibold; color:var(--zen-accent)}
+ .zen-link:hover{text-decoration:underline}
+}
+:focus-visible{outline:2px solid var(--zen-focus);outline-offset:3px}
