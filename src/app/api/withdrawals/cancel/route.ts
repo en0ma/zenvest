@@ -22,7 +22,7 @@ export async function POST(request:Request) {
         data:{status:"FAILED",failureCode:"USER_CANCELLED"},
       });
       if(changed.count!==1) return false;
-      const total=item.amountUsdcMicros+item.feeUsdcMicros;
+      const total=item.grossUsdcMicros;
       await tx.investorPortfolio.update({
         where:{id:item.portfolioId},
         data:{pendingWithdrawalsUsdcMicros:{decrement:total},
