@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/internal/reconcile-blockradar",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}
