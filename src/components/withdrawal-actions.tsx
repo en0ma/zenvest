@@ -17,7 +17,7 @@ export function WithdrawalForm() {
       const response=await fetch("/api/withdrawals",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({amount,address})});
       const result=await response.json();
       if (!response.ok) throw new Error(result.error ?? "Withdrawal request failed");
-      setMessage("Withdrawal requested. It is awaiting review and will not be sent until approved.");
+      setMessage("Withdrawal queued. It will process automatically when the master wallet has enough available USDC.");
       setAmount("");setAddress("");router.refresh();
     } catch(error) {setMessage(error instanceof Error?error.message:"Withdrawal request failed");}
     finally {setSubmitting(false);}
@@ -30,7 +30,7 @@ export function WithdrawalForm() {
       <input required autoComplete="off" value={address} onChange={e=>setAddress(e.target.value.trim())} placeholder="Solana public address" className="mt-2 w-full rounded-xl border border-[#E3E8EE] px-4 py-3 font-mono text-sm" />
     </label>
     <p className="text-sm text-[#425466]">Withdrawal fee: {WITHDRAWAL_FEE_USDC} USDC. Your available balance is charged the payout amount plus the fee. The fee stays in Zenvest’s master wallet to help cover sweep and payout costs.</p>
-    <p className="text-xs text-[#425466]">Withdrawals are reviewed before sending. Only send to an address that can receive Solana USDC. Blockchain transfers cannot be reversed.</p>
+    <p className="text-xs text-[#425466]">Withdrawals are queued and processed automatically in request order when the master wallet has enough USDC. Only send to an address that can receive Solana USDC. Blockchain transfers cannot be reversed.</p>
     <button type="submit" disabled={submitting} className="rounded-xl bg-[#635BFF] px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{submitting?"Submitting...":"Request withdrawal"}</button>
     {message && <p role="status" className="text-sm text-[#425466]">{message}</p>}
   </form>;
