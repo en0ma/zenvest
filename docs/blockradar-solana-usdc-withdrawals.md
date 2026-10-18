@@ -37,3 +37,10 @@ API reference: https://docs.blockradar.co/en/use-cases/withdraw-stablecoins
 - Existing credited deposit records migrate to `CONFIRMED` to prevent retroactive double crediting.
 - The deposit history UI displays `Confirming · awaiting sweep` separately from `Confirmed`.
 - **Operational gap:** a missing sweep-success notification can leave a deposit confirming indefinitely. Implement sweep-status reconciliation and alerting before deploying with real funds; Blockradar transaction history and signed webhook resends can be used for recovery.
+
+## Fixed USDC withdrawal fee
+- The user enters the **net amount to receive**. Zenvest charges an additional **2.00 USDC fee**, so requesting 10.00 USDC to an external wallet reserves **12.00 USDC** of unallocated funds.
+- The outbound Blockradar master-wallet transfer is for **10.00 USDC**, not 12.00 USDC. The 2.00 USDC fee remains in the Zenvest master wallet as a treasury reserve to help fund SOL fees for sweeping and payouts. This fee is **not** a direct SOL gas payment or provider network-fee estimate; operations still must keep the master wallet funded with SOL.
+- The fee is stored on the withdrawal record (`feeUsdcMicros`) for an auditable snapshot. `pendingWithdrawalsUsdcMicros` reserves payout **plus** fee, while provider transaction/webhook amount comparisons use payout only.
+- On successful signed confirmation, pending withdrawal reserve is released and the fee stays in treasury. On definitive failure or user cancellation before approval, **payout plus fee** are restored to unallocated USDC. Uncertain outcomes remain reserved for manual review; no automatic refund or retry.
+- Both user and admin screens display payout, fee, and total charged before operations proceed. The amount field means **amount received**, not amount debited.
