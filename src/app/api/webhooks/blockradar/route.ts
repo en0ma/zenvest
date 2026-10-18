@@ -71,6 +71,12 @@ export async function POST(request: Request) {
   if (!mint) return NextResponse.json({error:"USDC mint not configured"},{status:503});
   const id=data.id, recipient=data.recipientAddress, hash=data.hash;
   const amount=parseUsdcMicros(data.amountPaid ?? data.amount);
+  // A failed sweep is an operational warning, never a reason to release funds.
+  // Preserve any existing CONFIRMING record and let later success finalize it.
+  if (event.event==="deposit.swept.failed") {
+    log("sweep_failed",200,{depositId:typeof id==="string"?id:"unknown"});
+    return NextResponse.json({message:"success"});
+  }
   const isSwept=event.event==="deposit.swept.success";
   const sweepAmount=parseUsdcMicros(data.assetSweptAmount);
   const sweepHash=data.assetSweptHash;
@@ -117,7 +123,7 @@ export async function POST(request: Request) {
           data:{pendingDepositsUsdcMicros:{increment:amount}}});
       }
       if (!isSwept) return prior.status==="CONFIRMED" ? "already_confirmed" :
-        event.event==="deposit.swept.failed" ? "sweep_failed" : "confirming";
+        "confirming";
       if (prior.status==="CONFIRMED") return "duplicate";
       const changed=await tx.blockchainDeposit.updateMany({
         where:{id:prior.id,status:"CONFIRMING"},
