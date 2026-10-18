@@ -34,7 +34,7 @@ export default async function Withdrawals() {
               <p className="mt-1 break-all font-mono text-xs text-[#425466]">{record.destinationAddress}</p>
               <p className="mt-1 text-xs text-[#425466]">{record.createdAt.toLocaleString("en-US",{timeZone:"UTC",dateStyle:"medium",timeStyle:"short"})} UTC</p>
               {record.transactionHash&&<p className="mt-1 break-all font-mono text-xs text-[#425466]">Transaction: {record.transactionHash}</p>}
-              {record.status==="REQUESTED"&&<CancelWithdrawal id={record.id}/>}
+              {record.status==="PENDING"&&<CancelWithdrawal id={record.id}/>}
             </div>
             <span className="rounded-full bg-[#F6F9FC] px-3 py-1 text-xs font-semibold">{record.status}</span>
           </div>)}
