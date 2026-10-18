@@ -4,14 +4,14 @@
 :root{color-scheme:light}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{background:#F6F8FB;color:#14253D;-webkit-font-smoothing:antialiased}
+body{background:#F7F7F5;color:#202721;-webkit-font-smoothing:antialiased}
 a{text-decoration:none}
 summary::-webkit-details-marker{display:none}
-::selection{background:#E6E6F3;color:#14253D}
+::selection{background:#E6E6F3;color:#202721}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 
 /* A subtle rotating example for choosing a display name. */
-.zen-name-suggestions{display:inline-grid;vertical-align:baseline;min-width:5.5rem;color:#14253D;font-weight:700}
+.zen-name-suggestions{display:inline-grid;vertical-align:baseline;min-width:5.5rem;color:#202721;font-weight:700}
 .zen-name-suggestions>span{grid-area:1/1;opacity:0;animation:zen-name-cycle 9s infinite}
 .zen-name-suggestions>span:nth-child(2){animation-delay:3s}
 .zen-name-suggestions>span:nth-child(3){animation-delay:6s}
@@ -20,9 +20,9 @@ summary::-webkit-details-marker{display:none}
 
 /* Zenvest design system: restrained, functional and accessible. */
 :root{
- --zen-ink:#14253D;--zen-accent:#5145A8;--zen-accent-soft:#EEECFB;
- --zen-canvas:#F6F8FB;--zen-surface:#FFFFFF;--zen-border:#DEE3ED;
- --zen-secondary:#52637B;--zen-focus:#5145A8;
+ --zen-ink:#202721;--zen-accent:#59715E;--zen-accent-soft:#EEECFB;
+ --zen-canvas:#F7F7F5;--zen-surface:#FFFFFF;--zen-border:#E1E6DF;
+ --zen-secondary:#646B63;--zen-focus:#59715E;
  --zen-radius:18px;--zen-shadow:0 12px 36px rgba(20,37,61,.045);
 }
 @layer components {
@@ -39,6 +39,6 @@ summary::-webkit-details-marker{display:none}
 /* Investment House editorial overlay and chapter rhythm. */
 .zen-editorial-nav{visibility:hidden;opacity:0;pointer-events:none;transition:opacity .22s ease,visibility .22s ease;}
 .zen-editorial-nav:target{visibility:visible;opacity:1;pointer-events:auto;}
-.zen-editorial-section{border-top:1px solid #DEE3ED;}
-.zen-editorial-index{font-variant-numeric:tabular-nums;letter-spacing:.14em;text-transform:uppercase;font-size:.7rem;color:#5145A8;font-weight:700;}
+.zen-editorial-section{border-top:1px solid #E1E6DF;}
+.zen-editorial-index{font-variant-numeric:tabular-nums;letter-spacing:.14em;text-transform:uppercase;font-size:.7rem;color:#59715E;font-weight:700;}
 @media(prefers-reduced-motion:reduce){.zen-editorial-nav{transition:none}}
