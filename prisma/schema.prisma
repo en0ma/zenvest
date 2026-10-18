@@ -221,6 +221,7 @@ model InvestorWithdrawal {
   portfolioId String @map("portfolio_id")
   portfolio InvestorPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Restrict)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
+  feeUsdcMicros BigInt @default(2000000) @map("fee_usdc_micros")
   destinationAddress String @map("destination_address") @db.VarChar(128)
   status WithdrawalStatus @default(REQUESTED)
   providerTransactionId String? @unique @map("provider_transaction_id") @db.VarChar(180)
