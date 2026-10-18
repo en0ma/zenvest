@@ -42,3 +42,12 @@ summary::-webkit-details-marker{display:none}
 .zen-editorial-section{border-top:1px solid #E1E6DF;}
 .zen-editorial-index{font-variant-numeric:tabular-nums;letter-spacing:.14em;text-transform:uppercase;font-size:.7rem;color:#59715E;font-weight:700;}
 @media(prefers-reduced-motion:reduce){.zen-editorial-nav{transition:none}}
+
+/* Homepage motion: subtle, purposeful, and reduced-motion-safe. */
+@keyframes zen-rise{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes zen-cycle{0%,100%{border-color:#B5C9B1;background:#EDF4EA}40%{border-color:#527657;background:#D5E5D1}}
+@keyframes zen-bar-grow{from{width:35%}to{width:75%}}
+.zen-float{animation:zen-rise 7s ease-in-out infinite}
+.zen-cycle-item{animation:zen-cycle 3.5s ease-in-out infinite}
+.zen-bar{animation:zen-bar-grow 2.2s ease-out both}
+@media(prefers-reduced-motion:reduce){.zen-float,.zen-cycle-item,.zen-bar{animation:none!important}}
