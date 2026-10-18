@@ -27,8 +27,8 @@ export async function POST(request: Request) {
   if (!amount || typeof address !== "string" || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))
     return NextResponse.json({error:"Enter a valid USDC amount and Solana address"},{status:400});
 
-  const total = amount + WITHDRAWAL_FEE_USDC_MICROS;
-  if (total > 9223372036854775807n) return NextResponse.json({error:"Amount too large"},{status:400});
+  if (amount <= WITHDRAWAL_FEE_USDC_MICROS) return NextResponse.json({error:"Amount must exceed the 2 USDC fee"},{status:400});
+  const net = amount - WITHDRAWAL_FEE_USDC_MICROS;
 
   try {
     const item = await prisma.$transaction(async tx => {
@@ -36,22 +36,22 @@ export async function POST(request: Request) {
       if (!portfolio) return null;
       // Conditional debit atomically reserves funds and prevents concurrent overdrafts.
       const debit = await tx.investorPortfolio.updateMany({
-        where:{id:portfolio.id,unallocatedUsdcMicros:{gte:total}},
-        data:{unallocatedUsdcMicros:{decrement:total},pendingWithdrawalsUsdcMicros:{increment:total}},
+        where:{id:portfolio.id,unallocatedUsdcMicros:{gte:amount}},
+        data:{unallocatedUsdcMicros:{decrement:amount},pendingWithdrawalsUsdcMicros:{increment:amount}},
       });
       if (debit.count !== 1) return null;
       const withdrawal = await tx.investorWithdrawal.create({
-        data:{userId:user.id,portfolioId:portfolio.id,amountUsdcMicros:amount,feeUsdcMicros:WITHDRAWAL_FEE_USDC_MICROS,destinationAddress:address,status:"PENDING"},
+        data:{userId:user.id,portfolioId:portfolio.id,amountUsdcMicros:net,grossUsdcMicros:amount,asset:"USDC",feeUsdcMicros:WITHDRAWAL_FEE_USDC_MICROS,destinationAddress:address,status:"PENDING"},
       });
       await tx.investorActivity.create({
-        data:{portfolioId:portfolio.id,type:"WITHDRAWAL_REQUESTED",amountKobo:0n,amountUsdcMicros:total,
+        data:{portfolioId:portfolio.id,type:"WITHDRAWAL_REQUESTED",amountKobo:0n,amountUsdcMicros:amount,
           reference:`withdrawal:${withdrawal.id}:requested`,description:"Solana USDC withdrawal requested"},
       });
       return withdrawal;
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
     if (!item) return NextResponse.json({error:"Insufficient available unallocated USDC"},{status:409});
     console.info(JSON.stringify({component:"withdrawal",outcome:"requested",userId:user.id,withdrawalId:item.id}));
-    return NextResponse.json({id:item.id,status:item.status,amount:item.amountUsdcMicros.toString(),fee:item.feeUsdcMicros.toString()},{status:201});
+    return NextResponse.json({id:item.id,status:item.status,gross:item.grossUsdcMicros.toString(),net:item.amountUsdcMicros.toString(),fee:item.feeUsdcMicros.toString()},{status:201});
   } catch (error) {
     console.error(JSON.stringify({component:"withdrawal",outcome:"request_failed",userId:user.id,errorType:error instanceof Error?error.name:"unknown"}));
     return NextResponse.json({error:"Unable to request withdrawal; retry later"},{status:503});
