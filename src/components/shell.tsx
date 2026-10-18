@@ -1,19 +1,18 @@
 import Link from "next/link";
 import { AutoCloseDetails } from "@/components/auto-close-details";
 import { Signout } from "@/components/signout";
-import { LayoutDashboard, ArrowDownToLine, ArrowUpFromLine, Bot, Menu, ReceiptText, Settings, Wallet } from "lucide-react";
+import { LayoutDashboard, Menu, ReceiptText, Settings, Wallet, ChartNoAxesCombined } from "lucide-react";
 export function Shell({ admin = false, preview = false, children }: {admin?:boolean;preview?:boolean;children:React.ReactNode}) {
   const nav = admin ? [
     {text:"Overview",href:"/admin",icon:LayoutDashboard},
     {text:"Investor account",href:"/dashboard",icon:Wallet},
   ] : [
-    {text:"Dashboard",href:"/dashboard",icon:LayoutDashboard},
-    {text:"Deposit",href:"/deposits",icon:ArrowDownToLine},
-    {text:"Transactions",href:"/transactions",icon:ReceiptText},
-    {text:"Withdrawal",href:"/withdrawals",icon:ArrowUpFromLine},
-    {text:"Bot",href:"/bot",icon:Bot},
+    {text:"Overview",href:"/dashboard",icon:LayoutDashboard},
+    {text:"Wallet",href:"/wallet",icon:Wallet},
+    {text:"Activity",href:"/transactions",icon:ReceiptText},
+    {text:"Strategy",href:"/bot",icon:ChartNoAxesCombined},
     {text:"Settings",href:"/settings",icon:Settings},
-    ];
+  ];
   const items = preview ? nav.map(item => ({ ...item, href: item.href.replace("/dashboard", "/preview/investor").replace("/admin", "/preview/admin") })) : nav;
   return <div className="min-h-screen lg:flex bg-[#F6F8FB]">
     <header className="relative z-40 flex lg:hidden items-center justify-between h-[76px] border-b border-[#E6E9F1] bg-white px-5 sm:px-7">
@@ -31,6 +30,7 @@ export function Shell({ admin = false, preview = false, children }: {admin?:bool
       <nav aria-label="Investor sidebar" className="mt-12 flex flex-col gap-2">{items.map(({href,text,icon:Icon})=><Link key={text} href={href} className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium hover:bg-[#B5ACF2]/20 focus-visible:outline-2 focus-visible:outline-[#B5ACF2]"><Icon size={17}/>{text}</Link>)}</nav>
       {!preview&&<Signout/>}
     </aside>
-    <main className="flex-1 min-w-0 px-5 py-8 sm:px-10 lg:px-12 lg:py-10 max-w-[1500px] mx-auto">{children}</main>
+    <nav aria-label="Mobile investor navigation" className="fixed bottom-0 inset-x-0 z-40 grid grid-cols-5 border-t border-[#DEE3ED] bg-white/95 backdrop-blur lg:hidden pb-[env(safe-area-inset-bottom)]">{items.map(({href,text,icon:Icon})=><Link key={text} href={href} className="flex min-w-0 flex-col items-center gap-1 px-1 py-3 text-[10px] font-medium text-[#52637B] hover:text-[#5145A8] focus-visible:bg-[#EEECFB]"><Icon size={20}/><span className="truncate">{text}</span></Link>)}</nav>
+    <main className="flex-1 min-w-0 px-5 py-8 sm:px-10 lg:px-12 lg:py-10 max-w-[1500px] mx-auto pb-28 lg:pb-10">{children}</main>
   </div>;
 }
