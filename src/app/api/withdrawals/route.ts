@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       });
       if (debit.count !== 1) return null;
       const withdrawal = await tx.investorWithdrawal.create({
-        data:{userId:user.id,portfolioId:portfolio.id,amountUsdcMicros:amount,feeUsdcMicros:WITHDRAWAL_FEE_USDC_MICROS,destinationAddress:address},
+        data:{userId:user.id,portfolioId:portfolio.id,amountUsdcMicros:amount,feeUsdcMicros:WITHDRAWAL_FEE_USDC_MICROS,destinationAddress:address,status:"PENDING"},
       });
       await tx.investorActivity.create({
         data:{portfolioId:portfolio.id,type:"WITHDRAWAL_REQUESTED",amountKobo:0n,amountUsdcMicros:total,
