@@ -31,7 +31,7 @@ export async function GET(request:Request) {
       const first=await tx.investorWithdrawal.findFirst({where:{status:"PENDING"},orderBy:[{createdAt:"asc"},{id:"asc"}]});
       if(!first) return null;
       const balance=await tx.masterWalletBalance.findUnique({where:{walletId}});
-      if(!balance || balance.confirmedUsdcMicros-balance.reservedUsdcMicros<first.amountUsdcMicros) return null;
+      if(!balance || balance.confirmedUsdcMicros-balance.reservedUsdcMicros-balance.feeReserveUsdcMicros<first.amountUsdcMicros) return null;
       const claim=await tx.investorWithdrawal.updateMany({where:{id:first.id,status:"PENDING"},data:{status:"PROCESSING"}});
       if(claim.count!==1) return null;
       await tx.masterWalletBalance.update({where:{walletId},data:{reservedUsdcMicros:{increment:first.amountUsdcMicros}}});
