@@ -44,10 +44,10 @@ summary::-webkit-details-marker{display:none}
 @media(prefers-reduced-motion:reduce){.zen-editorial-nav{transition:none}}
 
 /* Homepage motion: subtle, purposeful, and reduced-motion-safe. */
-@keyframes zen-rise{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes zen-rise{0%,100%{transform:translateY(0)}50%{transform:translateY(-24px)}}
 @keyframes zen-cycle{0%,100%{border-color:#B5C9B1;background:#EDF4EA}40%{border-color:#527657;background:#D5E5D1}}
 @keyframes zen-bar-grow{from{width:35%}to{width:75%}}
-.zen-float{animation:zen-rise 7s ease-in-out infinite}
+.zen-float{animation:zen-rise 4.2s ease-in-out infinite}
 .zen-cycle-item{animation:zen-cycle 3.5s ease-in-out infinite}
 .zen-bar{animation:zen-bar-grow 2.2s ease-out both}
 @media(prefers-reduced-motion:reduce){.zen-float,.zen-cycle-item,.zen-bar{animation:none!important}}
