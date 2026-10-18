@@ -24,7 +24,8 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
     data.recipientAddress !== item.destinationAddress || !validAmount ||
     (item.providerTransactionId && item.providerTransactionId !== transactionId)) return "mismatch";
 
-  if (event === "withdraw.success" && (data.status !== "SUCCESS" || data.confirmed !== true)) return "unconfirmed";
+  // Blockradar documents withdraw.success as chain-confirmed; its example payload omits confirmed.
+  if (event === "withdraw.success" && (data.status !== "SUCCESS" || data.confirmed === false || typeof data.hash !== "string")) return "unconfirmed";
   if (event !== "withdraw.success" && data.status !== "FAILED" && data.status !== "CANCELLED") return "unconfirmed";
   const result = await prisma.$transaction(async tx => {
     const targetStatus = event === "withdraw.success" ? "COMPLETED" : "FAILED";
