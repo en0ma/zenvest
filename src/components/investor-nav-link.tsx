@@ -2,17 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
+import { LayoutDashboard, ReceiptText, Settings, Wallet, ChartNoAxesCombined } from "lucide-react";
 
 type InvestorNavLinkProps = {
   href: string;
   text: string;
-  icon: LucideIcon;
   variant: "mobile" | "sidebar" | "menu";
 };
 
 export function InvestorNavLink({ href, text, icon: Icon, variant }: InvestorNavLinkProps) {
   const pathname = usePathname();
+  const icons = { Overview: LayoutDashboard, "Investor account": Wallet, Wallet, Activity: ReceiptText, Strategy: ChartNoAxesCombined, Settings };
+  const Icon = icons[text as keyof typeof icons] ?? LayoutDashboard;
   const active = pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
   const base = variant === "mobile"
     ? "flex min-w-0 flex-col items-center gap-1 px-1 py-3 text-[10px] font-medium focus-visible:bg-[#EEF2FF]"
