@@ -46,7 +46,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
         ...(targetStatus === "FAILED" ? {unallocatedUsdcMicros:{increment:reservedTotal}} : {}),
       },
     });
-    if (targetStatus === "COMPLETED") {
+    if (targetStatus === "SUCCESS") {
       await tx.investorActivity.create({
         data:{portfolioId:item.portfolioId,type:"WITHDRAWAL_COMPLETED",amountKobo:0n,
           amountUsdcMicros:item.amountUsdcMicros,reference:`withdrawal:${id}:completed`,
