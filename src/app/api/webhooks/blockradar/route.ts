@@ -127,7 +127,7 @@ export async function POST(request: Request) {
       if (prior.status==="CONFIRMED") return "duplicate";
       const changed=await tx.blockchainDeposit.updateMany({
         where:{id:prior.id,status:"CONFIRMING"},
-        data:{status:"CONFIRMED",sweepHash,creditedAt:new Date()},
+        data:{status:"CONFIRMED",sweepHash:sweepHash as string,creditedAt:new Date()},
       });
       if(changed.count!==1) return "duplicate";
       await tx.investorPortfolio.update({where:{id:portfolio.id},
