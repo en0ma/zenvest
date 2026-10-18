@@ -206,6 +206,8 @@ model BlockchainDeposit {
 }
 
 enum WithdrawalStatus {
+  PROCESSING
+  SUCCESS
   REQUESTED
   SUBMITTING
   PENDING
