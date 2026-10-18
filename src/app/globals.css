@@ -51,12 +51,3 @@ summary::-webkit-details-marker{display:none}
 .zen-cycle-item{animation:zen-cycle 3.5s ease-in-out infinite}
 .zen-bar{animation:zen-bar-grow 2.2s ease-out both}
 @media(prefers-reduced-motion:reduce){.zen-float,.zen-cycle-item,.zen-bar{animation:none!important}}
-
-/* Visible market-rhythm motion: no scripting or layout shifts. */
-@keyframes zen-glow{0%,100%{box-shadow:0 0 0 0 rgba(188,224,184,.18)}50%{box-shadow:0 0 0 9px rgba(188,224,184,0)}}
-@keyframes zen-gentle-spin{to{transform:rotate(360deg)}}
-@keyframes zen-card-wake{0%,100%{border-color:#D0DED0;transform:translateY(0)}45%{border-color:#7EA181;transform:translateY(-5px)}}
-.zen-pulse{animation:zen-glow 3s ease-in-out infinite}
-.zen-spin-slow{animation:zen-gentle-spin 20s linear infinite}
-.zen-sequence-item{animation:zen-card-wake 5s ease-in-out infinite}
-@media(prefers-reduced-motion:reduce){.zen-pulse,.zen-spin-slow,.zen-sequence-item{animation:none!important}}
