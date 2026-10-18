@@ -10,7 +10,7 @@ type InvestorNavLinkProps = {
   variant: "mobile" | "sidebar" | "menu";
 };
 
-export function InvestorNavLink({ href, text, icon: Icon, variant }: InvestorNavLinkProps) {
+export function InvestorNavLink({ href, text, variant }: InvestorNavLinkProps) {
   const pathname = usePathname();
   const icons = { Overview: LayoutDashboard, "Investor account": Wallet, Wallet, Activity: ReceiptText, Strategy: ChartNoAxesCombined, Settings };
   const Icon = icons[text as keyof typeof icons] ?? LayoutDashboard;
