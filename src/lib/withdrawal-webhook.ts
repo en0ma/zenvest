@@ -28,16 +28,17 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
   if (event === "withdraw.success" && (data.status !== "SUCCESS" || data.confirmed === false || typeof data.hash !== "string")) return "unconfirmed";
   if (event !== "withdraw.success" && data.status !== "FAILED" && data.status !== "CANCELLED") return "unconfirmed";
   const result = await prisma.$transaction(async tx => {
-    const targetStatus = event === "withdraw.success" ? "COMPLETED" : "FAILED";
+    const targetStatus = event === "withdraw.success" ? "SUCCESS" : "FAILED";
     // Conditional transition makes duplicate webhooks harmless.
     const updated = await tx.investorWithdrawal.updateMany({
-      where:{id,status:{in:["SUBMITTING","PENDING","REVIEW"]}},
+      where:{id,status:{in:["PROCESSING","REVIEW"]}},
       data:{status:targetStatus,providerTransactionId:transactionId,
         transactionHash:typeof data.hash === "string" ? data.hash : item.transactionHash,
-        ...(targetStatus === "COMPLETED" ? {completedAt:new Date()} : {failureCode:event})},
+        ...(targetStatus === "SUCCESS" ? {completedAt:new Date()} : {failureCode:event})},
     });
     if (updated.count !== 1) return false;
     const reservedTotal=item.amountUsdcMicros+item.feeUsdcMicros;
+    await tx.masterWalletBalance.update({where:{walletId:masterWalletId},data:{reservedUsdcMicros:{decrement:item.amountUsdcMicros},...(targetStatus==="SUCCESS"?{confirmedUsdcMicros:{decrement:item.amountUsdcMicros}}:{})}});
     await tx.investorPortfolio.update({
       where:{id:item.portfolioId},
       data:{
