@@ -4,8 +4,8 @@ This feature branch adds dedicated deposit-address activation and a provider-aut
 
 ## Server environment
 
-- `BLOCKRADAR_API_KEY`: secret Blockradar key for the Solana master wallet. Never expose to the client.
-- `BLOCKRADAR_SOLANA_WALLET_ID`: exact Solana master wallet ID.
+- `BLOCK_RADAR_API_KEY`: secret Blockradar key for the Solana master wallet. Never expose to the client.
+- `BLOCK_RADAR_MASTER_WALLET_ID`: exact Solana master wallet ID.
 - `BLOCKRADAR_SOLANA_USDC_MINT`: exact supported USDC mint from the configured network, matched against the deposit webhook asset address.
 - `BLOCKRADAR_DEPOSITS_ENABLED`: leave unset or `false` until approved for use.
 
