@@ -6,13 +6,11 @@ This is the current visual implementation guide for the **Opportunity Engine** d
 ## Product and voice
 Zenvest is an approachable investor experience for exploring systematic opportunities in 15-minute Bitcoin event markets. It is **not** a trading terminal, a directional Bitcoin forecast service, or a guaranteed-yield product. The separate trading system reports operational telemetry; per-investor accounting requires independently reconciled records. Never portray seeded/demo telemetry, intended reinvestment, custody, or unimplemented deposits/withdrawals as live financial results.
 
-## Locked marketing and navigation
-- Hero: **“More investors are seeking more ways to grow.”**
-- Supporting copy: **“Zenvest opens access to a new kind of opportunity through a simple platform designed for investing, not complex trading.”**
-- Public navigation: The idea / Why it's different / Log in / Get started.
-- Footer: **“Exploring new investment opportunities in fast-moving markets.”**
-- Keep existing section sequence, investment proposition and dedicated risk section. Do not add standalone diagram sections, repeated cards or icon strips without approval.
-- Audience includes first-time investors, stock investors, crypto traders, and people interested in “sports betting and predictions.”
+## Approved content; flexible navigation and structure
+Keep the approved hero headline, supporting copy, the investment-opportunity story, and the narrative sequence. The old layout, navigation composition, card systems, and visual treatments are **not** constraints. Public navigation may evolve to fit the design as long as login, registration, and content discovery remain accessible. Keep the dedicated risk section; no repeated risk warnings, principal-loss disclaimers or readiness notices through the hero, approach, final CTA, and footer. Preserve financial truthfulness.
+
+## Unique visual compositions
+Use distinct art direction for each chapter. Do **not** recycle the same curves, graphs, cards, or product screenshot in multiple sections. Put the actual account-interface visual in the experience chapter only. Standard portal abilities such as depositing, monitoring, or viewing balances are baseline usability—not differentiators. Keep descriptive copy focused on the opportunity.
 
 ## Visual system
 | Role | Token | Value |
