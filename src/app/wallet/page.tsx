@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import QRCode from "qrcode";
-import { ArrowDownToLine, ArrowUpFromLine, ArrowUpRight, Wallet } from "lucide-react";
+import { ArrowUpFromLine, ArrowUpRight } from "lucide-react";
 import { Shell } from "@/components/shell";
 import { requireUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
@@ -30,19 +30,20 @@ export default async function WalletPage(){
     <p className="text-sm text-[#425466]">Activate your wallet to receive a dedicated Solana USDC deposit address.</p>
     <ActivateDepositWallet/>
    </div>}
-  </section>
-  <section className="mt-8 rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
-   <h2 className="text-2xl font-semibold tracking-tight">Deposit history</h2>
+   <div className="mt-10 border-t border-[#E3E8EE] pt-7">
+   <h3 className="text-lg font-semibold tracking-tight">Recent deposits</h3>
    {history.length === 0 ? <p className="mt-4 text-sm text-[#425466]">No confirmed USDC deposits yet.</p> : <div className="mt-5 divide-y divide-[#E3E8EE]">
     {history.map(item=><div key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
      <div><p className="font-semibold">USDC deposit</p><p className="mt-1 text-xs text-[#425466]">{item.creditedAt ? new Date(item.creditedAt).toLocaleString("en-US",{timeZone:"UTC",dateStyle:"medium",timeStyle:"short"})+" UTC" : "Awaiting confirmation"}</p><p className="mt-1 max-w-[240px] truncate font-mono text-xs text-[#425466]" title={item.transactionHash}>{item.transactionHash}</p></div>
      <div className="text-right"><p className="font-semibold text-[#0A2540]">+{formatUsdc(item.amountUsdcMicros)}</p><p className="mt-1 text-xs text-[#425466]">{item.creditedAt ? "Confirmed" : "Processing"}</p></div>
     </div>)}
    </div>}
+   </div>
   </section>
-  <div className="mt-12 grid gap-8 sm:grid-cols-2">
-   <Link href="/deposits" className="group flex flex-col justify-between gap-7 rounded-2xl border border-[#E3E8EE] bg-white p-7 hover:border-[#B8C6B8]"><div><ArrowDownToLine className="text-[#635BFF]" size={23}/><h2 className="mt-5 text-xl font-semibold">Deposit USDC</h2><p className="mt-2 text-sm leading-6 text-[#425466]">View recorded deposits and funding availability.</p></div><span className="zen-link">View deposits <ArrowUpRight size={16} className="inline"/></span></Link>
-   <Link href="/withdrawals" className="zen-panel group flex flex-col justify-between gap-7 p-6 transition-shadow hover:shadow-lg"><div><ArrowUpFromLine className="text-[#635BFF]" size={23}/><h2 className="mt-5 text-xl font-semibold">Withdraw USDC</h2><p className="mt-2 text-sm leading-6 text-[#425466]">Review withdrawal records and eligibility.</p></div><span className="zen-link">View withdrawals <ArrowUpRight size={16} className="inline"/></span></Link>
+  <div className="mt-8">
+   <Link href="/withdrawals" className="flex items-center justify-between gap-4 rounded-2xl border border-[#E3E8EE] bg-white px-6 py-5 transition-colors hover:border-[#B9C7DB]">
+    <span className="flex items-center gap-3"><ArrowUpFromLine className="text-[#635BFF]" size={20}/><span><span className="block text-base font-semibold">Withdrawals</span><span className="mt-1 block text-sm text-[#425466]">View withdrawal status and availability</span></span></span><ArrowUpRight size={18} className="shrink-0 text-[#635BFF]"/>
+   </Link>
   </div>
  </div></Shell>;
 }
