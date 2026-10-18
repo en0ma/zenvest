@@ -130,6 +130,7 @@ export async function POST(request: Request) {
         data:{status:"CONFIRMED",sweepHash:sweepHash as string,creditedAt:new Date()},
       });
       if(changed.count!==1) return "duplicate";
+      await tx.masterWalletBalance.upsert({where:{walletId:masterWalletId},create:{walletId:masterWalletId,confirmedUsdcMicros:amount},update:{confirmedUsdcMicros:{increment:amount}}});
       await tx.investorPortfolio.update({where:{id:portfolio.id},
         data:{pendingDepositsUsdcMicros:{decrement:amount},
           depositedUsdcMicros:{increment:amount},unallocatedUsdcMicros:{increment:amount}}});
