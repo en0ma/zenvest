@@ -3,7 +3,7 @@
 This feature is **disabled by default**. Do not enable in production until the migration, verified admin access, Blockradar test-mode payout, webhook signature verification, and reconciliation tests have succeeded.
 
 ## Configuration
-- `BLOCKRADAR_WITHDRAWALS_ENABLED=true` enables withdrawal requests, admin broadcast, and withdrawal webhook processing. Omit or set to `false` until ready.
+- `BLOCKRADAR_WITHDRAWALS_ENABLED=true` enables new withdrawal requests and admin broadcast. Omit or set to `false` until ready. Signed settlement webhooks for existing payouts continue even if new withdrawal requests are paused.
 - `BLOCKRADAR_SOLANA_USDC_ASSET_ID` is the Blockradar **asset UUID** for the Solana USDC asset on the *same wallet/network* as `BLOCK_RADAR_MASTER_WALLET_ID`. It is **not** the Solana token mint. For the sample testnet webhook, the asset UUID is `1d67218b-a685-4156-a573-9f4aefc654b6`; verify it in the Blockradar dashboard before configuring.
 - Existing `BLOCK_RADAR_API_KEY`, `BLOCK_RADAR_MASTER_WALLET_ID` and `BLOCKRADAR_SOLANA_USDC_MINT` remain required.
 - Apply `prisma migrate deploy` before setting the flag.
@@ -11,9 +11,10 @@ This feature is **disabled by default**. Do not enable in production until the m
 ## Flow
 1. Authenticated user opens `/withdrawals`, provides an amount in USDC and a Solana destination address.
 2. `POST /api/withdrawals` checks unallocated funds and **atomically reserves** the amount by decrementing unallocated and incrementing pending withdrawals. A request is `REQUESTED` and makes **no external transfer**.
-3. An authenticated `ADMIN` reviews `/admin/withdrawals`. Approval calls `POST /api/admin/withdrawals/execute` with `{"id":"<withdrawalId>"}`. The server estimates network fees, claims the request exactly once, and submits to Blockradar's `POST /v1/wallets/{walletId}/withdraw`.
-4. The reference `zenvest-withdrawal:<withdrawalId>` correlates the broadcast with the signed `withdraw.success` / `withdraw.failed` / `withdraw.cancelled` webhook. Successful confirmed completion clears the pending reserve; failed or cancelled settlement restores unallocated USDC.
-5. Duplicate notifications do not change balances again.
+3. Before approval, the user may cancel the `REQUESTED` withdrawal; the reserved USDC is restored atomically. After approval, cancellation is unavailable.
+4. An authenticated `ADMIN` reviews `/admin/withdrawals`. Approval calls `POST /api/admin/withdrawals/execute` with `{"id":"<withdrawalId>"}`. The server estimates network fees, claims the request exactly once, and submits to Blockradar's `POST /v1/wallets/{walletId}/withdraw`.
+5. The reference `zenvest-withdrawal:<withdrawalId>` correlates the broadcast with the signed `withdraw.success` / `withdraw.failed` / `withdraw.cancelled` webhook. Successful confirmed completion clears the pending reserve; failed or cancelled settlement restores unallocated USDC.
+6. Duplicate notifications do not change balances again.
 
 ## Safety constraints
 - Transfers originate from the **master wallet**, because deposit addresses auto-sweep to it.
