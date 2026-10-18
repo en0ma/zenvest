@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   try { payload = JSON.parse(raw); } catch { log("invalid_json", 400); return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
   if (!payload || typeof payload !== "object") { log("invalid_payload", 400); return NextResponse.json({ error: "Invalid payload" }, { status: 400 }); }
   const event = payload as { event?: unknown; data?: Record<string, unknown> };
-  if (event.event !== "deposit.success") { log("ignored_event", 200); return new Response("success", { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } }); }
+  if (event.event !== "deposit.success") { log("ignored_event", 200); return NextResponse.json({ message: "success" }, { status: 200, headers: { "Cache-Control": "no-store" } }); }
   const data = event.data;
   if (!data || typeof data !== "object") { log("missing_data", 400); return NextResponse.json({ error: "Missing deposit data" }, { status: 400 }); }
 
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     !amount || (network !== "devnet" && network !== "testnet") ||
     (addressRecord.address && addressRecord.address !== target)) {
     log("deposit_not_eligible", 200);
-    return new Response("success", { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
+    return NextResponse.json({ message: "success" }, { status: 200, headers: { "Cache-Control": "no-store" } });
   }
   const wallet = await prisma.investorDepositWallet.findUnique({ where: { address: target } });
   if (!wallet || wallet.status !== "ACTIVE" || wallet.masterWalletId !== masterWalletId ||
@@ -93,11 +93,11 @@ export async function POST(request: Request) {
       return true;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     log(credited ? "credited" : "duplicate", 200, { depositId });
-    return new Response("success", { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
+    return NextResponse.json({ message: "success" }, { status: 200, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       log("duplicate_conflict", 200, { depositId });
-      return new Response("success", { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
+      return NextResponse.json({ message: "success" }, { status: 200, headers: { "Cache-Control": "no-store" } });
     }
     console.error(JSON.stringify({ component: "blockradar-webhook", requestId, outcome: "database_error", depositId, errorType: error instanceof Error ? error.name : "unknown" }));
     return NextResponse.json({ error: "Deposit processing unavailable" }, { status: 503 });
