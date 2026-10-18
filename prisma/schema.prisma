@@ -184,6 +184,11 @@ model InvestorDepositWallet {
   @@map("investor_deposit_wallets")
 }
 
+enum BlockchainDepositStatus {
+  CONFIRMING
+  CONFIRMED
+}
+
 model BlockchainDeposit {
   id String @id @default(cuid())
   walletId String @map("wallet_id")
@@ -192,6 +197,8 @@ model BlockchainDeposit {
   transactionHash String @map("transaction_hash") @db.VarChar(180)
   assetAddress String @map("asset_address") @db.VarChar(128)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
+  status BlockchainDepositStatus @default(CONFIRMING)
+  sweepHash String? @map("sweep_hash") @db.VarChar(180)
   creditedAt DateTime? @map("credited_at")
   createdAt DateTime @default(now()) @map("created_at")
   @@index([walletId, createdAt])
