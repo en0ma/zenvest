@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   const event = payload as { event?: unknown; data?: Record<string, unknown> };
   if (typeof event.event === "string" && ["withdraw.success","withdraw.failed","withdraw.cancelled"].includes(event.event)) {
     if (!event.data || typeof event.data !== "object") return NextResponse.json({error:"Missing withdrawal data"},{status:400});
-    if (process.env.BLOCKRADAR_WITHDRAWALS_ENABLED !== "true") return NextResponse.json({error:"Withdrawal processing disabled"},{status:503});
+    // Settle already submitted transfers even if new withdrawal requests are paused.
     try {
       const outcome = await handleWithdrawalWebhook(event.event,event.data,masterWalletId);
       log("withdrawal_"+outcome,200);
