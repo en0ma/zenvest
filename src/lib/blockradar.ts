@@ -7,7 +7,7 @@ export function blockradarConfig() {
   return { key, walletId };
 }
 
-export type DedicatedAddress = { id: string; address: string; network?: string; blockchain?: { slug?: string }; indexingStatus?: string };
+export type DedicatedAddress = { id: string; address: string; network?: string; blockchain?: { slug?: string }; indexingStatus?: string; isActive?: boolean };
 
 export async function createSolanaDepositAddress(userId: string): Promise<DedicatedAddress> {
   const { key, walletId } = blockradarConfig();
@@ -28,6 +28,6 @@ export async function createSolanaDepositAddress(userId: string): Promise<Dedica
     throw new Error("Invalid Solana address in Blockradar response");
   }
   if (address.blockchain?.slug && address.blockchain.slug.toLowerCase() !== "solana") throw new Error("Unexpected deposit network");
-  if (address.indexingStatus && address.indexingStatus !== "ACTIVE") throw new Error("Deposit address indexing inactive");
-  return { id: address.id, address: address.address, network: address.network, blockchain: address.blockchain, indexingStatus: address.indexingStatus };
+  if (address.isActive !== true || address.indexingStatus !== "ACTIVE") throw new Error("Blockradar deposit address is not confirmed active and indexed");
+  return { id: address.id, address: address.address, network: address.network, blockchain: address.blockchain, indexingStatus: address.indexingStatus, isActive: address.isActive };
 }
