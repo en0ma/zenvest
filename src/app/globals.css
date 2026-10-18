@@ -64,3 +64,9 @@ h1,h2,h3{font-feature-settings:"ss01" on;}
 .zen-hero-ribbon-alt{animation:zen-ribbon-drift-alt 14s ease-in-out infinite}
 .zen-preview-progress,.zen-allocation-bar{transform-origin:left center;animation:zen-allocate-in 1.1s ease-out both}
 @media(prefers-reduced-motion:reduce){.zen-hero-ribbon,.zen-hero-ribbon-alt,.zen-preview-progress,.zen-allocation-bar{animation:none!important}}
+
+/* Opportunity Engine: restrained market-window rhythm, not a return chart. */
+@keyframes zen-window-breathe{0%,100%{stroke-opacity:.72}50%{stroke-opacity:1}}
+.zen-opportunity-window{animation:zen-window-breathe 8s ease-in-out infinite}
+.zen-opportunity-window:nth-of-type(even){animation-delay:-4s}
+@media(prefers-reduced-motion:reduce){.zen-opportunity-window{animation:none!important}}
