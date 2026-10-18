@@ -15,15 +15,21 @@ export default async function Withdrawals() {
     prisma.investorWithdrawal.findMany({where:{userId:user.id},orderBy:{createdAt:"desc"},take:30}),
   ]);
   const enabled=process.env.BLOCKRADAR_WITHDRAWALS_ENABLED==="true";
+  const allocated=portfolio?.allocatedUsdcMicros??0n;
+  const unallocated=portfolio?.unallocatedUsdcMicros??0n;
+  const pending=portfolio?.pendingWithdrawalsUsdcMicros??0n;
+  const available=allocated+unallocated>pending?allocated+unallocated-pending:0n;
   return <Shell><div className="mx-auto max-w-5xl">
     <PageIntro eyebrow="Investor portal / Capital" title="Withdrawals" description="Request Solana USDC payouts and track their status."/>
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <BalanceTile label="Allocated capital" value={allocated} icon={ShieldCheck} detail="May require Kalshi deallocation"/>
+      <BalanceTile label="Unallocated capital" value={unallocated} icon={ArrowUpFromLine} detail="Not currently allocated"/>
       <BalanceTile label="Pending withdrawals" value={portfolio?.pendingWithdrawalsUsdcMicros??0n} icon={Clock3} detail="Reserved for withdrawal requests"/>
-      <BalanceTile label="Unallocated capital" value={portfolio?.unallocatedUsdcMicros??0n} icon={ArrowUpFromLine} detail="Available for withdrawal requests, subject to review"/>
+      <BalanceTile label="Available to withdraw" value={available} icon={ArrowUpFromLine} detail="Allocated + unallocated − pending"/>
     </div>
     <section className="mt-6 rounded-2xl border border-[#E3E8EE] bg-white p-6">
       <div className="flex items-center gap-3"><ShieldCheck size={20} className="text-[#635BFF]"/><h2 className="text-xl font-semibold">Request a withdrawal</h2></div>
-      {enabled?<WithdrawalForm balanceMicros={(portfolio?.unallocatedUsdcMicros??0n).toString()}/>:<p className="mt-4 text-sm text-[#425466]">Withdrawal requests are not enabled yet.</p>}
+      {enabled?<WithdrawalForm balanceMicros={available.toString()}/>:<p className="mt-4 text-sm text-[#425466]">Withdrawal requests are not enabled yet.</p>}
     </section>
     <section className="mt-6 rounded-2xl border border-[#E3E8EE] bg-white p-6">
       <h2 className="text-xl font-semibold">Withdrawal history</h2>
@@ -40,6 +46,6 @@ export default async function Withdrawals() {
           </div>)}
         </div>}
     </section>
-    <p className="mt-6 text-sm text-[#425466]">Only unallocated USDC may be requested. Allocated capital cannot be withdrawn until released. <Link href="/wallet" className="underline">Return to wallet</Link>.</p>
+    <p className="mt-6 text-sm text-[#425466]">Withdrawals may include allocated USDC; that portion waits for Kalshi deallocation and transfer before payout. <Link href="/wallet" className="underline">Return to wallet</Link>.</p>
   </div></Shell>;
 }
