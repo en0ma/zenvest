@@ -3,15 +3,22 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { WITHDRAWAL_FEE_USDC } from "@/lib/withdrawal-fee";
 
-export function WithdrawalForm() {
+export function WithdrawalForm({balanceMicros}:{balanceMicros:string}) {
   const router=useRouter();
   const [amount,setAmount]=useState("");
   const [address,setAddress]=useState("");
   const [submitting,setSubmitting]=useState(false);
   const [message,setMessage]=useState("");
+  const validAmount = /^(0|[1-9]\\d*)(\\.\\d{1,6})?$/.test(amount);
+  const gross = validAmount ? (()=>{const [w,f=""]=amount.split(".");return BigInt(w)*1000000n+BigInt(f.padEnd(6,"0"));})() : 0n;
+  const net = gross > 2000000n ? gross - 2000000n : 0n;
+  const balance=BigInt(balanceMicros);
+  const addressValid=/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
+  const canSubmit=net>0n && gross<=balance && addressValid && !submitting;
+  const show=(v:bigint)=>(v/1000000n).toString()+"."+(v%1000000n).toString().padStart(6,"0").slice(0,2);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting) return;
+    if (!canSubmit) return;
     setSubmitting(true);setMessage("");
     try {
       const response=await fetch("/api/withdrawals",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({amount,address})});
@@ -23,15 +30,22 @@ export function WithdrawalForm() {
     finally {setSubmitting(false);}
   }
   return <form onSubmit={submit} className="mt-5 space-y-4">
-    <label className="block text-sm font-medium">Amount to receive (USDC)
+    <label className="block text-sm font-medium">Withdrawal amount (USDC)
       <input required inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="1.00" className="mt-2 w-full rounded-xl border border-[#E3E8EE] px-4 py-3" />
     </label>
     <label className="block text-sm font-medium">Destination Solana address
       <input required autoComplete="off" value={address} onChange={e=>setAddress(e.target.value.trim())} placeholder="Solana public address" className="mt-2 w-full rounded-xl border border-[#E3E8EE] px-4 py-3 font-mono text-sm" />
     </label>
-    <p className="text-sm text-[#425466]">Withdrawal fee: {WITHDRAWAL_FEE_USDC} USDC. Your available balance is charged the payout amount plus the fee. The fee stays in Zenvest’s master wallet to help cover sweep and payout costs.</p>
+    <div className="rounded-xl bg-[#F6F9FC] p-4 text-sm text-[#425466]">
+      <p>Available balance: {show(balance)} USDC</p>
+      <p className="mt-2">Gross withdrawal: {show(gross)} USDC</p>
+      <p className="mt-1">Withdrawal fee: {WITHDRAWAL_FEE_USDC} USDC</p>
+      <p className="mt-2 font-semibold text-[#0A2540]">Expected payout: {show(net)} USDC</p>
+      {gross>balance&&<p className="mt-2 text-red-600">Insufficient unallocated balance.</p>}
+      {gross>0n&&net===0n&&<p className="mt-2 text-red-600">Amount must exceed 2 USDC.</p>}
+    </div>
     <p className="text-xs text-[#425466]">Withdrawals are queued and processed automatically in request order when the master wallet has enough USDC. Only send to an address that can receive Solana USDC. Blockchain transfers cannot be reversed.</p>
-    <button type="submit" disabled={submitting} className="rounded-xl bg-[#635BFF] px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{submitting?"Submitting...":"Request withdrawal"}</button>
+    <button type="submit" disabled={!canSubmit} className="rounded-xl bg-[#635BFF] px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{submitting?"Submitting...":"Request withdrawal"}</button>
     {message && <p role="status" className="text-sm text-[#425466]">{message}</p>}
   </form>;
 }
