@@ -28,10 +28,13 @@ export async function GET(request:Request) {
   let item:Awaited<ReturnType<typeof prisma.investorWithdrawal.findFirst>>=null;
   try {
     item=await prisma.$transaction(async tx=>{
-      const first=await tx.investorWithdrawal.findFirst({where:{status:"PENDING"},orderBy:[{createdAt:"asc"},{id:"asc"}]});
+      const candidates=await tx.investorWithdrawal.findMany({where:{status:"PENDING"},orderBy:[{createdAt:"asc"},{id:"asc"}],take:100});
+      if(!candidates.length) return null;
+      const liquidity=await tx.masterWalletBalance.findUnique({where:{walletId}});
+      if(!liquidity) return null;
+      const available=liquidity.confirmedUsdcMicros-liquidity.reservedUsdcMicros-liquidity.feeReserveUsdcMicros;
+      const first=candidates.find(candidate=>candidate.amountUsdcMicros<=available);
       if(!first) return null;
-      const liquidity=await tx.$queryRaw<{funded:boolean}[]>`SELECT ("confirmed_usdc_micros" - "reserved_usdc_micros" - "fee_reserve_usdc_micros") >= ${first.amountUsdcMicros} AS funded FROM "master_wallet_balances" WHERE "wallet_id" = ${walletId}`;
-      if(!liquidity[0]?.funded) return null;
       const claim=await tx.investorWithdrawal.updateMany({where:{id:first.id,status:"PENDING"},data:{status:"PROCESSING"}});
       if(claim.count!==1) return null;
       await tx.masterWalletBalance.update({where:{walletId},data:{reservedUsdcMicros:{increment:first.amountUsdcMicros}}});
