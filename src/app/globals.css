@@ -4,14 +4,14 @@
 :root{color-scheme:light}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{background:#F7F7F5;color:#202721;-webkit-font-smoothing:antialiased}
+body{background:#F6F9FC;color:#0A2540;-webkit-font-smoothing:antialiased;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 a{text-decoration:none}
 summary::-webkit-details-marker{display:none}
-::selection{background:#E6E6F3;color:#202721}
+::selection{background:#E6E6F3;color:#0A2540}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 
 /* A subtle rotating example for choosing a display name. */
-.zen-name-suggestions{display:inline-grid;vertical-align:baseline;min-width:5.5rem;color:#202721;font-weight:700}
+.zen-name-suggestions{display:inline-grid;vertical-align:baseline;min-width:5.5rem;color:#0A2540;font-weight:700}
 .zen-name-suggestions>span{grid-area:1/1;opacity:0;animation:zen-name-cycle 9s infinite}
 .zen-name-suggestions>span:nth-child(2){animation-delay:3s}
 .zen-name-suggestions>span:nth-child(3){animation-delay:6s}
@@ -20,9 +20,9 @@ summary::-webkit-details-marker{display:none}
 
 /* Zenvest design system: restrained, functional and accessible. */
 :root{
- --zen-ink:#202721;--zen-accent:#59715E;--zen-accent-soft:#EEECFB;
- --zen-canvas:#F7F7F5;--zen-surface:#FFFFFF;--zen-border:#E1E6DF;
- --zen-secondary:#646B63;--zen-focus:#59715E;
+ --zen-ink:#0A2540;--zen-accent:#635BFF;--zen-accent-soft:#EEEDFF;
+ --zen-canvas:#F6F9FC;--zen-surface:#FFFFFF;--zen-border:#E3E8EE;
+ --zen-secondary:#425466;--zen-focus:#635BFF;
  --zen-radius:18px;--zen-shadow:0 12px 36px rgba(20,37,61,.045);
 }
 @layer components {
@@ -30,7 +30,7 @@ summary::-webkit-details-marker{display:none}
  .zen-eyebrow{@apply text-xs font-semibold uppercase tracking-widest; color:var(--zen-secondary)}
  .zen-value{@apply font-semibold tracking-tight tabular-nums; color:var(--zen-ink)}
  .zen-action{@apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors; background:var(--zen-accent);color:white}
- .zen-action:hover{background:#42368C}
+ .zen-action:hover{background:#5548E8}
  .zen-link{@apply text-sm font-semibold; color:var(--zen-accent)}
  .zen-link:hover{text-decoration:underline}
 }
@@ -39,8 +39,8 @@ summary::-webkit-details-marker{display:none}
 /* Investment House editorial overlay and chapter rhythm. */
 .zen-editorial-nav{visibility:hidden;opacity:0;pointer-events:none;transition:opacity .22s ease,visibility .22s ease;}
 .zen-editorial-nav:target{visibility:visible;opacity:1;pointer-events:auto;}
-.zen-editorial-section{border-top:1px solid #E1E6DF;}
-.zen-editorial-index{font-variant-numeric:tabular-nums;letter-spacing:.14em;text-transform:uppercase;font-size:.7rem;color:#59715E;font-weight:700;}
+.zen-editorial-section{border-top:1px solid #E3E8EE;}
+.zen-editorial-index{font-variant-numeric:tabular-nums;letter-spacing:.14em;text-transform:uppercase;font-size:.7rem;color:#635BFF;font-weight:700;}
 @media(prefers-reduced-motion:reduce){.zen-editorial-nav{transition:none}}
 
 /* Homepage motion: subtle, purposeful, and reduced-motion-safe. */
@@ -51,3 +51,7 @@ summary::-webkit-details-marker{display:none}
 .zen-cycle-item{animation:zen-cycle 3.5s ease-in-out infinite}
 .zen-bar{animation:zen-bar-grow 2.2s ease-out both}
 @media(prefers-reduced-motion:reduce){.zen-float,.zen-cycle-item,.zen-bar{animation:none!important}}
+
+/* Stripe-inspired typography and color rhythm, without importing brand assets. */
+h1,h2,h3{font-feature-settings:"ss01" on;}
+.zen-panel{box-shadow:0 8px 30px rgba(10,37,64,.035)}
