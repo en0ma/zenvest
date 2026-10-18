@@ -12,7 +12,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
   const asset = data.asset && typeof data.asset === "object" ? data.asset as Record<string,unknown> : {};
   const wallet = data.wallet && typeof data.wallet === "object" ? data.wallet as Record<string,unknown> : {};
   const amount = (item.amountUsdcMicros / 1000000n).toString() + "." + (item.amountUsdcMicros % 1000000n).toString().padStart(6,"0");
-  const validAmount = typeof data.amount === "string" && /^\\d+(\\.\\d{1,6})?$/.test(data.amount) &&
+  const validAmount = typeof data.amount === "string" && /^\d+(\.\d{1,6})?$/.test(data.amount) &&
     BigInt(data.amount.split(".")[0]) * 1000000n + BigInt((data.amount.split(".")[1] ?? "").padEnd(6,"0")) === item.amountUsdcMicros;
   const validNetwork = data.network === "testnet" || data.network === "devnet";
   const mint = process.env.BLOCKRADAR_SOLANA_USDC_MINT;
