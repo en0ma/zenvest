@@ -25,6 +25,7 @@ model User {
   portfolio InvestorPortfolio?
   depositWallet InvestorDepositWallet?
   withdrawals InvestorWithdrawal[]
+  deallocationRequests WithdrawalDeallocation[]
   tokens       ActionToken[]
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -133,6 +134,7 @@ model InvestorPortfolio {
   updatedAt DateTime @updatedAt @map("updated_at")
   activity InvestorActivity[]
   withdrawals InvestorWithdrawal[]
+  deallocationRequests WithdrawalDeallocation[]
   @@map("investor_portfolios")
 }
 
@@ -235,6 +237,7 @@ model InvestorWithdrawal {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   completedAt DateTime? @map("completed_at")
+  deallocations WithdrawalDeallocation[]
   @@unique([userId, idempotencyKey])
   @@index([userId, createdAt])
   @@index([status, createdAt])
@@ -248,4 +251,29 @@ model MasterWalletBalance {
   feeReserveUsdcMicros BigInt @default(0) @map("fee_reserve_usdc_micros")
   updatedAt DateTime @updatedAt @map("updated_at")
   @@map("master_wallet_balances")
+}
+
+enum DeallocationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model WithdrawalDeallocation {
+  id String @id @default(cuid())
+  withdrawalId String @map("withdrawal_id")
+  withdrawal InvestorWithdrawal @relation(fields:[withdrawalId], references:[id], onDelete:Restrict)
+  userId String @map("user_id")
+  user User @relation(fields:[userId],references:[id],onDelete:Restrict)
+  portfolioId String @map("portfolio_id")
+  portfolio InvestorPortfolio @relation(fields:[portfolioId],references:[id],onDelete:Restrict)
+  amountUsdcMicros BigInt @map("amount_usdc_micros")
+  status DeallocationStatus @default(PENDING)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+  @@unique([withdrawalId])
+  @@index([status,createdAt])
+  @@map("withdrawal_deallocations")
 }
