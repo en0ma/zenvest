@@ -22,29 +22,36 @@ function parseUsdcMicros(raw: unknown): bigint | null {
 }
 
 export async function POST(request: Request) {
+  const startedAt = Date.now();
+  const requestId = request.headers.get("x-vercel-id") ?? crypto.randomUUID();
+  const log = (outcome: string, status: number, extra: Record<string, string | boolean | number> = {}) =>
+    console.info(JSON.stringify({ component: "blockradar-webhook", requestId, outcome, status, durationMs: Date.now() - startedAt, ...extra }));
+
   if (process.env.BLOCKRADAR_DEPOSITS_ENABLED !== "true") {
+    log("disabled", 503);
     return NextResponse.json({ error: "Deposit processing disabled" }, { status: 503 });
   }
   let apiKey: string, masterWalletId: string;
   try { const config = blockradarConfig(); apiKey = config.key; masterWalletId = config.walletId; }
-  catch { return NextResponse.json({ error: "Deposit processing unconfigured" }, { status: 503 }); }
+  catch { log("unconfigured", 503); return NextResponse.json({ error: "Deposit processing unconfigured" }, { status: 503 }); }
 
   const raw = await request.text();
   if (!verifySignature(raw, request.headers.get("x-blockradar-signature"), apiKey)) {
+    log("invalid_signature", 401);
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
   let payload: unknown;
-  try { payload = JSON.parse(raw); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
-  if (!payload || typeof payload !== "object") return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  try { payload = JSON.parse(raw); } catch { log("invalid_json", 400); return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
+  if (!payload || typeof payload !== "object") { log("invalid_payload", 400); return NextResponse.json({ error: "Invalid payload" }, { status: 400 }); }
   const event = payload as { event?: unknown; data?: Record<string, unknown> };
-  if (event.event !== "deposit.success") return NextResponse.json({ received: true, credited: false });
+  if (event.event !== "deposit.success") { log("ignored_event", 200); return NextResponse.json({ received: true, credited: false }); }
   const data = event.data;
-  if (!data || typeof data !== "object") return NextResponse.json({ error: "Missing deposit data" }, { status: 400 });
+  if (!data || typeof data !== "object") { log("missing_data", 400); return NextResponse.json({ error: "Missing deposit data" }, { status: 400 }); }
 
   const asset = data.asset && typeof data.asset === "object" ? data.asset as Record<string, unknown> : {};
   const addressRecord = data.address && typeof data.address === "object" ? data.address as Record<string, unknown> : {};
   const allowedMint = process.env.BLOCKRADAR_SOLANA_USDC_MINT;
-  if (!allowedMint) return NextResponse.json({ error: "USDC mint not configured" }, { status: 503 });
+  if (!allowedMint) { log("missing_mint", 503); return NextResponse.json({ error: "USDC mint not configured" }, { status: 503 }); }
   const depositId = data.id;
   const target = data.recipientAddress;
   const amount = parseUsdcMicros(data.amountPaid ?? data.amount);
@@ -54,11 +61,13 @@ export async function POST(request: Request) {
     typeof depositId !== "string" || typeof target !== "string" || typeof data.hash !== "string" ||
     !amount || (network !== "devnet" && network !== "testnet") ||
     (addressRecord.address && addressRecord.address !== target)) {
+    log("deposit_not_eligible", 200);
     return NextResponse.json({ received: true, credited: false });
   }
   const wallet = await prisma.investorDepositWallet.findUnique({ where: { address: target } });
   if (!wallet || wallet.status !== "ACTIVE" || wallet.masterWalletId !== masterWalletId ||
       (addressRecord.id && addressRecord.id !== wallet.addressId)) {
+    log("unknown_address", 422);
     return NextResponse.json({ error: "Unrecognized deposit address" }, { status: 422 });
   }
 
@@ -83,12 +92,14 @@ export async function POST(request: Request) {
       } });
       return true;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    log(credited ? "credited" : "duplicate", 200, { depositId });
     return NextResponse.json({ received: true, credited });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      log("duplicate_conflict", 200, { depositId });
       return NextResponse.json({ received: true, credited: false });
     }
-    console.error("Blockradar deposit processing failed", error);
+    console.error(JSON.stringify({ component: "blockradar-webhook", requestId, outcome: "database_error", depositId, errorType: error instanceof Error ? error.name : "unknown" }));
     return NextResponse.json({ error: "Deposit processing unavailable" }, { status: 503 });
   }
 }
