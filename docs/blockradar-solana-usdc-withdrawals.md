@@ -57,3 +57,10 @@ API reference: https://docs.blockradar.co/en/use-cases/withdraw-stablecoins
 - **Vercel scheduler**: once-a-minute cron requires Vercel Pro or Enterprise. A Hobby deployment cannot deploy this cadence.
 
 - Successfully completed withdrawals add the 2 USDC fee to the master-wallet **fee reserve** (not to payout liquidity). The fee reserve must be reconciled when treasury converts or spends USDC to obtain SOL for network gas; automatic SOL conversion is not implemented.
+
+## Gross withdrawal / net payout contract (current)
+- The user enters the **gross amount deducted from unallocated balance**. The UI validates gross <= available unallocated USDC, gross > 2 USDC, and Solana destination syntax. It displays the expected net payout (gross minus the fixed 2 USDC fee) and enables submit only when valid.
+- The server atomically revalidates unallocated funds before recording the request. The **same `InvestorWithdrawal` table is the queue** (no separate queue table), and records `grossUsdcMicros`, `amountUsdcMicros` (net), `feeUsdcMicros`, `asset`, destination, status, timestamps, provider ID and transaction hash.
+- Example: enter 10 USDC gross, reserve 10, pay 8 USDC net, retain 2 USDC as operating fee. Rejection or definitive failure restores 10 USDC.
+- The minute cron considers pending rows in creation order and selects the **oldest that fits available master-wallet payout liquidity**, checking up to 100 oldest pending records per invocation. Larger older requests may remain queued while smaller newer payouts progress.
+- The backend remains authoritative. Browser balance is a snapshot and can change between rendering and submission.
