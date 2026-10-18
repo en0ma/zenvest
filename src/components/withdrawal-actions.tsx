@@ -54,3 +54,24 @@ export function ApproveWithdrawal({id}:{id:string}) {
     {message && <p role="status" className="text-xs text-[#425466]">{message}</p>}
   </div>;
 }
+
+export function CancelWithdrawal({id}:{id:string}) {
+  const router=useRouter();
+  const [pending,setPending]=useState(false);
+  const [message,setMessage]=useState("");
+  async function cancel() {
+    if(!window.confirm("Cancel this unapproved withdrawal and restore the reserved USDC?")) return;
+    setPending(true);
+    try {
+      const response=await fetch("/api/withdrawals/cancel",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});
+      const result=await response.json();
+      if(!response.ok) throw new Error(result.error??"Cancellation failed");
+      setMessage("Withdrawal cancelled. Funds released.");router.refresh();
+    }catch(error){setMessage(error instanceof Error?error.message:"Cancellation failed");}
+    finally{setPending(false);}
+  }
+  return <div className="mt-2">
+    <button type="button" onClick={cancel} disabled={pending} className="text-sm font-medium text-[#635BFF] underline disabled:opacity-50">{pending?"Cancelling...":"Cancel request"}</button>
+    {message&&<p role="status" className="mt-1 text-xs text-[#425466]">{message}</p>}
+  </div>;
+}
