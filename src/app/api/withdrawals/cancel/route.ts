@@ -15,7 +15,7 @@ export async function POST(request:Request) {
   if(typeof id!=="string" || !/^c[a-z0-9]{10,40}$/.test(id)) return NextResponse.json({error:"Invalid withdrawal ID"},{status:400});
   try {
     const cancelled=await prisma.$transaction(async tx=>{
-      const item=await tx.investorWithdrawal.findFirst({where:{id,userId:user.id,status:"PENDING"}});
+      const item=await tx.investorWithdrawal.findFirst({where:{id,userId:user.id,status:"PENDING",deallocations:{none:{status:{in:["PROCESSING","COMPLETED"]}}}}});
       if(!item) return false;
       const changed=await tx.investorWithdrawal.updateMany({
         where:{id,userId:user.id,status:"PENDING"},
