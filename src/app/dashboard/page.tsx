@@ -20,42 +20,15 @@ export default async function Dashboard(){
  const unallocated=portfolio?.unallocatedUsdcMicros??0n;
  const realized=portfolio?.realizedPnlUsdcMicros??0n;
  const equity=allocated+unallocated+realized;
- return <Shell>
- <div className="mx-auto max-w-6xl">
-  <header className="mb-9"><h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-[#202721]">Welcome, {session.name??"Investor"}</h1></header>
-  <section aria-label="Portfolio summary" className="rounded-[24px] bg-[#F1F3EF] p-7 sm:p-10">
-    <p className="zen-editorial-index">01 / Your capital</p>
-    <p className="mt-9 text-sm text-[#646B63]">Portfolio value</p>
-    <h2 className="mt-3 break-words text-[clamp(2.8rem,5vw,5.5rem)] font-semibold leading-none tracking-[-.075em] tabular-nums text-[#202721]">{formatUsdc(equity)}</h2>
-    <div className="mt-10 flex flex-wrap items-end justify-between gap-5">
-     <div><p className="text-xs text-[#646B63]">Recorded P&amp;L</p><p className="mt-1 text-xl font-semibold tabular-nums text-[#202721]">{formatUsdc(realized)}</p></div>
-     <Link href="/transactions" className="zen-link inline-flex items-center gap-2">View activity <ArrowUpRight size={16}/></Link>
-    </div>
-  </section>
-  <section aria-label="Capital allocation" className="mt-5 grid gap-4 sm:grid-cols-2" id="allocations">
-   <Metric icon={Layers3} label="Allocated capital" value={allocated} detail="Recorded investment allocation"/>
-   <Metric icon={Wallet} label="Unallocated capital" value={unallocated} detail="Capital not currently allocated to trades"/>
-  </section>
-  <div className="mt-8 grid gap-5 xl:grid-cols-[1.25fr_1fr] items-start">
-   <section id="activity" className="rounded-2xl border border-[#E1E6DF] bg-white p-6 sm:p-7">
-    <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold text-[#202721]">Recent activity</h2><Link href="/transactions" className="zen-link">View all <ArrowUpRight size={14} className="inline"/></Link></div>
-    {activity.length===0?<div className="mt-7 rounded-xl bg-[#F7F7F5] p-6"><p className="font-medium text-[#202721]">No activity yet</p><p className="mt-2 text-sm leading-6 text-[#646B63]">Your recorded account activity will appear here.</p></div>:<ul className="mt-5 divide-y divide-[#E1E6DF]">{activity.slice(0,5).map(item=><li key={item.id} className="flex flex-wrap justify-between gap-3 py-4"><div><p className="text-sm font-semibold text-[#202721]">{item.type.replaceAll("_"," ")}</p><p className="mt-1 text-sm text-[#646B63]">{item.description}</p><p className="mt-1 text-xs text-[#646B63]">{item.occurredAt.toISOString().slice(0,10)}</p></div><p className="text-sm font-semibold tabular-nums text-[#202721]">{formatUsdc(item.amountUsdcMicros)}</p></li>)}</ul>}
-
-   </section>
-   <section aria-label="Strategy status" className="zen-panel p-6 sm:p-7">
-    <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold text-[#202721]">Strategy status</h2><Radio size={18} className="text-[#59715E]"/></div>
-    <p className="mt-1 text-sm text-[#646B63]">Current market overview</p>
-    <p className="mt-6 text-xl font-semibold text-[#202721]">{!activeTrade?"No data available":!activeFresh?"Status unavailable":activeTrade.status.replaceAll("_"," ")}</p>
-    <details className="mt-6 border-t border-[#E1E6DF] pt-5"><summary className="cursor-pointer text-sm font-semibold text-[#59715E]">View market and inventory details</summary><div className="pt-1">    <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-5 text-sm">
-     <div className="col-span-2"><dt className="text-[#646B63]">15-minute Kalshi market</dt><dd className="mt-1 break-words font-semibold text-[#202721]">{activeFresh?activeTrade?.eventTicker??"No active market":"—"}</dd></div>
-     <div><dt className="text-[#646B63]">YES inventory</dt><dd className="mt-1 font-semibold tabular-nums text-[#202721]">{activeFresh?activeTrade?.yesContracts??0:"—"}</dd></div>
-     <div><dt className="text-[#646B63]">NO inventory</dt><dd className="mt-1 font-semibold tabular-nums text-[#202721]">{activeFresh?activeTrade?.noContracts??0:"—"}</dd></div>
-     <div className="col-span-2"><dt className="text-[#646B63]">Combined inventory cost</dt><dd className="mt-1 text-lg font-semibold tabular-nums text-[#202721]">{activeFresh&&activeTrade?"$"+usdcFromMicros(activeTrade.yesCostUsdcMicros+activeTrade.noCostUsdcMicros)+" USDC":"—"}</dd></div>
-    </dl>
-</div></details>
-    <p className="mt-6 text-xs text-[#646B63]">{activeTrade?(isDemo?"Sample data timestamp: ":"Last reported: ")+activeTrade.asOf.toISOString().replace("T"," ").slice(0,19)+" UTC":"Waiting for a bot status report."}</p>
-   </section>
-  </div>
+ return <Shell><div className="mx-auto max-w-7xl">
+ <header className="mb-8 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-medium uppercase tracking-[.15em] text-[#798279]">Your account / Overview</p><h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#202721]">Welcome, {session.name??"Investor"}</h1></div><Link href="/wallet" className="rounded-full border border-[#D8DFD6] bg-white px-5 py-2.5 text-sm font-semibold hover:bg-[#F1F3EF]">Manage wallet <ArrowUpRight size={15} className="inline"/></Link></header>
+ <div className="grid gap-6 lg:grid-cols-[minmax(0,1.75fr)_minmax(280px,1fr)]">
+ <div className="min-w-0">
+  <section aria-label="Portfolio value" className="min-h-[325px] rounded-[28px] bg-[#E9EFE8] p-7 sm:p-10 flex flex-col justify-between"><div><p className="text-sm font-medium text-[#526052]">Total portfolio value</p><h2 className="mt-5 break-words text-[clamp(2.8rem,5.3vw,5.8rem)] leading-none font-semibold tracking-[-.075em] tabular-nums text-[#202721]">{formatUsdc(equity)}</h2></div><div className="mt-12 flex flex-wrap items-end justify-between gap-5 border-t border-[#CBD8CA] pt-6"><div><p className="text-xs text-[#647064]">Recorded P&amp;L</p><p className="mt-1 text-xl font-semibold tabular-nums">{formatUsdc(realized)}</p></div><Link href="/transactions" className="text-sm font-semibold underline underline-offset-4">Account history <ArrowUpRight size={15} className="inline"/></Link></div></section>
+  <section aria-label="Recent account activity" className="mt-8"><div className="flex items-center justify-between border-b border-[#E1E6DF] pb-5"><h2 className="text-xl font-semibold">Recent activity</h2><Link href="/transactions" className="text-sm font-semibold text-[#59715E]">All activity ↗</Link></div>{activity.length===0?<div className="py-14"><p className="font-semibold">No activity yet</p><p className="mt-2 text-sm text-[#646B63]">Your recorded account activity will appear here.</p></div>:<ul className="divide-y divide-[#E1E6DF]">{activity.slice(0,5).map(item=><li key={item.id} className="flex flex-wrap items-center justify-between gap-4 py-5"><div><p className="font-semibold text-[#202721]">{item.type.replaceAll("_"," ")}</p><p className="mt-1 text-sm text-[#646B63]">{item.description}</p><p className="mt-1 text-xs text-[#798279]">{item.occurredAt.toISOString().slice(0,10)}</p></div><p className="font-semibold tabular-nums">{formatUsdc(item.amountUsdcMicros)}</p></li>)}</ul>}</section>
  </div>
- </Shell>;
+ <aside aria-label="Account snapshot" className="min-w-0 space-y-6">
+  <section className="rounded-[24px] border border-[#E1E6DF] bg-white p-7"><div className="flex items-center justify-between"><h2 className="text-lg font-semibold">Capital breakdown</h2><Layers3 size={18} className="text-[#59715E]"/></div><div className="mt-8 h-2 overflow-hidden rounded-full bg-[#E8ECE6]"><div className="h-full bg-[#59715E]" style={{width:(allocated+unallocated)>0n?((allocated*100n/(allocated+unallocated)).toString()+"%"):"0%"}}/></div><dl className="mt-7 divide-y divide-[#E1E6DF]"><div className="py-5"><dt className="text-sm text-[#646B63]">Allocated</dt><dd className="mt-2 break-words text-2xl font-semibold tabular-nums">{formatUsdc(allocated)}</dd></div><div className="py-5"><dt className="text-sm text-[#646B63]">Unallocated</dt><dd className="mt-2 break-words text-2xl font-semibold tabular-nums">{formatUsdc(unallocated)}</dd></div></dl><Link href="/wallet" className="text-sm font-semibold text-[#59715E]">Wallet details ↗</Link></section>
+  <section className="rounded-[24px] bg-[#F1F3EF] p-7"><div className="flex items-center justify-between"><h2 className="text-lg font-semibold">Strategy pulse</h2><Radio size={17} className="text-[#59715E]"/></div><p className="mt-5 text-sm text-[#646B63]">Latest operational state</p><p className="mt-2 text-xl font-semibold">{!activeTrade?"No data available":!activeFresh?"Status unavailable":activeTrade.status.replaceAll("_"," ")}</p><details className="mt-6 border-t border-[#D6DED4] pt-4"><summary className="cursor-pointer text-sm font-semibold text-[#59715E]">Market details</summary><dl className="mt-5 space-y-4 text-sm"><div><dt className="text-[#646B63]">Kalshi market</dt><dd className="mt-1 break-all font-medium">{activeFresh?activeTrade?.eventTicker??"No active market":"—"}</dd></div><div className="grid grid-cols-2 gap-4"><div><dt className="text-[#646B63]">YES</dt><dd className="font-medium">{activeFresh?activeTrade?.yesContracts??0:"—"}</dd></div><div><dt className="text-[#646B63]">NO</dt><dd className="font-medium">{activeFresh?activeTrade?.noContracts??0:"—"}</dd></div></div><div><dt className="text-[#646B63]">Inventory cost</dt><dd className="font-medium">{activeFresh&&activeTrade?"$"+usdcFromMicros(activeTrade.yesCostUsdcMicros+activeTrade.noCostUsdcMicros)+" USDC":"—"}</dd></div></dl></details><p className="mt-6 text-xs leading-5 text-[#737C72]">{activeTrade?(isDemo?"Sample data timestamp: ":"Last reported: ")+activeTrade.asOf.toISOString().replace("T"," ").slice(0,19)+" UTC":"Waiting for a bot status report."}</p><Link href="/bot" className="mt-4 inline-flex text-sm font-semibold text-[#59715E]">View strategy ↗</Link></section>
+ </aside></div></div></Shell>;
 }
