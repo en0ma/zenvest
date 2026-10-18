@@ -22,10 +22,11 @@ export async function POST(request:Request) {
         data:{status:"FAILED",failureCode:"USER_CANCELLED"},
       });
       if(changed.count!==1) return false;
+      const total=item.amountUsdcMicros+item.feeUsdcMicros;
       await tx.investorPortfolio.update({
         where:{id:item.portfolioId},
-        data:{pendingWithdrawalsUsdcMicros:{decrement:item.amountUsdcMicros},
-          unallocatedUsdcMicros:{increment:item.amountUsdcMicros}},
+        data:{pendingWithdrawalsUsdcMicros:{decrement:total},
+          unallocatedUsdcMicros:{increment:total}},
       });
       return true;
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
