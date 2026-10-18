@@ -28,7 +28,7 @@ export async function GET(request:Request) {
   let item:Awaited<ReturnType<typeof prisma.investorWithdrawal.findFirst>>=null;
   try {
     item=await prisma.$transaction(async tx=>{
-      const candidates=await tx.investorWithdrawal.findMany({where:{status:"PENDING"},orderBy:[{createdAt:"asc"},{id:"asc"}],take:100});
+      const candidates=await tx.investorWithdrawal.findMany({where:{status:"PENDING",deallocations:{none:{status:{in:["PENDING","PROCESSING","FAILED"]}}}},orderBy:[{createdAt:"asc"},{id:"asc"}],take:100});
       if(!candidates.length) return null;
       const liquidity=await tx.masterWalletBalance.findUnique({where:{walletId}});
       if(!liquidity) return null;
