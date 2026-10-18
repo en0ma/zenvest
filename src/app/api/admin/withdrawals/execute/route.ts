@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     const fee = data && typeof data === "object" ? data as Record<string,unknown> : null;
     // Fail closed if provider omits the numeric fee/balance.
     if (!fee || typeof fee.networkFee !== "string" || typeof fee.nativeBalance !== "string" ||
-      !/^\\d+(\\.\\d+)?$/.test(fee.networkFee) || !/^\\d+(\\.\\d+)?$/.test(fee.nativeBalance) ||
+      !/^\d+(\.\d+)?$/.test(fee.networkFee) || !/^\d+(\.\d+)?$/.test(fee.nativeBalance) ||
       Number(fee.nativeBalance) < Number(fee.networkFee))
       return NextResponse.json({error:"Insufficient SOL for network fees or invalid fee estimate"},{status:409});
   } catch { return NextResponse.json({error:"Network fee estimation unavailable"},{status:503}); }
