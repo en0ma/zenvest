@@ -36,33 +36,12 @@ export function WithdrawalForm() {
   </form>;
 }
 
-export function ApproveWithdrawal({id}:{id:string}) {
-  const router=useRouter();
-  const [pending,setPending]=useState(false);
-  const [message,setMessage]=useState("");
-  async function submit() {
-    if (!window.confirm("Approve and broadcast this USDC withdrawal? This sends real blockchain funds on the configured network.")) return;
-    setPending(true);
-    try {
-      const res=await fetch("/api/admin/withdrawals/execute",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});
-      const result=await res.json();
-      if (!res.ok) throw new Error(result.error ?? "Approval failed");
-      setMessage("Submitted to Blockradar. Awaiting blockchain confirmation.");router.refresh();
-    } catch(error) {setMessage(error instanceof Error?error.message:"Approval failed");}
-    finally {setPending(false);}
-  }
-  return <div className="space-y-2">
-    <button disabled={pending} onClick={submit} className="rounded-lg bg-[#635BFF] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{pending?"Processing...":"Approve and send"}</button>
-    {message && <p role="status" className="text-xs text-[#425466]">{message}</p>}
-  </div>;
-}
-
 export function CancelWithdrawal({id}:{id:string}) {
   const router=useRouter();
   const [pending,setPending]=useState(false);
   const [message,setMessage]=useState("");
   async function cancel() {
-    if(!window.confirm("Cancel this unapproved withdrawal and restore the reserved USDC?")) return;
+    if(!window.confirm("Cancel this queued withdrawal and restore the reserved USDC?")) return;
     setPending(true);
     try {
       const response=await fetch("/api/withdrawals/cancel",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});
