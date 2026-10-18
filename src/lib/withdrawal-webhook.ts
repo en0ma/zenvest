@@ -38,7 +38,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
     });
     if (updated.count !== 1) return false;
     const reservedTotal=item.amountUsdcMicros+item.feeUsdcMicros;
-    await tx.masterWalletBalance.update({where:{walletId:masterWalletId},data:{reservedUsdcMicros:{decrement:item.amountUsdcMicros},...(targetStatus==="SUCCESS"?{confirmedUsdcMicros:{decrement:item.amountUsdcMicros}}:{})}});
+    await tx.masterWalletBalance.update({where:{walletId:masterWalletId},data:{reservedUsdcMicros:{decrement:item.amountUsdcMicros},...(targetStatus==="SUCCESS"?{confirmedUsdcMicros:{decrement:item.amountUsdcMicros},feeReserveUsdcMicros:{increment:item.feeUsdcMicros}}:{})}});
     await tx.investorPortfolio.update({
       where:{id:item.portfolioId},
       data:{
