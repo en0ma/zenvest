@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AutoCloseDetails } from "@/components/auto-close-details";
 import { Signout } from "@/components/signout";
 import { LayoutDashboard, ArrowDownToLine, ArrowUpFromLine, Bot, Menu, ReceiptText, Settings, Wallet } from "lucide-react";
 export function Shell({ admin = false, preview = false, children }: {admin?:boolean;preview?:boolean;children:React.ReactNode}) {
@@ -17,12 +18,12 @@ export function Shell({ admin = false, preview = false, children }: {admin?:bool
   return <div className="min-h-screen lg:flex bg-[#faf8f3]">
     <header className="relative z-40 flex lg:hidden items-center justify-between h-[76px] border-b border-[#eee5dc] bg-white px-5 sm:px-7">
       <Link href="/" className="text-[27px] font-black tracking-tight text-[#292725]">zenvest<span className="text-[#91603f]">.</span></Link>
-      <details className="relative"><summary aria-label="Open investor navigation" className="list-none cursor-pointer rounded-lg border border-[#f5ece0] p-2 text-[#292725]"><Menu size={22}/></summary>
+      <AutoCloseDetails className="relative"><summary aria-label="Open investor navigation" className="list-none cursor-pointer rounded-lg border border-[#f5ece0] p-2 text-[#292725]"><Menu size={22}/></summary>
         <nav aria-label="Investor navigation" className="absolute right-0 top-12 z-50 w-60 rounded-2xl border border-[#eadfce] bg-white p-4 shadow-xl flex flex-col gap-1 text-sm text-[#292725]">
           {items.map(({href,text,icon:Icon})=><Link key={text} href={href} className="flex items-center gap-3 rounded-lg px-3 py-3 font-semibold hover:bg-[#faf8f3]"><Icon size={17}/>{text}</Link>)}
           {!preview&&<div className="border-t border-[#eee5dc] mt-2 pt-2 px-3"><Signout mobile/></div>}
         </nav>
-      </details>
+      </AutoCloseDetails>
     </header>
     <aside className="hidden lg:flex lg:flex-col bg-[#292725] text-white lg:w-64 p-7 lg:min-h-screen">
       <Link href="/" className="text-3xl font-bold tracking-tight text-[#d6a16f]">zenvest<span className="text-white">.</span></Link>
