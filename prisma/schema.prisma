@@ -23,6 +23,7 @@ model User {
   emailVerifiedAt DateTime? @map("email_verified_at")
   sessionVersion Int @default(0) @map("session_version")
   portfolio InvestorPortfolio?
+  depositWallet InvestorDepositWallet?
   tokens       ActionToken[]
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -157,4 +158,40 @@ model InvestorActivity {
   createdAt DateTime @default(now()) @map("created_at")
   @@index([portfolioId,occurredAt])
   @@map("investor_activity")
+}
+
+enum DepositWalletStatus {
+  CREATING
+  ACTIVE
+  ERROR
+}
+
+model InvestorDepositWallet {
+  id String @id @default(cuid())
+  userId String @unique @map("user_id")
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  provider String @default("BLOCKRADAR")
+  network String @default("solana")
+  masterWalletId String @map("master_wallet_id")
+  addressId String? @unique @map("address_id")
+  address String? @unique @map("address") @db.VarChar(128)
+  status DepositWalletStatus @default(CREATING)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deposits BlockchainDeposit[]
+  @@map("investor_deposit_wallets")
+}
+
+model BlockchainDeposit {
+  id String @id @default(cuid())
+  walletId String @map("wallet_id")
+  wallet InvestorDepositWallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  providerTransactionId String @unique @map("provider_transaction_id")
+  transactionHash String @map("transaction_hash") @db.VarChar(180)
+  assetAddress String @map("asset_address") @db.VarChar(128)
+  amountUsdcMicros BigInt @map("amount_usdc_micros")
+  creditedAt DateTime? @map("credited_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([walletId, createdAt])
+  @@map("blockchain_deposits")
 }
