@@ -39,13 +39,24 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
     if (updated.count !== 1) return false;
     const reservedTotal=item.grossUsdcMicros;
     await tx.masterWalletBalance.update({where:{walletId:masterWalletId},data:{reservedUsdcMicros:{decrement:item.amountUsdcMicros},...(targetStatus==="SUCCESS"?{confirmedUsdcMicros:{decrement:item.amountUsdcMicros},feeReserveUsdcMicros:{increment:item.feeUsdcMicros}}:{})}});
+    const portfolio=await tx.investorPortfolio.findUniqueOrThrow({where:{id:item.portfolioId}});
+    const fromUnallocated=targetStatus==="SUCCESS"
+      ? (portfolio.unallocatedUsdcMicros>=reservedTotal?reservedTotal:portfolio.unallocatedUsdcMicros) : 0n;
+    const fromAllocated=targetStatus==="SUCCESS"?reservedTotal-fromUnallocated:0n;
+    if(fromAllocated>portfolio.allocatedUsdcMicros) throw new Error("Insufficient allocated accounting on settlement");
     await tx.investorPortfolio.update({
       where:{id:item.portfolioId},
       data:{
         pendingWithdrawalsUsdcMicros:{decrement:reservedTotal},
-        ...(targetStatus === "FAILED" ? {unallocatedUsdcMicros:{increment:reservedTotal}} : {}),
+        ...(targetStatus==="SUCCESS"?{
+          unallocatedUsdcMicros:{decrement:fromUnallocated},
+          allocatedUsdcMicros:{decrement:fromAllocated},
+        }:{}),
       },
     });
+    if(targetStatus==="FAILED"){
+      await tx.withdrawalDeallocation.updateMany({where:{withdrawalId:id,status:"PENDING"},data:{status:"FAILED"}});
+    }
     if (targetStatus === "SUCCESS") {
       await tx.investorActivity.create({
         data:{portfolioId:item.portfolioId,type:"WITHDRAWAL_COMPLETED",amountKobo:0n,
