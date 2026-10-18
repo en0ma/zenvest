@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { blockradarConfig } from "@/lib/blockradar";
+import { handleWithdrawalWebhook } from "@/lib/withdrawal-webhook";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,6 +45,18 @@ export async function POST(request: Request) {
   try { payload = JSON.parse(raw); } catch { log("invalid_json", 400); return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
   if (!payload || typeof payload !== "object") { log("invalid_payload", 400); return NextResponse.json({ error: "Invalid payload" }, { status: 400 }); }
   const event = payload as { event?: unknown; data?: Record<string, unknown> };
+  if (typeof event.event === "string" && ["withdraw.success","withdraw.failed","withdraw.cancelled"].includes(event.event)) {
+    if (!event.data || typeof event.data !== "object") return NextResponse.json({error:"Missing withdrawal data"},{status:400});
+    if (process.env.BLOCKRADAR_WITHDRAWALS_ENABLED !== "true") return NextResponse.json({error:"Withdrawal processing disabled"},{status:503});
+    try {
+      const outcome = await handleWithdrawalWebhook(event.event,event.data,masterWalletId);
+      log("withdrawal_"+outcome,200);
+      return NextResponse.json({message:"success"},{status:200,headers:{"Cache-Control":"no-store"}});
+    } catch(error) {
+      console.error(JSON.stringify({component:"withdrawal-webhook",requestId,outcome:"processing_error",errorType:error instanceof Error?error.name:"unknown"}));
+      return NextResponse.json({error:"Withdrawal processing unavailable"},{status:503});
+    }
+  }
   if (event.event !== "deposit.success") { log("ignored_event", 200); return NextResponse.json({ message: "success" }, { status: 200, headers: { "Cache-Control": "no-store" } }); }
   const data = event.data;
   if (!data || typeof data !== "object") { log("missing_data", 400); return NextResponse.json({ error: "Missing deposit data" }, { status: 400 }); }
