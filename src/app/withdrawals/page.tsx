@@ -74,18 +74,18 @@ export default async function Withdrawals({searchParams}:{searchParams:Promise<{
       <div className="mt-5 w-full overflow-x-auto" role="region" aria-label="Withdrawals table" tabIndex={0}>
         <table className="w-full min-w-[950px] border-collapse text-left">
           <thead className="border-y border-[#E9EDF3] bg-[#F8FAFC]"><tr>
-            <th className={heading}>Requested</th><th className={heading}>Gross</th><th className={heading}>Fee</th>
-            <th className={heading}>Recipient receives</th><th className={heading}>Status</th>
-            <th className={heading}>Recipient wallet</th><th className={heading}>Transaction</th>
+            <th className={heading}>Gross</th><th className={heading}>Fee</th>
+            <th className={heading}>Recipient receives</th><th className={heading}>Recipient wallet</th>
+            <th className={heading}>Transaction</th><th className={heading}>Status</th><th className={heading}>Requested</th>
           </tr></thead>
           <tbody className="divide-y divide-[#EDF0F5]">{records.map(record=><tr key={record.id} className="hover:bg-[#FAFBFF]">
-            <td className={cell}>{date(record.createdAt)}</td>
             <td className={cell+" font-semibold"}>{formatUsdc(record.grossUsdcMicros)}</td>
             <td className={cell}>{formatUsdc(record.feeUsdcMicros)}</td>
             <td className={cell+" font-semibold"}>{formatUsdc(record.amountUsdcMicros)}</td>
-            <td className={cell}><span className="rounded-full bg-[#F1F5F9] px-3 py-1 text-xs font-semibold">{record.status}</span></td>
             <td className={cell+" font-mono text-xs"} title={record.destinationAddress}>{record.destinationAddress}</td>
             <td className={cell+" font-mono text-xs"} title={record.transactionHash??""}>{record.transactionHash??"—"}</td>
+            <td className={cell}><span className="rounded-full bg-[#F1F5F9] px-3 py-1 text-xs font-semibold">{record.status}</span></td>
+            <td className={cell}>{date(record.createdAt)}</td>
           </tr>)}</tbody>
         </table>
       </div>}
