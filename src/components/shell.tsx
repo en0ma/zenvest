@@ -10,7 +10,6 @@ export function Shell({ admin = false, preview = false, children }: {admin?:bool
   ] : [
     {text:"Overview",href:"/dashboard"},
     {text:"Wallet",href:"/wallet"},
-    {text:"Activity",href:"/transactions"},
     {text:"Strategy",href:"/bot"},
     {text:"Settings",href:"/settings"},
   ];
@@ -31,7 +30,7 @@ export function Shell({ admin = false, preview = false, children }: {admin?:bool
       <nav aria-label="Investor sidebar" className="mt-12 flex flex-col gap-1">{items.map(({href,text})=><InvestorNavLink key={text} href={href} text={text} variant="sidebar"/>)}</nav>
       {!preview&&<Signout/>}
     </aside>
-    <nav aria-label="Mobile investor navigation" className="fixed bottom-0 inset-x-0 z-40 grid grid-cols-5 border-t border-[#E4E8E2] bg-white/95 backdrop-blur lg:hidden pb-[env(safe-area-inset-bottom)]">{items.map(({href,text})=><InvestorNavLink key={text} href={href} text={text} variant="mobile"/>)}</nav>
+    <nav aria-label="Mobile investor navigation" className="fixed bottom-0 inset-x-0 z-40 grid grid-cols-4 border-t border-[#E4E8E2] bg-white/95 backdrop-blur lg:hidden pb-[env(safe-area-inset-bottom)]">{items.map(({href,text})=><InvestorNavLink key={text} href={href} text={text} variant="mobile"/>)}</nav>
     <main className="flex-1 min-w-0 px-5 py-10 sm:px-10 lg:px-14 lg:py-14 max-w-[1500px] mx-auto pb-28 lg:pb-10">{children}</main>
   </div>;
 }
