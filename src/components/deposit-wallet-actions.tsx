@@ -20,7 +20,7 @@ export function ActivateDepositWallet() {
       className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#635BFF] px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-[#544CE4] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#635BFF]/20 disabled:cursor-wait disabled:opacity-60 motion-reduce:transform-none">
       {state==="loading"?<><Loader2 size={17} className="animate-spin"/>Activating wallet...</>:<><Wallet size={17}/>Activate deposit wallet</>}
     </button>
-    {message&&<div role="alert" className="flex items-start gap-2.5 rounded-xl border border-[#E8D1CE] bg-[#FCF6F5] px-4 py-3 text-sm leading-6 text-[#925B55] motion-safe:animate-[fadeIn_240ms_ease-out]">
+    {message&&<div role="alert" className="flex items-start gap-2.5 rounded-xl border border-[#E8D1CE] bg-[#FCF6F5] px-4 py-3 text-sm leading-6 text-[#925B55] transition-colors duration-200">
       <AlertCircle size={18} className="mt-0.5 shrink-0"/><p>{message}</p>
     </div>}
   </div>;
