@@ -15,9 +15,7 @@ export default async function Dashboard(){
  const periods=[{label:"Daily",window:"24 hours"},{label:"Weekly",window:"7 days"},{label:"Monthly",window:"30 days"}];
  return <Shell><div className="mx-auto max-w-7xl space-y-7">
   <header>
-   <p className="text-sm text-[#64748B]">Welcome back{session.name?", "+session.name:""}.</p>
-   <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#11263E] sm:text-4xl">Performance overview</h1>
-   <p className="mt-2 text-sm text-[#64748B]">Your portfolio results, reporting periods, and forward-looking insights.</p>
+   <p className="text-sm leading-6 text-[#64748B]">Welcome back{session.name?", "+session.name:""}. Explore how your portfolio is performing and follow your investment progress over time.</p>
   </header>
   <section aria-label="Portfolio summary" className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
    <article className="rounded-[24px] border border-[#E2E8F4] bg-gradient-to-br from-[#EEF2FF] via-[#F7F9FF] to-white p-7 sm:p-9">
