@@ -57,11 +57,10 @@ export default async function Withdrawals({searchParams}:{searchParams:Promise<{
   const cell="whitespace-nowrap px-5 py-4 text-sm text-[#334155]";
   return <Shell><div className="mx-auto max-w-5xl">
     <PageIntro eyebrow="Investor portal / Capital" title="Withdrawals" description="Request Solana USDC payouts and track their status."/>
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-3">
       <BalanceTile label="Allocated capital" value={allocated} icon={ShieldCheck} detail="May require deallocation"/>
       <BalanceTile label="Unallocated capital" value={unallocated} icon={ArrowUpFromLine} detail="Not currently allocated"/>
       <BalanceTile label="Pending withdrawals" value={pending} icon={Clock3} detail="Reserved for withdrawal requests"/>
-      <BalanceTile label="Available to withdraw" value={available} icon={ArrowUpFromLine} detail="Allocated + unallocated − pending"/>
     </div>
     <section className="mt-6 rounded-2xl border border-[#E3E8EE] bg-white p-6">
       <div className="flex items-center gap-3"><ShieldCheck size={20} className="text-[#635BFF]"/><h2 className="text-xl font-semibold">Request a withdrawal</h2></div>
