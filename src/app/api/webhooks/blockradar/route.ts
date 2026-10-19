@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { journeyLog, type JourneyFields } from "@/lib/journey-log";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -25,8 +26,8 @@ function parseUsdcMicros(raw: unknown): bigint | null {
 export async function POST(request: Request) {
   const startedAt = Date.now();
   const requestId = request.headers.get("x-vercel-id") ?? crypto.randomUUID();
-  const log = (outcome: string, status: number, extra: Record<string, string | boolean | number> = {}) =>
-    console.info(JSON.stringify({ component: "blockradar-webhook", requestId, outcome, status, durationMs: Date.now() - startedAt, ...extra }));
+  const log = (outcome: string, status: number, extra: JourneyFields = {}) =>
+    journeyLog(status>=500?"error":status>=400||outcome==="sweep_failed"?"warn":"info","deposit_webhook",outcome,{requestId,status,durationMs:Date.now()-startedAt,...extra});
 
   let apiKey: string, masterWalletId: string;
   try { const config = blockradarConfig(); apiKey = config.key; masterWalletId = config.walletId; }
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
       log("withdrawal_"+outcome,200);
       return NextResponse.json({message:"success"},{status:200,headers:{"Cache-Control":"no-store"}});
     } catch(error) {
-      console.error(JSON.stringify({component:"withdrawal-webhook",requestId,outcome:"processing_error",errorType:error instanceof Error?error.name:"unknown"}));
+      journeyLog("error","withdrawal_settlement","processing_error",{requestId,errorType:error instanceof Error?error.name:"unknown",durationMs:Date.now()-startedAt});
       return NextResponse.json({error:"Withdrawal processing unavailable"},{status:503});
     }
   }
@@ -144,9 +145,7 @@ export async function POST(request: Request) {
     log(outcome,200,{userId:wallet.userId,depositId:id,transactionHash:hash});
     return NextResponse.json({message:"success"},{headers:{"Cache-Control":"no-store"}});
   } catch(error) {
-    console.error(JSON.stringify({component:"blockradar-webhook",requestId,
-      outcome:"deposit_processing_failed",userId:wallet.userId,depositId:id,
-      errorType:error instanceof Error?error.name:"unknown"}));
+    journeyLog("error","deposit_webhook","deposit_processing_failed",{requestId,userId:wallet.userId,depositId:id,errorType:error instanceof Error?error.name:"unknown",durationMs:Date.now()-startedAt});
     // Let Blockradar retry on transaction races; no financial changes escape
     // the failed database transaction.
     return NextResponse.json({error:"Deposit processing unavailable"},{status:503});
