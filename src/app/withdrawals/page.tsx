@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowUpFromLine, Clock3, ShieldCheck } from "lucide-react";
 import { Shell } from "@/components/shell";
-import { PageIntro } from "@/components/investor-ui";
 import { WithdrawalForm } from "@/components/withdrawal-actions";
 import { requireUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
@@ -56,7 +55,7 @@ export default async function Withdrawals({searchParams}:{searchParams:Promise<{
   const heading="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#64748B]";
   const cell="whitespace-nowrap px-5 py-4 text-sm text-[#334155]";
   return <Shell><div className="mx-auto max-w-5xl">
-    <PageIntro eyebrow="Investor portal / Capital" title="Withdrawals" description="Request Solana USDC payouts and track their status."/>
+    <p className="mb-6 max-w-2xl text-base leading-7 text-[#52647B] sm:text-lg">Withdraw USDC to your Solana wallet and follow each payout from request to completion.</p>
     <section aria-labelledby="capital-breakdown-heading" className="rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
       <h2 id="capital-breakdown-heading" className="text-xl font-semibold tracking-tight text-[#11263E]">Capital breakdown</h2>
       <p className="mt-1 text-sm text-[#64748B]">Your allocated and unallocated balances at a glance.</p>
