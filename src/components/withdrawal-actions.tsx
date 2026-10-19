@@ -13,14 +13,16 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
   const inFlight=useRef(false);
   const validAmount = /^(0|[1-9]\d*)(\.\d{1,6})?$/.test(amount);
   const gross = validAmount ? (()=>{const [w,f=""]=amount.split(".");return BigInt(w)*1000000n+BigInt(f.padEnd(6,"0"));})() : 0n;
-  const net = gross > 2000000n ? gross - 2000000n : 0n;
   const balance=BigInt(balanceMicros);
+  const amountWithinBalance=gross>0n && gross<=balance;
+  const displayGross=amountWithinBalance?gross:0n;
+  const net = amountWithinBalance && gross>2000000n ? gross - 2000000n : 0n;
   const unallocated=BigInt(unallocatedMicros);
   const pending=BigInt(pendingMicros);
   const previousShortfall=pending>unallocated?pending-unallocated:0n;
   const newPending=pending+gross;
   const newShortfall=newPending>unallocated?newPending-unallocated:0n;
-  const estimatedDeallocation=gross>0n?newShortfall-previousShortfall:0n;
+  const estimatedDeallocation=amountWithinBalance?newShortfall-previousShortfall:0n;
   const addressValid=/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
   const canSubmit=net>0n && gross<=balance && addressValid && !submitting;
   const show=(v:bigint)=>(v/1000000n).toString()+"."+(v%1000000n).toString().padStart(6,"0").slice(0,2);
@@ -49,7 +51,7 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
     </label>
     <div className="rounded-xl bg-[#F6F9FC] p-4 text-sm text-[#425466]">
       <p>Available balance: {show(balance)} USDC</p>
-      <p className="mt-2">Gross withdrawal: {show(gross)} USDC</p>
+      <p className="mt-2">Gross withdrawal: {show(displayGross)} USDC</p>
       <p className="mt-1">Withdrawal fee: {WITHDRAWAL_FEE_USDC} USDC</p>
       <p className="mt-2 font-semibold text-[#0A2540]">Expected payout: {show(net)} USDC</p>
       {gross>0n && gross<=balance && estimatedDeallocation>0n ? <p className="mt-3 rounded-lg border border-[#F0DBB2] bg-[#FFF9EC] p-3 text-sm text-[#754C17]">This withdrawal will trigger a deallocation request for approximately {show(estimatedDeallocation)} USDC of allocated capital. Your payout will wait until those funds are returned to the master wallet.</p> : gross>0n && gross<=balance ? <p className="mt-3 text-sm text-[#425466]">No additional deallocation is expected for this request.</p> : null}
