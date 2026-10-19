@@ -73,7 +73,7 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
           <p className="flex items-center gap-2 text-sm font-medium text-[#64748B]"><Wallet size={16} className="shrink-0 text-[#635BFF]"/>Available to withdraw</p>
           <p className="mt-2 text-3xl font-bold tracking-tight tabular-nums text-[#11263E] sm:text-4xl">{format(balance)} <span className="text-base font-semibold text-[#64748B]">USDC</span></p>
         </div>
-        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#E4E9F1] bg-white px-2.5 py-1.5 text-xs font-medium text-[#64748B]"><ShieldCheck size={13} className="text-[#635BFF]"/><span>Solana</span></span>
+        
       </div>
     </section>
 
@@ -92,7 +92,7 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
         {tooSmall && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#97605A]"><AlertCircle size={15}/> Enter more than {WITHDRAWAL_FEE_USDC} USDC to cover the fee.</p>}
       </div>
       <div>
-        <label htmlFor="recipient-address" className="text-sm font-semibold text-[#11263E]">Recipient Solana wallet address</label>
+        <label htmlFor="recipient-address" className="flex items-center gap-2 text-sm font-semibold text-[#11263E]"><Wallet size={16} className="text-[#635BFF]" aria-hidden="true"/>Recipient Solana wallet address</label>
         <input id="recipient-address" required autoComplete="off" spellCheck={false} value={address}
           onChange={e=>{setAddress(e.target.value.trim());onEdit();}}
           placeholder="Paste the recipient's Solana address" aria-describedby="recipient-help"
