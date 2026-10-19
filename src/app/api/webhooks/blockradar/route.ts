@@ -91,7 +91,7 @@ export async function POST(request: Request) {
   const wallet=await prisma.investorDepositWallet.findUnique({where:{address:recipient}});
   if (!wallet || wallet.status!=="ACTIVE" || wallet.masterWalletId!==masterWalletId ||
       (addr.id && addr.id!==wallet.addressId)) {
-    log("unknown_address",422);
+    log("unknown_address",422,{depositId:typeof id==="string"?id:"unknown",...(wallet?{userId:wallet.userId}:{})});
     return NextResponse.json({error:"Unrecognized deposit address"},{status:422});
   }
   // A signed sweep notification must prove that the *full deposit* moved

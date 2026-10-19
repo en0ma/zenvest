@@ -9,20 +9,24 @@ export const dynamic = "force-dynamic";
 // Invoked by a trusted scheduler or operator, never from an investor browser.
 // Resend requests reuse the existing signed webhook and idempotent ledger path.
 export async function GET(request: Request) {
+  const startedAt=Date.now();
+  const log=(outcome:string,extra:Record<string,string|number|boolean>={})=>console.info(JSON.stringify({component:"deposit-reconciliation",outcome,durationMs:Date.now()-startedAt,...extra}));
   const secret = process.env.CRON_SECRET;
   const supplied = request.headers.get("authorization")?.replace(/^Bearer /, "") ?? "";
   if (!secret || !supplied || Buffer.byteLength(secret) !== Buffer.byteLength(supplied) ||
       !timingSafeEqual(Buffer.from(secret), Buffer.from(supplied))) {
+    log("unauthorized");
     return NextResponse.json({error:"Unauthorized"},{status:401});
   }
   if (process.env.BLOCKRADAR_DEPOSITS_ENABLED !== "true") {
+    log("disabled");
     return NextResponse.json({error:"Deposit reconciliation disabled"},{status:503});
   }
   const mint = process.env.BLOCKRADAR_SOLANA_USDC_MINT;
-  if (!mint) return NextResponse.json({error:"USDC mint not configured"},{status:503});
+  if (!mint) {log("missing_mint");return NextResponse.json({error:"USDC mint not configured"},{status:503});}
   let key: string, walletId: string;
   try { const config = blockradarConfig(); key=config.key; walletId=config.walletId; }
-  catch { return NextResponse.json({error:"Blockradar not configured"},{status:503}); }
+  catch {log("unconfigured");return NextResponse.json({error:"Blockradar not configured"},{status:503});}
 
   // A deliberately bounded scan. Further pages require the next scheduled run
   // or an operator-directed backfill; an incomplete response must not be mistaken
@@ -52,7 +56,7 @@ export async function GET(request: Request) {
         if(asset.address!==mint || asset.symbol!=="USDC") continue;
         const target=typeof tx.recipientAddress==="string" ? tx.recipientAddress : null;
         if(!target) continue;
-        const wallet=await prisma.investorDepositWallet.findFirst({where:{address:target,masterWalletId:walletId,status:"ACTIVE"},select:{id:true}});
+        const wallet=await prisma.investorDepositWallet.findFirst({where:{address:target,masterWalletId:walletId,status:"ACTIVE"},select:{id:true,userId:true}});
         if(!wallet) continue;
         scanned++;
         const already=await prisma.blockchainDeposit.findUnique({where:{providerTransactionId:tx.id},select:{id:true}});
@@ -63,12 +67,14 @@ export async function GET(request: Request) {
         });
         if(!resend.ok) throw new Error(`Blockradar resend HTTP ${resend.status}`);
         replayRequested++;
+        log("webhook_replay_requested",{userId:wallet.userId,depositId:tx.id});
       }
       if(items.length<pageSize){complete=true;break;}
     }
+    log("scan_completed",{scanned,missing,replayRequested,complete});
     return NextResponse.json({scanned,missing,replayRequested,complete,note:complete?"Scanned all returned pages":"Page limit reached; further backfill required"});
   } catch(error) {
-    console.error("Deposit reconciliation failed",error);
+    console.error(JSON.stringify({component:"deposit-reconciliation",outcome:"scan_failed",scanned,missing,replayRequested,errorType:error instanceof Error?error.name:"unknown"}));
     return NextResponse.json({error:"Reconciliation failed; retry required",scanned,missing,replayRequested,complete:false},{status:503});
   }
 }
