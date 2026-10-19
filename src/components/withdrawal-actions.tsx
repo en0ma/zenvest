@@ -133,10 +133,3 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
     </div>}
   </form>;
 }
-
-export function CancelWithdrawal({id}:{id:string}) {
-  const router=useRouter();
-  const [pending,setPending]=useState(false);
-  const [message,setMessage]=useState("");
-  async function cancel() {
-  
