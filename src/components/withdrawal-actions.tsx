@@ -67,14 +67,15 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
   }
 
   return <form onSubmit={submit} className="mt-6 space-y-6">
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#E3E8EF] bg-[#F8FAFD] px-4 py-4 sm:px-5">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#635BFF] shadow-sm"><Wallet size={20}/></span>
-        <div><p className="text-xs font-medium uppercase tracking-wider text-[#687B91]">Available to withdraw</p>
-          <p className="mt-0.5 text-xl font-bold tabular-nums text-[#11263E]">{format(balance)} <span className="text-sm font-semibold text-[#687B91]">USDC</span></p></div>
+    <section aria-label="Available withdrawal balance" className="rounded-2xl border border-[#E4E9F1] bg-[#F8FAFD] px-5 py-5 sm:px-6">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-sm font-medium text-[#64748B]"><Wallet size={16} className="shrink-0 text-[#635BFF]"/>Available to withdraw</p>
+          <p className="mt-2 text-3xl font-bold tracking-tight tabular-nums text-[#11263E] sm:text-4xl">{format(balance)} <span className="text-base font-semibold text-[#64748B]">USDC</span></p>
+        </div>
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#E4E9F1] bg-white px-2.5 py-1.5 text-xs font-medium text-[#64748B]"><ShieldCheck size={13} className="text-[#635BFF]"/><span>Solana</span></span>
       </div>
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-[#516477]"><ShieldCheck size={14}/> Solana network</span>
-    </div>
+    </section>
 
     <div className="grid gap-5">
       <div>
