@@ -22,10 +22,10 @@ export async function GET(request:Request) {
   if(!authorized(request)){log("warn","unauthorized");return json({error:"Unauthorized"},401);}
   if(process.env.BLOCKRADAR_WITHDRAWALS_ENABLED!=="true"){log("info","disabled");return json({status:"disabled"});}
   const assetId=process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID;
-  if(!assetId) return json({error:"USDC asset missing"},503);
+  if(!assetId){log("error","missing_asset");return json({error:"USDC asset missing"},503);}
   let key:string,walletId:string;
   try {const c=blockradarConfig();key=c.key;walletId=c.walletId;}
-  catch{return json({error:"Wallet config unavailable"},503);}
+  catch{log("error","unconfigured");return json({error:"Wallet config unavailable"},503);}
 
   // Claim a single oldest pending payout. Serializable treasury row updates
   // prevent concurrent cron invocations from spending the same liquidity.
