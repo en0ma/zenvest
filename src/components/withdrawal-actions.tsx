@@ -93,7 +93,7 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
         {tooSmall && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#97605A]"><AlertCircle size={15}/> Enter more than {WITHDRAWAL_FEE_USDC} USDC to cover the fee.</p>}
       </div>
       <div>
-        <label htmlFor="recipient-address" className="flex items-center gap-2 text-sm font-semibold text-[#11263E]"><Wallet size={16} className="text-[#635BFF]" aria-hidden="true"/>Recipient Solana wallet address</label>
+        <label htmlFor="recipient-address" className="block text-sm font-semibold text-[#11263E]">Recipient Solana wallet address</label>
         <input id="recipient-address" required autoComplete="off" spellCheck={false} value={address}
           onChange={e=>{setAddress(e.target.value.trim());onEdit();}}
           placeholder="Paste the recipient's Solana address" aria-describedby="recipient-help"
