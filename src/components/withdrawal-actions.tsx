@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { AlertCircle, ArrowRight, CheckCircle2, Clock3, Info, Loader2, ShieldCheck, Wallet } from "lucide-react";
 import { WITHDRAWAL_FEE_USDC } from "@/lib/withdrawal-fee";
 
@@ -122,7 +123,8 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
     </div>}
 
     <div className="flex items-start gap-2.5 text-xs leading-5 text-[#64748B]"><Clock3 size={16} className="mt-0.5 shrink-0"/>
-      <p>Withdrawals are processed automatically when funds are ready. Processing time varies; submitting a request does not mean the payout is immediate.</p></div>
+      <div className="space-y-2"><p>Withdrawals are processed automatically when funds are ready. Processing time varies; submitting a request does not mean the payout is immediate.</p>
+      <p>Withdrawals may include allocated USDC, which may require additional processing before payout. <Link href="/wallet" className="font-medium underline underline-offset-2 hover:text-[#635BFF]">Return to wallet</Link>.</p></div></div>
 
     <button type="submit" disabled={!canSubmit}
       className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#635BFF] px-5 py-4 text-sm font-semibold text-white shadow-sm transition-all duration-200 active:scale-[0.99] motion-reduce:transform-none hover:bg-[#544CE4] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#635BFF]/30 disabled:cursor-not-allowed disabled:bg-[#BBC3D1] disabled:shadow-none">
