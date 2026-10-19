@@ -129,6 +129,5 @@ export default async function Withdrawals({searchParams}:{searchParams:Promise<{
       </div>}
       <Pager page={dPage} pages={deallocationPages} total={deallocationCount} keyName="deallocationsPage" other={wPage}/>
     </section>
-    <p className="mt-6 text-sm text-[#425466]">Withdrawals may include allocated USDC, which may require additional processing before payout. <Link href="/wallet" className="underline">Return to wallet</Link>.</p>
   </div></Shell>;
 }
