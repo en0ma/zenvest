@@ -1,3 +1,4 @@
+import { ArrowUpFromLine, Clock3, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import QRCode from "qrcode";
@@ -27,6 +28,27 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
   <header className="mb-12 border-b border-[#E3E8EE] pb-9"><h1 className="text-4xl sm:text-6xl font-semibold tracking-[-.065em]">Wallet</h1><p className="mt-3 text-sm text-[#425466]">Manage your Solana USDC deposits, withdrawals, and balances.</p></header>
   <section className="rounded-[24px] bg-[#F6F9FC] p-8"><p className="text-sm text-[#425466]">Unallocated capital</p><h2 className="zen-value mt-4 text-4xl sm:text-6xl">{formatUsdc(portfolio?.unallocatedUsdcMicros??0n)}</h2><p className="mt-3 text-sm text-[#425466]">Reported balance, not necessarily eligible for immediate withdrawal.</p></section>
   <section className="mt-6 rounded-[24px] bg-[#F6F9FC] p-6"><p className="text-sm text-[#425466]">Confirming deposits · awaiting sweep</p><p className="mt-2 text-2xl font-semibold">{formatUsdc(portfolio?.pendingDepositsUsdcMicros??0n)}</p></section>
+    <section aria-labelledby="capital-breakdown-heading" className="mt-8 rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
+      <h2 id="capital-breakdown-heading" className="text-xl font-semibold tracking-tight text-[#11263E]">Capital breakdown</h2>
+      <p className="mt-1 text-sm text-[#64748B]">Your allocated and unallocated balances at a glance.</p>
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border border-[#E8EDF4] bg-[#FAFBFD] p-5">
+          <p className="flex items-center gap-2 text-sm font-medium text-[#5B6B7F]"><ShieldCheck size={17}/>Allocated capital</p>
+          <p className="mt-3 text-2xl font-bold tracking-tight text-[#11263E] sm:text-3xl">{formatUsdc(portfolio?.allocatedUsdcMicros??0n)}</p>
+          <p className="mt-2 text-xs text-[#7A889A]">May require deallocation</p>
+        </div>
+        <div className="rounded-2xl border border-[#E8EDF4] bg-[#FAFBFD] p-5">
+          <p className="flex items-center gap-2 text-sm font-medium text-[#5B6B7F]"><ArrowUpFromLine size={17}/>Unallocated capital</p>
+          <p className="mt-3 text-2xl font-bold tracking-tight text-[#11263E] sm:text-3xl">{formatUsdc(portfolio?.unallocatedUsdcMicros??0n)}</p>
+          <p className="mt-2 text-xs text-[#7A889A]">Not currently allocated</p>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#EDF1F6] pt-4">
+        <p className="flex items-center gap-2 text-sm text-[#78869A]"><Clock3 size={15}/>Pending withdrawals</p>
+        <p className="text-sm font-semibold tabular-nums text-[#5B6B7F]">{formatUsdc(portfolio?.pendingWithdrawalsUsdcMicros??0n)}</p>
+      </div>
+      <p className="mt-1 text-xs text-[#8A97A8]">Reserved for existing requests and excluded from the available withdrawal balance.</p>
+    </section>
   <section className="mt-8 rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-2xl font-semibold tracking-tight">Deposit USDC</h2><p className="mt-2 text-sm text-[#425466]">Use your personal Solana deposit address to add funds.</p></div><span className="rounded-full bg-[#F0EEFF] px-3 py-1.5 text-xs font-semibold text-[#635BFF]">Solana · USDC</span></div>
    {depositWallet?.status === "ACTIVE" && depositWallet.address ? <div className="mt-5 space-y-4">
