@@ -80,13 +80,12 @@ export default async function Withdrawals({searchParams}:{searchParams:Promise<{
     <section className="mt-6 rounded-2xl border border-[#E3E8EE] bg-white p-6">
       <div className="flex items-center gap-3"><ShieldCheck size={20} className="text-[#635BFF]"/><h2 className="text-xl font-semibold">Request a withdrawal</h2></div>
       {enabled?<WithdrawalForm balanceMicros={available.toString()} unallocatedMicros={unallocated.toString()} pendingMicros={pending.toString()}/>:<p className="mt-4 text-sm text-[#425466]">Withdrawal requests are not enabled yet.</p>}
-    </section>
 
-    <section className="mt-6 overflow-hidden rounded-2xl border border-[#E3E8EE] bg-white">
-      <div className="px-5 pt-6 sm:px-6"><h2 className="text-xl font-semibold">Withdrawals</h2>
+    <section className="mt-10 border-t border-[#E3E8EE] pt-7">
+      <div className="px-0"><h2 className="text-xl font-semibold">Withdrawals</h2>
         <p className="mt-2 text-sm text-[#64748B]">Your withdrawal requests and payout progress.</p></div>
-      {records.length===0?<p className="px-5 py-8 text-sm text-[#64748B]">No withdrawals yet.</p>:
-      <div className="mt-5 w-full overflow-x-auto" role="region" aria-label="Withdrawals table" tabIndex={0}>
+      {records.length===0?<p className="py-6 text-sm text-[#64748B]">No withdrawals yet.</p>:
+      <div className="mt-5 w-full overflow-x-auto rounded-xl border border-[#E7EDF4]" role="region" aria-label="Withdrawals table" tabIndex={0}>
         <table className="w-full min-w-[950px] border-collapse text-left">
           <thead className="border-y border-[#E9EDF3] bg-[#F8FAFC]"><tr>
             <th className={heading}>Gross</th><th className={heading}>Fee</th>
@@ -106,12 +105,11 @@ export default async function Withdrawals({searchParams}:{searchParams:Promise<{
       </div>}
       <Pager page={wPage} pages={withdrawalPages} total={withdrawalCount} keyName="withdrawalsPage" other={dPage}/>
     </section>
-
-    <section className="mt-6 overflow-hidden rounded-2xl border border-[#E3E8EE] bg-white">
-      <div className="px-5 pt-6 sm:px-6"><h2 className="text-xl font-semibold">Deallocations</h2>
+<section className="mt-9 border-t border-[#E3E8EE] pt-7">
+      <div className="px-0"><h2 className="text-xl font-semibold">Deallocations</h2>
         <p className="mt-2 text-sm text-[#64748B]">Track funds being made available from allocated capital. Deallocation and payout statuses are independent.</p></div>
-      {deallocations.length===0?<p className="px-5 py-8 text-sm text-[#64748B]">No deallocation requests yet.</p>:
-      <div className="mt-5 w-full overflow-x-auto" role="region" aria-label="Deallocations table" tabIndex={0}>
+      {deallocations.length===0?<p className="py-6 text-sm text-[#64748B]">No deallocation requests yet.</p>:
+      <div className="mt-5 w-full overflow-x-auto rounded-xl border border-[#E7EDF4]" role="region" aria-label="Deallocations table" tabIndex={0}>
         <table className="w-full min-w-[850px] border-collapse text-left">
           <thead className="border-y border-[#E9EDF3] bg-[#F8FAFC]"><tr>
             <th className={heading}>Requested</th><th className={heading}>Amount</th><th className={heading}>Status</th>
@@ -128,6 +126,7 @@ export default async function Withdrawals({searchParams}:{searchParams:Promise<{
         </table>
       </div>}
       <Pager page={dPage} pages={deallocationPages} total={deallocationCount} keyName="deallocationsPage" other={wPage}/>
+    </section>
     </section>
   </div></Shell>;
 }
