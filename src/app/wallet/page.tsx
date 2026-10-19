@@ -19,6 +19,7 @@ export default async function WalletPage(){
  return <Shell><div className="mx-auto max-w-5xl">
   <header className="mb-12 border-b border-[#E3E8EE] pb-9"><h1 className="text-4xl sm:text-6xl font-semibold tracking-[-.065em]">Wallet</h1><p className="mt-3 text-sm text-[#425466]">Manage your Solana USDC deposits and balance.</p></header>
   <section className="rounded-[24px] bg-[#F6F9FC] p-8"><p className="text-sm text-[#425466]">Unallocated capital</p><h2 className="zen-value mt-4 text-4xl sm:text-6xl">{formatUsdc(portfolio?.unallocatedUsdcMicros??0n)}</h2><p className="mt-3 text-sm text-[#425466]">Reported balance, not necessarily eligible for immediate withdrawal.</p></section>
+  <section className="mt-6 rounded-[24px] bg-[#F6F9FC] p-6"><p className="text-sm text-[#425466]">Confirming deposits · awaiting sweep</p><p className="mt-2 text-2xl font-semibold">{formatUsdc(portfolio?.pendingDepositsUsdcMicros??0n)}</p></section>
   <section className="mt-8 rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-2xl font-semibold tracking-tight">Deposit USDC</h2><p className="mt-2 text-sm text-[#425466]">Use your personal Solana deposit address to add funds.</p></div><span className="rounded-full bg-[#F0EEFF] px-3 py-1.5 text-xs font-semibold text-[#635BFF]">Solana · USDC</span></div>
    {depositWallet?.status === "ACTIVE" && depositWallet.address ? <div className="mt-5 space-y-4">
@@ -32,11 +33,11 @@ export default async function WalletPage(){
     <ActivateDepositWallet/>
    </div>}
    <div className="mt-10 border-t border-[#E3E8EE] pt-7">
-   <div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="text-lg font-semibold tracking-tight">Recent deposits</h3><span className="text-xs text-[#425466]">Confirmed on-chain funding</span></div>
-   {history.length === 0 ? <p className="mt-4 text-sm text-[#425466]">Your confirmed deposits will appear here.</p> : <div className="mt-5 divide-y divide-[#E3E8EE]">
+   <div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="text-lg font-semibold tracking-tight">Recent deposits</h3><span className="text-xs text-[#425466]">Confirmed deposits and pending sweeps</span></div>
+   {history.length === 0 ? <p className="mt-4 text-sm text-[#425466]">Your deposits will appear here.</p> : <div className="mt-5 divide-y divide-[#E3E8EE]">
     {history.map(item=><div key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
-     <div><p className="font-semibold">USDC deposit</p><p className="mt-1 text-xs text-[#425466]">{item.creditedAt ? new Date(item.creditedAt).toLocaleString("en-US",{timeZone:"UTC",dateStyle:"medium",timeStyle:"short"})+" UTC" : "Awaiting confirmation"}</p><p className="mt-1 max-w-[240px] truncate font-mono text-xs text-[#425466]" title={item.transactionHash}>{item.transactionHash}</p></div>
-     <div className="text-right"><p className="font-semibold text-[#0A2540]">+{formatUsdc(item.amountUsdcMicros)}</p><p className="mt-1 text-xs text-[#425466]">{item.creditedAt ? "Confirmed" : "Processing"}</p></div>
+     <div><p className="font-semibold">USDC deposit</p><p className="mt-1 text-xs text-[#425466]">{item.creditedAt ? new Date(item.creditedAt).toLocaleString("en-US",{timeZone:"UTC",dateStyle:"medium",timeStyle:"short"})+" UTC" : "Awaiting transfer to master wallet"}</p><p className="mt-1 max-w-[240px] truncate font-mono text-xs text-[#425466]" title={item.transactionHash}>{item.transactionHash}</p></div>
+     <div className="text-right"><p className="font-semibold text-[#0A2540]">+{formatUsdc(item.amountUsdcMicros)}</p><p className="mt-1 text-xs text-[#425466]">{item.status === "CONFIRMED" ? "Confirmed" : "Confirming · awaiting sweep"}</p></div>
     </div>)}
    </div>}
    </div>

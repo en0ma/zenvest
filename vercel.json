@@ -3,6 +3,14 @@
     {
       "path": "/api/internal/reconcile-blockradar",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/internal/process-withdrawals",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/internal/process-deallocations",
+      "schedule": "* * * * *"
     }
   ]
 }

@@ -24,6 +24,8 @@ model User {
   sessionVersion Int @default(0) @map("session_version")
   portfolio InvestorPortfolio?
   depositWallet InvestorDepositWallet?
+  withdrawals InvestorWithdrawal[]
+  deallocationRequests WithdrawalDeallocation[]
   tokens       ActionToken[]
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -131,6 +133,8 @@ model InvestorPortfolio {
   pendingWithdrawalsUsdcMicros BigInt @default(0) @map("pending_withdrawals_usdc_micros")
   updatedAt DateTime @updatedAt @map("updated_at")
   activity InvestorActivity[]
+  withdrawals InvestorWithdrawal[]
+  deallocationRequests WithdrawalDeallocation[]
   @@map("investor_portfolios")
 }
 
@@ -182,6 +186,11 @@ model InvestorDepositWallet {
   @@map("investor_deposit_wallets")
 }
 
+enum BlockchainDepositStatus {
+  CONFIRMING
+  CONFIRMED
+}
+
 model BlockchainDeposit {
   id String @id @default(cuid())
   walletId String @map("wallet_id")
@@ -190,8 +199,81 @@ model BlockchainDeposit {
   transactionHash String @map("transaction_hash") @db.VarChar(180)
   assetAddress String @map("asset_address") @db.VarChar(128)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
+  status BlockchainDepositStatus @default(CONFIRMING)
+  sweepHash String? @map("sweep_hash") @db.VarChar(180)
   creditedAt DateTime? @map("credited_at")
   createdAt DateTime @default(now()) @map("created_at")
   @@index([walletId, createdAt])
   @@map("blockchain_deposits")
+}
+
+enum WithdrawalStatus {
+  PROCESSING
+  SUCCESS
+  REQUESTED
+  SUBMITTING
+  PENDING
+  COMPLETED
+  FAILED
+  REVIEW
+}
+
+model InvestorWithdrawal {
+  id String @id @default(cuid())
+  userId String @map("user_id")
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  portfolioId String @map("portfolio_id")
+  portfolio InvestorPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Restrict)
+  amountUsdcMicros BigInt @map("amount_usdc_micros")
+  grossUsdcMicros BigInt @map("gross_usdc_micros")
+  asset String @default("USDC") @db.VarChar(16)
+  feeUsdcMicros BigInt @default(2000000) @map("fee_usdc_micros")
+  destinationAddress String @map("destination_address") @db.VarChar(128)
+  idempotencyKey String @map("idempotency_key") @db.VarChar(64)
+  status WithdrawalStatus @default(REQUESTED)
+  providerTransactionId String? @unique @map("provider_transaction_id") @db.VarChar(180)
+  transactionHash String? @map("transaction_hash") @db.VarChar(180)
+  failureCode String? @map("failure_code") @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+  deallocations WithdrawalDeallocation[]
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("investor_withdrawals")
+}
+
+model MasterWalletBalance {
+  walletId String @id @map("wallet_id")
+  confirmedUsdcMicros BigInt @default(0) @map("confirmed_usdc_micros")
+  reservedUsdcMicros BigInt @default(0) @map("reserved_usdc_micros")
+  feeReserveUsdcMicros BigInt @default(0) @map("fee_reserve_usdc_micros")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@map("master_wallet_balances")
+}
+
+enum DeallocationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model WithdrawalDeallocation {
+  id String @id @default(cuid())
+  withdrawalId String @map("withdrawal_id")
+  withdrawal InvestorWithdrawal @relation(fields:[withdrawalId], references:[id], onDelete:Restrict)
+  userId String @map("user_id")
+  user User @relation(fields:[userId],references:[id],onDelete:Restrict)
+  portfolioId String @map("portfolio_id")
+  portfolio InvestorPortfolio @relation(fields:[portfolioId],references:[id],onDelete:Restrict)
+  amountUsdcMicros BigInt @map("amount_usdc_micros")
+  status DeallocationStatus @default(PENDING)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+  @@unique([withdrawalId])
+  @@index([status,createdAt])
+  @@map("withdrawal_deallocations")
 }
