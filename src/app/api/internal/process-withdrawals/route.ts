@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { journeyLog } from "@/lib/journey-log";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -15,8 +16,11 @@ function authorized(request:Request) {
   return Boolean(secret&&provided&&Buffer.byteLength(secret)===Buffer.byteLength(provided)&&timingSafeEqual(Buffer.from(secret!),Buffer.from(provided)));
 }
 export async function GET(request:Request) {
-  if(!authorized(request)) return json({error:"Unauthorized"},401);
-  if(process.env.BLOCKRADAR_WITHDRAWALS_ENABLED!=="true") return json({status:"disabled"});
+  const startedAt=Date.now();
+  const requestId=request.headers.get("x-vercel-id")??crypto.randomUUID();
+  const log=(severity:"info"|"warn"|"error",outcome:string,details:{userId?:string;withdrawalId?:string;providerTransactionId?:string;errorType?:string}={})=>journeyLog(severity,"withdrawal_payout",outcome,{requestId,durationMs:Date.now()-startedAt,...details});
+  if(!authorized(request)){log("warn","unauthorized");return json({error:"Unauthorized"},401);}
+  if(process.env.BLOCKRADAR_WITHDRAWALS_ENABLED!=="true"){log("info","disabled");return json({status:"disabled"});}
   const assetId=process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID;
   if(!assetId) return json({error:"USDC asset missing"},503);
   let key:string,walletId:string;
@@ -41,7 +45,7 @@ export async function GET(request:Request) {
       return first;
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
   }catch(e){
-    console.error(JSON.stringify({component:"withdrawal-cron",outcome:"claim_error",errorType:e instanceof Error?e.name:"unknown"}));
+    log("error","claim_error",{errorType:e instanceof Error?e.name:"unknown"});
     return json({error:"Queue claim failed"},503);
   }
   if(!item) return json({status:"idle_or_insufficient_master_liquidity"});
@@ -64,6 +68,7 @@ export async function GET(request:Request) {
         const u=await tx.investorWithdrawal.updateMany({where:{id:item!.id,status:"PROCESSING"},data:{status:"PENDING"}});
         if(u.count)await tx.masterWalletBalance.update({where:{walletId},data:{reservedUsdcMicros:{decrement:item!.amountUsdcMicros}}});
       });
+      log("warn","awaiting_network_fee",{userId:item.userId,withdrawalId:item.id});
       return json({status:"awaiting_network_fee",withdrawalId:item.id});
     }
   }catch{
@@ -72,6 +77,7 @@ export async function GET(request:Request) {
       const u=await tx.investorWithdrawal.updateMany({where:{id:item!.id,status:"PROCESSING"},data:{status:"PENDING"}});
       if(u.count)await tx.masterWalletBalance.update({where:{walletId},data:{reservedUsdcMicros:{decrement:item!.amountUsdcMicros}}});
     });
+    log("warn","fee_estimation_unavailable",{userId:item.userId,withdrawalId:item.id});
     return json({status:"fee_estimation_unavailable"});
   }
 
@@ -85,11 +91,11 @@ export async function GET(request:Request) {
     if(!response.ok||typeof tx.id!=="string")throw Error("Uncertain outcome");
     await prisma.investorWithdrawal.updateMany({where:{id:item.id,status:"PROCESSING"},data:{
       providerTransactionId:tx.id,transactionHash:typeof tx.hash==="string"?tx.hash:null}});
-    console.info(JSON.stringify({component:"withdrawal-cron",outcome:"submitted",userId:item.userId,withdrawalId:item.id,providerTransactionId:tx.id}));
+    log("info","submitted",{userId:item.userId,withdrawalId:item.id,providerTransactionId:tx.id});
     return json({status:"processing",withdrawalId:item.id});
   }catch(e){
     await prisma.investorWithdrawal.updateMany({where:{id:item.id,status:"PROCESSING"},data:{status:"REVIEW",failureCode:"UNKNOWN_PROVIDER_OUTCOME"}});
-    console.error(JSON.stringify({component:"withdrawal-cron",outcome:"manual_reconciliation",userId:item.userId,withdrawalId:item.id,errorType:e instanceof Error?e.name:"unknown"}));
+    log("error","manual_reconciliation",{userId:item.userId,withdrawalId:item.id,errorType:e instanceof Error?e.name:"unknown"});
     return json({status:"review",withdrawalId:item.id});
   }
 }
