@@ -54,7 +54,7 @@ For each investor, in integer micro-USDC:
 - **`GrossWithdrawal = NetPayout + 2_000_000 micros`**.
 - Deposit funding first enters `pendingDepositsUsdcMicros`, then `U` upon verified sweep.
 
-**Do not decrement A or U at request creation.** Increment P instead. On success, decrement P by gross, then debit gross from U first and any remainder from A. On definitive payout failure or permitted cancellation, decrement P only.
+**Do not decrement A or U at request creation.** Increment P instead. On success, decrement P by gross, then debit gross from U first and any remainder from A. On definitive payout failure, decrement P only. Investor-initiated cancellation is unsupported.
 
 On **verified deallocation completion**, decrement A and increment U by the completed amount, preserving `A + U` and leaving P unchanged. If a subsequent payout fails, the returned funds **remain unallocated**.
 
@@ -221,7 +221,7 @@ request accepted          => PENDING    (reserve gross in P)
 cron claims / submits     => PROCESSING (reserve net master liquidity)
 signed withdraw.success   => SUCCESS    (ledger settlement; fee retained)
 signed withdraw.failed    => FAILED     (release P; preserve completed deallocation)
-user cancels while safely queued => FAILED / USER_CANCELLED
+user cancellation request  => REJECTED (HTTP 410; no ledger mutation)
 ambiguous provider response => REVIEW (no blind retry)
 ```
 
@@ -249,7 +249,7 @@ known failure / safe cancellation => FAILED
 | Master USDC is insufficient | Keep request pending; worker may pay oldest **fundable** candidate. |
 | Missing or delayed payout-success webhook | Keep PROCESSING/REVIEW, reconcile provider status; never rebroadcast blindly. |
 | Definite payout failure | Return gross to available via P release, no fee collected. |
-| Failed/cancelled pending deallocation | Keep audit record rather than deleting history. |
+| Failed pending deallocation | Keep audit record rather than deleting history. |
 | Missing sweep webhook | Reconcile actual deposit/sweep status before credit. |
 | Master wallet receives outside transfers | Reconcile live on-chain holdings to event-derived balance, do not invent credits. |
 | Native SOL balance low | Hold payout; fund network fees before broadcast. |
@@ -272,13 +272,13 @@ known failure / safe cancellation => FAILED
 | Actual Kalshi trading-capital deallocation and custody return | **Not implemented** |
 | Master-wallet → Kalshi allocation scheduler and transfers | **Not implemented** |
 | Accurate historical master-balance bootstrap and independent ongoing reconciliation | **Not implemented** |
-| Deallocation-obligation recalculation after cancellation, settlement or reordering | **Not implemented** |
+| Deallocation-obligation recalculation after settlement or reordering | **Not implemented** |
 | End-to-end real Devnet payout and sweep verification | **Required before enabling** |
 | Treasury safeguards: limits, compliance, MFA, alerts, liquidity controls | **Required before live funds** |
 
 ## 12. Required design decisions and safety gates
 
-1. **Deallocation obligation rebasing:** Per-withdrawal incremental shortfalls can become stale when an older withdrawal is cancelled, successful withdrawals settle out of order, allocation/trading balances change, or existing deallocations complete. Add a locked, auditable recalculation/reconciliation process before sending Kalshi requests.
+1. **Deallocation obligation rebasing:** Per-withdrawal incremental shortfalls can become stale successful withdrawals settle out of order, allocation/trading balances change, or existing deallocations complete. Add a locked, auditable recalculation/reconciliation process before sending Kalshi requests.
 2. **Trading available balance:** Kalshi cash available for withdrawal can differ from allocated capital because of open positions, fills, fees, settlement and P&L. Release only verified withdrawable funds, not nominal A.
 3. **Treasury truth:** Reconcile actual Blockradar/Solana master USDC and SOL regularly, bootstrap historic assets, account for future Kalshi inflows/outflows, and preserve fee earmarks.
 4. **Webhook reality:** Test genuine Blockradar Solana Devnet payloads and delayed/out-of-order deliveries, reconcile missing events and ambiguous transfers.
@@ -302,3 +302,7 @@ known failure / safe cancellation => FAILED
 - `vercel.json` — cron schedules.
 
 **Change-control note:** This document describes the *agreed target cycle*, marks future integrations explicitly, and references an unmerged implementation PR. It is not evidence of safe production operations. Keep it updated alongside future Kalshi, reconciliation, and payouts changes.
+
+## Policy update — non-cancelable withdrawal requests
+
+Once accepted, investor withdrawal requests **cannot be cancelled**. The UI does not offer a cancel action, and the prior cancellation endpoint returns HTTP 410 without modifying balances or request status. A definitive failed payout can still release the gross pending reservation through the verified settlement path. This supersedes any earlier references to user cancellation in this document.
