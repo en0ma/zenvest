@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const startedAt=Date.now();
   const requestId=request.headers.get("x-vercel-id")??crypto.randomUUID();
-  const log=(outcome:string,extra:{userId?:string;depositId?:string;scanned?:number;missing?:number;replayRequested?:number;complete?:boolean}={})=>journeyLog(outcome==="unauthorized"||outcome==="scan_failed"?"warn":"info","deposit_reconciliation",outcome,{requestId,durationMs:Date.now()-startedAt,...extra});
+  const log=(outcome:string,extra:{userId?:string;depositId?:string;scanned?:number;missing?:number;replayRequested?:number;complete?:boolean}={})=>journeyLog(outcome==="unauthorized"||outcome==="webhook_replay_requested"?"warn":"info","deposit_reconciliation",outcome,{requestId,durationMs:Date.now()-startedAt,...extra});
   const secret = process.env.CRON_SECRET;
   const supplied = request.headers.get("authorization")?.replace(/^Bearer /, "") ?? "";
   if (!secret || !supplied || Buffer.byteLength(secret) !== Buffer.byteLength(supplied) ||
