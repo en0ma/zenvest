@@ -81,12 +81,11 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
         <label htmlFor="withdrawal-amount" className="text-sm font-semibold text-[#11263E]">Amount to withdraw</label>
         <div className="relative">
           <input id="withdrawal-amount" required inputMode="decimal" autoComplete="off" value={amount}
-            onChange={e=>{setAmount(e.target.value);onEdit();}} placeholder="0.00" aria-describedby="withdrawal-amount-help"
+            onChange={e=>{setAmount(e.target.value);onEdit();}} placeholder="0.00"
             aria-invalid={Boolean(amount && (!amountSyntaxValid || exceedsBalance || tooSmall))}
             className={inputClass + " pr-20 font-semibold tabular-nums"}/>
           <span className="pointer-events-none absolute inset-y-0 right-4 mt-2 flex items-center text-sm font-semibold text-[#64748B]">USDC</span>
         </div>
-        <p id="withdrawal-amount-help" className="mt-2 text-xs text-[#687B91]">The amount entered includes the {WITHDRAWAL_FEE_USDC} USDC withdrawal fee.</p>
         {amount && !amountSyntaxValid && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#C24141]"><AlertCircle size={15}/> Enter a valid amount with up to 6 decimal places.</p>}
         {exceedsBalance && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#C24141]"><AlertCircle size={15}/> This amount exceeds your available balance.</p>}
         {tooSmall && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#C24141]"><AlertCircle size={15}/> Enter more than {WITHDRAWAL_FEE_USDC} USDC to cover the fee.</p>}
@@ -140,18 +139,4 @@ export function CancelWithdrawal({id}:{id:string}) {
   const [pending,setPending]=useState(false);
   const [message,setMessage]=useState("");
   async function cancel() {
-    if(!window.confirm("Cancel this queued withdrawal and restore the reserved USDC?")) return;
-    setPending(true);
-    try {
-      const response=await fetch("/api/withdrawals/cancel",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});
-      const result=await response.json();
-      if(!response.ok) throw new Error(result.error??"Cancellation failed");
-      setMessage("Withdrawal cancelled. Funds released.");router.refresh();
-    }catch(error){setMessage(error instanceof Error?error.message:"Cancellation failed");}
-    finally{setPending(false);}
-  }
-  return <div className="mt-2">
-    <button type="button" onClick={cancel} disabled={pending} className="text-sm font-medium text-[#635BFF] underline disabled:opacity-50">{pending?"Cancelling...":"Cancel request"}</button>
-    {message&&<p role="status" className="mt-1 text-xs text-[#425466]">{message}</p>}
-  </div>;
-}
+  
