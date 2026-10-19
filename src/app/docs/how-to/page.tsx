@@ -80,6 +80,7 @@ export default function HowToPage() {
       <ul className="mt-4 list-disc space-y-2 pl-6">
         <li>Always use a Solana address that can receive USDC, and check it carefully. Blockchain transfers generally cannot be reversed.</li>
         <li>The 2 USDC fee is shown before you submit; it is included in your gross withdrawal amount, not added on top.</li>
+        <li>Withdrawal requests cannot be cancelled after submission. Review the wallet address, amount and fee carefully before confirming.</li>
         <li>Account availability to request a withdrawal does not guarantee an immediate payout.</li>
         <li>If a transfer appears delayed, review the status in your account before trying again. Keep the transaction reference for support.</li>
       </ul>
