@@ -17,16 +17,15 @@ export default async function Dashboard(){
   <header>
    <p className="text-sm leading-6 text-[#64748B]">Welcome back{session.name?", "+session.name:""}. Explore how your portfolio is performing and follow your investment progress over time.</p>
   </header>
-  <section aria-label="Portfolio summary" className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+  <section aria-label="Portfolio summary">
    <article className="rounded-[24px] border border-[#E2E8F4] bg-gradient-to-br from-[#EEF2FF] via-[#F7F9FF] to-white p-7 sm:p-9">
     <p className="text-sm font-semibold text-[#52647B]">Portfolio value</p>
     <p className="mt-5 break-words text-[clamp(2.4rem,5vw,4.6rem)] font-semibold leading-none tracking-tight tabular-nums text-[#11263E]">{formatUsdc(equity)}</p>
-    <p className="mt-8 border-t border-[#DCE4F0] pt-4 text-xs leading-5 text-[#64748B]">Ledger-based estimate: allocated + unallocated capital + recorded realized P&amp;L. Not a live market valuation.</p>
-   </article>
-   <article className="rounded-[24px] border border-[#E3E8EE] bg-white p-7 sm:p-9">
-    <div className="flex items-center gap-2 text-sm font-semibold text-[#52647B]"><TrendingUp size={17} className="text-[#635BFF]"/>Cumulative realized P&amp;L</div>
-    <p className="mt-5 break-words text-3xl font-semibold tracking-tight tabular-nums text-[#11263E] sm:text-4xl">{realized>0n?"+":""}{formatUsdc(realized)}</p>
-    <p className="mt-5 text-sm leading-6 text-[#64748B]">Recorded investor profit and loss to date. This is not a return for a particular reporting period.</p>
+    <div className="mt-8 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-[#DCE4F0] pt-5">
+     <div className="flex items-center gap-2 text-sm font-medium text-[#64748B]"><TrendingUp size={16} className="text-[#635BFF]" aria-hidden="true"/>Cumulative realized P&amp;L</div>
+     <p className="text-lg font-semibold tracking-tight tabular-nums text-[#11263E] sm:text-xl">{realized>0n?"+":""}{formatUsdc(realized)}</p>
+    </div>
+    <p className="mt-4 text-xs leading-5 text-[#64748B]">Ledger-based portfolio estimate, not a live market valuation. Realized P&amp;L is cumulative, not a period return.</p>
    </article>
   </section>
   <section aria-labelledby="trend-heading" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
