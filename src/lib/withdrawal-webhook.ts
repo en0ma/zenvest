@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { journeyLog } from "@/lib/journey-log";
 import { prisma } from "@/lib/db";
 
 // Called only after the Blockradar HMAC signature has been verified.
@@ -66,6 +67,6 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
     }
     return true;
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
-  console.info(JSON.stringify({component:"withdrawal-webhook",userId:item.userId,withdrawalId:id,providerTransactionId:transactionId,outcome:result?event:"duplicate"}));
+  journeyLog("info","withdrawal_settlement",result?event:"duplicate",{userId:item.userId,withdrawalId:id,providerTransactionId:transactionId});
   return result ? "settled" : "duplicate";
 }
