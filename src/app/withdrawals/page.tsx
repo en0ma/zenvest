@@ -78,7 +78,7 @@ export default async function Withdrawals({searchParams}:{searchParams:Promise<{
       <p className="mt-1 text-xs text-[#8A97A8]">Reserved for existing requests and excluded from the available withdrawal balance.</p>
     </section>
     <section className="mt-6 rounded-2xl border border-[#E3E8EE] bg-white p-6">
-      <div className="flex items-center gap-3"><ShieldCheck size={20} className="text-[#635BFF]"/><h2 className="text-xl font-semibold">Request a withdrawal</h2></div>
+      <h2 className="text-xl font-semibold">Request a withdrawal</h2>
       {enabled?<WithdrawalForm balanceMicros={available.toString()} unallocatedMicros={unallocated.toString()} pendingMicros={pending.toString()}/>:<p className="mt-4 text-sm text-[#425466]">Withdrawal requests are not enabled yet.</p>}
 
     <section className="mt-10 border-t border-[#E3E8EE] pt-7">
