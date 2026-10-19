@@ -31,7 +31,7 @@ export default async function Withdrawals() {
     </div>
     <section className="mt-6 rounded-2xl border border-[#E3E8EE] bg-white p-6">
       <div className="flex items-center gap-3"><ShieldCheck size={20} className="text-[#635BFF]"/><h2 className="text-xl font-semibold">Request a withdrawal</h2></div>
-      {enabled?<WithdrawalForm balanceMicros={available.toString()}/>:<p className="mt-4 text-sm text-[#425466]">Withdrawal requests are not enabled yet.</p>}
+      {enabled?<WithdrawalForm balanceMicros={available.toString()} unallocatedMicros={unallocated.toString()} pendingMicros={pending.toString()}/>:<p className="mt-4 text-sm text-[#425466]">Withdrawal requests are not enabled yet.</p>}
     </section>
     <section className="mt-6 rounded-2xl border border-[#E3E8EE] bg-white p-6">
       <h2 className="text-xl font-semibold">Deallocation requests</h2>
@@ -42,7 +42,8 @@ export default async function Withdrawals() {
           <div>
             <p className="font-semibold">{formatUsdc(item.amountUsdcMicros)} USDC deallocation</p>
             <p className="mt-1 text-xs text-[#425466]">Requested {item.createdAt.toLocaleString("en-US",{timeZone:"UTC",dateStyle:"medium",timeStyle:"short"})} UTC</p>
-            <p className="mt-1 text-xs text-[#425466]">Related withdrawal: {item.withdrawal.status}</p>
+            <p className="mt-1 break-all font-mono text-xs text-[#425466]">Triggered by withdrawal: {item.withdrawalId}</p>
+            <p className="mt-1 text-xs text-[#425466]">Withdrawal status: {item.withdrawal.status}</p>
             {item.completedAt&&<p className="mt-1 text-xs text-[#425466]">Returned {item.completedAt.toLocaleString("en-US",{timeZone:"UTC",dateStyle:"medium",timeStyle:"short"})} UTC</p>}
           </div>
           <span className="rounded-full bg-[#F6F9FC] px-3 py-1 text-xs font-semibold">{item.status}</span>
