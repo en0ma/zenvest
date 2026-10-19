@@ -1,15 +1,15 @@
 import Link from "next/link";
 import Image from "next/image";
 import QRCode from "qrcode";
-import { ArrowUpFromLine, ArrowUpRight } from "lucide-react";
 import { Shell } from "@/components/shell";
 import { requireUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { formatUsdc } from "@/lib/usdc-money";
 import { ActivateDepositWallet, CopyDepositAddress } from "@/components/deposit-wallet-actions";
+import { WalletWithdrawals } from "@/components/wallet-withdrawals";
 export const dynamic="force-dynamic";
 const PAGE_SIZE=10;
-export default async function WalletPage({searchParams}:{searchParams:Promise<{depositsPage?:string}>}){
+export default async function WalletPage({searchParams}:{searchParams:Promise<{depositsPage?:string;withdrawalsPage?:string;deallocationsPage?:string}>}){
  const params=await searchParams;
  const rawPage=Number(params.depositsPage??"1");
  const requestedPage=Number.isSafeInteger(rawPage)&&rawPage>0?Math.min(rawPage,100000):1;
@@ -24,7 +24,7 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
  const history=await prisma.blockchainDeposit.findMany({where:{wallet:{userId:user.id}},orderBy:[{createdAt:"desc"},{id:"desc"}],skip:(page-1)*PAGE_SIZE,take:PAGE_SIZE});
  const qr = depositWallet?.status === "ACTIVE" && depositWallet.address ? await QRCode.toDataURL(depositWallet.address, {errorCorrectionLevel:"M",width:220,margin:2}) : null;
  return <Shell><div className="mx-auto max-w-5xl">
-  <header className="mb-12 border-b border-[#E3E8EE] pb-9"><h1 className="text-4xl sm:text-6xl font-semibold tracking-[-.065em]">Wallet</h1><p className="mt-3 text-sm text-[#425466]">Manage your Solana USDC deposits and balance.</p></header>
+  <header className="mb-12 border-b border-[#E3E8EE] pb-9"><h1 className="text-4xl sm:text-6xl font-semibold tracking-[-.065em]">Wallet</h1><p className="mt-3 text-sm text-[#425466]">Manage your Solana USDC deposits, withdrawals, and balances.</p></header>
   <section className="rounded-[24px] bg-[#F6F9FC] p-8"><p className="text-sm text-[#425466]">Unallocated capital</p><h2 className="zen-value mt-4 text-4xl sm:text-6xl">{formatUsdc(portfolio?.unallocatedUsdcMicros??0n)}</h2><p className="mt-3 text-sm text-[#425466]">Reported balance, not necessarily eligible for immediate withdrawal.</p></section>
   <section className="mt-6 rounded-[24px] bg-[#F6F9FC] p-6"><p className="text-sm text-[#425466]">Confirming deposits · awaiting sweep</p><p className="mt-2 text-2xl font-semibold">{formatUsdc(portfolio?.pendingDepositsUsdcMicros??0n)}</p></section>
   <section className="mt-8 rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
@@ -67,10 +67,6 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
      </nav>
    </div>
   </section>
-  <div className="mt-8">
-   <Link href="/withdrawals" className="flex items-center justify-between gap-4 rounded-2xl border border-[#E3E8EE] bg-white px-6 py-5 transition-colors hover:border-[#B9C7DB]">
-    <span className="flex items-center gap-3"><ArrowUpFromLine className="text-[#635BFF]" size={20}/><span><span className="block text-base font-semibold">Withdrawals</span><span className="mt-1 block text-sm text-[#425466]">View withdrawal status and availability</span></span></span><ArrowUpRight size={18} className="shrink-0 text-[#635BFF]"/>
-   </Link>
-  </div>
+  <WalletWithdrawals userId={user.id} allocated={portfolio?.allocatedUsdcMicros??0n} unallocated={portfolio?.unallocatedUsdcMicros??0n} pending={portfolio?.pendingWithdrawalsUsdcMicros??0n} withdrawalsPage={params.withdrawalsPage} deallocationsPage={params.deallocationsPage} depositsPage={page}/>
  </div></Shell>;
 }
