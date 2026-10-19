@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { journeyLog } from "@/lib/journey-log";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { blockradarConfig } from "@/lib/blockradar";
@@ -10,7 +11,8 @@ export const dynamic = "force-dynamic";
 // Resend requests reuse the existing signed webhook and idempotent ledger path.
 export async function GET(request: Request) {
   const startedAt=Date.now();
-  const log=(outcome:string,extra:Record<string,string|number|boolean>={})=>console.info(JSON.stringify({component:"deposit-reconciliation",outcome,durationMs:Date.now()-startedAt,...extra}));
+  const requestId=request.headers.get("x-vercel-id")??crypto.randomUUID();
+  const log=(outcome:string,extra:{userId?:string;depositId?:string;scanned?:number;missing?:number;replayRequested?:number;complete?:boolean}={})=>journeyLog(outcome==="unauthorized"||outcome==="scan_failed"?"warn":"info","deposit_reconciliation",outcome,{requestId,durationMs:Date.now()-startedAt,...extra});
   const secret = process.env.CRON_SECRET;
   const supplied = request.headers.get("authorization")?.replace(/^Bearer /, "") ?? "";
   if (!secret || !supplied || Buffer.byteLength(secret) !== Buffer.byteLength(supplied) ||
@@ -74,7 +76,7 @@ export async function GET(request: Request) {
     log("scan_completed",{scanned,missing,replayRequested,complete});
     return NextResponse.json({scanned,missing,replayRequested,complete,note:complete?"Scanned all returned pages":"Page limit reached; further backfill required"});
   } catch(error) {
-    console.error(JSON.stringify({component:"deposit-reconciliation",outcome:"scan_failed",scanned,missing,replayRequested,errorType:error instanceof Error?error.name:"unknown"}));
+    journeyLog("error","deposit_reconciliation","scan_failed",{requestId,scanned,missing,replayRequested,errorType:error instanceof Error?error.name:"unknown",durationMs:Date.now()-startedAt});
     return NextResponse.json({error:"Reconciliation failed; retry required",scanned,missing,replayRequested,complete:false},{status:503});
   }
 }
