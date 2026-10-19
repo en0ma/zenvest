@@ -25,7 +25,28 @@ export default async function Dashboard(){
  <div className="grid gap-6 lg:grid-cols-[minmax(0,1.75fr)_minmax(280px,1fr)]">
  <div className="min-w-0">
   <section aria-label="Portfolio value" className="min-h-[325px] rounded-[28px] bg-gradient-to-br from-[#EEF2FF] via-[#F6F9FC] to-white border border-[#E3E8EE] p-7 sm:p-10 flex flex-col justify-between"><div><p className="text-sm font-medium text-[#425466]">Total portfolio value</p><h2 className="mt-5 break-words text-[clamp(2.8rem,5.3vw,5.8rem)] leading-none font-semibold tracking-[-.075em] tabular-nums text-[#0A2540]">{formatUsdc(equity)}</h2></div><div className="mt-12 flex flex-wrap items-end justify-between gap-5 border-t border-[#D6DEEA] pt-6"><div><p className="text-xs text-[#697386]">Recorded P&amp;L</p><p className="mt-1 text-xl font-semibold tabular-nums">{formatUsdc(realized)}</p></div><Link href="/transactions" className="text-sm font-semibold underline underline-offset-4">Account history <ArrowUpRight size={15} className="inline"/></Link></div></section>
-  <section aria-label="Recent account activity" className="mt-8"><div className="flex items-center justify-between border-b border-[#E3E8EE] pb-5"><h2 className="text-xl font-semibold">Recent activity</h2><Link href="/transactions" className="text-sm font-semibold text-[#635BFF]">All activity ↗</Link></div>{activity.length===0?<div className="py-14"><p className="font-semibold">No activity yet</p><p className="mt-2 text-sm text-[#425466]">Your recorded account activity will appear here.</p></div>:<ul className="divide-y divide-[#E3E8EE]">{activity.slice(0,5).map(item=><li key={item.id} className="flex flex-wrap items-center justify-between gap-4 py-5"><div><p className="font-semibold text-[#0A2540]">{item.type.replaceAll("_"," ")}</p><p className="mt-1 text-sm text-[#425466]">{item.description}</p><p className="mt-1 text-xs text-[#798279]">{item.occurredAt.toISOString().slice(0,10)}</p></div><p className="font-semibold tabular-nums">{formatUsdc(item.amountUsdcMicros)}</p></li>)}</ul>}</section>
+  <section aria-label="Recent account activity" className="mt-8 overflow-hidden rounded-2xl border border-[#E3E8EE] bg-white">
+    <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-6">
+      <h2 className="text-xl font-semibold text-[#0A2540]">Recent activity</h2>
+      <Link href="/transactions" className="text-sm font-semibold text-[#635BFF] hover:underline">All activity ↗</Link>
+    </div>
+    {activity.length===0?<div className="border-t border-[#E9EDF3] px-5 py-10 sm:px-6"><p className="font-semibold text-[#0A2540]">No activity yet</p><p className="mt-2 text-sm text-[#425466]">Your recorded account activity will appear here.</p></div>:
+      <div role="region" aria-label="Recent activity table" tabIndex={0} className="w-full overflow-x-auto">
+        <table className="w-full min-w-[730px] border-collapse text-left text-sm">
+          <thead className="border-y border-[#E9EDF3] bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wide text-[#64748B]">
+            <tr><th scope="col" className="px-5 py-3 sm:px-6">Activity</th><th scope="col" className="px-5 py-3">Details</th><th scope="col" className="whitespace-nowrap px-5 py-3 text-right">Amount</th><th scope="col" className="whitespace-nowrap px-5 py-3 text-right sm:px-6">Date</th></tr>
+          </thead>
+          <tbody className="divide-y divide-[#EDF0F5]">
+            {activity.slice(0,5).map(item=><tr key={item.id} className="transition-colors hover:bg-[#FAFBFF]">
+              <td className="whitespace-nowrap px-5 py-4 font-semibold text-[#0A2540] sm:px-6">{item.type.replaceAll("_"," ").toLowerCase()}</td>
+              <td className="min-w-[240px] px-5 py-4 text-[#52647B]">{item.description}</td>
+              <td className="whitespace-nowrap px-5 py-4 text-right font-semibold tabular-nums text-[#0A2540]">{formatUsdc(item.amountUsdcMicros)}</td>
+              <td className="whitespace-nowrap px-5 py-4 text-right text-[#64748B] sm:px-6">{item.occurredAt.toLocaleDateString("en-US",{timeZone:"UTC",month:"short",day:"numeric",year:"numeric"})}</td>
+            </tr>)}
+          </tbody>
+        </table>
+      </div>}
+  </section>
  </div>
  <aside aria-label="Account snapshot" className="min-w-0 space-y-6">
   <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-7"><div className="flex items-center justify-between"><h2 className="text-lg font-semibold">Capital breakdown</h2><Layers3 size={18} className="text-[#635BFF]"/></div><div className="mt-8 h-2 overflow-hidden rounded-full bg-[#EEF2FF]"><div className="zen-allocation-bar h-full bg-[#635BFF]" style={{width:(allocated+unallocated)>0n?((allocated*100n/(allocated+unallocated)).toString()+"%"):"0%"}}/></div><dl className="mt-7 divide-y divide-[#E3E8EE]"><div className="py-5"><dt className="text-sm text-[#425466]">Allocated</dt><dd className="mt-2 break-words text-2xl font-semibold tabular-nums">{formatUsdc(allocated)}</dd></div><div className="py-5"><dt className="text-sm text-[#425466]">Unallocated</dt><dd className="mt-2 break-words text-2xl font-semibold tabular-nums">{formatUsdc(unallocated)}</dd></div></dl><Link href="/wallet" className="text-sm font-semibold text-[#635BFF]">Wallet details ↗</Link></section>
