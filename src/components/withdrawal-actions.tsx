@@ -81,15 +81,14 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
         <label htmlFor="withdrawal-amount" className="text-sm font-semibold text-[#11263E]">Amount to withdraw</label>
         <div className="relative">
           <input id="withdrawal-amount" required inputMode="decimal" autoComplete="off" value={amount}
-            onChange={e=>{setAmount(e.target.value);onEdit();}} placeholder="0.00" aria-describedby="withdrawal-amount-help"
+            onChange={e=>{setAmount(e.target.value);onEdit();}} placeholder="0.00"
             aria-invalid={Boolean(amount && (!amountSyntaxValid || exceedsBalance || tooSmall))}
             className={inputClass + " pr-20 font-semibold tabular-nums"}/>
           <span className="pointer-events-none absolute inset-y-0 right-4 mt-2 flex items-center text-sm font-semibold text-[#64748B]">USDC</span>
         </div>
-        <p id="withdrawal-amount-help" className="mt-2 text-xs text-[#687B91]">The amount entered includes the {WITHDRAWAL_FEE_USDC} USDC withdrawal fee.</p>
-        {amount && !amountSyntaxValid && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#C24141]"><AlertCircle size={15}/> Enter a valid amount with up to 6 decimal places.</p>}
-        {exceedsBalance && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#C24141]"><AlertCircle size={15}/> This amount exceeds your available balance.</p>}
-        {tooSmall && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#C24141]"><AlertCircle size={15}/> Enter more than {WITHDRAWAL_FEE_USDC} USDC to cover the fee.</p>}
+        {amount && !amountSyntaxValid && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#97605A]"><AlertCircle size={15}/> Enter a valid amount with up to 6 decimal places.</p>}
+        {exceedsBalance && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#97605A]"><AlertCircle size={15}/> This amount exceeds your available balance.</p>}
+        {tooSmall && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#97605A]"><AlertCircle size={15}/> Enter more than {WITHDRAWAL_FEE_USDC} USDC to cover the fee.</p>}
       </div>
       <div>
         <label htmlFor="recipient-address" className="text-sm font-semibold text-[#11263E]">Recipient Solana wallet address</label>
@@ -99,7 +98,7 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
           aria-invalid={address.length>0 && !addressValid}
           className={inputClass + " font-mono text-sm"}/>
         <p id="recipient-help" className="mt-2 text-xs text-[#687B91]">Double-check the address. Transfers to an incorrect wallet cannot be reversed.</p>
-        {address && !addressValid && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#C24141]"><AlertCircle size={15}/> Enter a valid Solana wallet address.</p>}
+        {address && !addressValid && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#97605A]"><AlertCircle size={15}/> Enter a valid Solana wallet address.</p>}
       </div>
     </div>
 
@@ -124,34 +123,13 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
       <p>Withdrawals are processed automatically when funds are ready. Processing time varies; submitting a request does not mean the payout is immediate.</p></div>
 
     <button type="submit" disabled={!canSubmit}
-      className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#635BFF] px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#544CE4] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#635BFF]/30 disabled:cursor-not-allowed disabled:bg-[#BBC3D1] disabled:shadow-none">
+      className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#635BFF] px-5 py-4 text-sm font-semibold text-white shadow-sm transition-all duration-200 active:scale-[0.99] motion-reduce:transform-none hover:bg-[#544CE4] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#635BFF]/30 disabled:cursor-not-allowed disabled:bg-[#BBC3D1] disabled:shadow-none">
       {submitting?<><Loader2 size={18} className="animate-spin"/>Submitting request...</>:<>Request withdrawal <ArrowRight size={18}/></>}
     </button>
 
-    {feedback && <div role={feedback.kind==="error"?"alert":"status"} className={"flex items-start gap-3 rounded-2xl border px-4 py-4 text-sm leading-6 " + (feedback.kind==="success"?"border-[#B9DCCB] bg-[#F2FAF6] text-[#176347]":"border-[#EBC5C5] bg-[#FFF7F7] text-[#AD3232]")}>
+    {feedback && <div role={feedback.kind==="error"?"alert":"status"} className={"flex items-start gap-3 rounded-2xl border px-4 py-4 text-sm leading-6 transition-all duration-200 " + (feedback.kind==="success"?"border-[#CCE5D8] bg-[#F4FAF7] text-[#317054]":"border-[#E8D1CE] bg-[#FCF6F5] text-[#925B55]")}>
       {feedback.kind==="success"?<CheckCircle2 className="mt-0.5 shrink-0" size={19}/>:<AlertCircle className="mt-0.5 shrink-0" size={19}/>}
       <p>{feedback.text}</p>
     </div>}
   </form>;
-}
-
-export function CancelWithdrawal({id}:{id:string}) {
-  const router=useRouter();
-  const [pending,setPending]=useState(false);
-  const [message,setMessage]=useState("");
-  async function cancel() {
-    if(!window.confirm("Cancel this queued withdrawal and restore the reserved USDC?")) return;
-    setPending(true);
-    try {
-      const response=await fetch("/api/withdrawals/cancel",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});
-      const result=await response.json();
-      if(!response.ok) throw new Error(result.error??"Cancellation failed");
-      setMessage("Withdrawal cancelled. Funds released.");router.refresh();
-    }catch(error){setMessage(error instanceof Error?error.message:"Cancellation failed");}
-    finally{setPending(false);}
-  }
-  return <div className="mt-2">
-    <button type="button" onClick={cancel} disabled={pending} className="text-sm font-medium text-[#635BFF] underline disabled:opacity-50">{pending?"Cancelling...":"Cancel request"}</button>
-    {message&&<p role="status" className="mt-1 text-xs text-[#425466]">{message}</p>}
-  </div>;
 }

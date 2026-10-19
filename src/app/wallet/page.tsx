@@ -8,13 +8,20 @@ import { prisma } from "@/lib/db";
 import { formatUsdc } from "@/lib/usdc-money";
 import { ActivateDepositWallet, CopyDepositAddress } from "@/components/deposit-wallet-actions";
 export const dynamic="force-dynamic";
-export default async function WalletPage(){
+const PAGE_SIZE=10;
+export default async function WalletPage({searchParams}:{searchParams:Promise<{depositsPage?:string}>}){
+ const params=await searchParams;
+ const rawPage=Number(params.depositsPage??"1");
+ const requestedPage=Number.isSafeInteger(rawPage)&&rawPage>0?Math.min(rawPage,100000):1;
  const user=await requireUser();
- const [portfolio, depositWallet, history]=await Promise.all([
+ const [portfolio, depositWallet, depositCount]=await Promise.all([
   prisma.investorPortfolio.findUnique({where:{userId:user.id}}),
   prisma.investorDepositWallet.findUnique({where:{userId:user.id}}),
-  prisma.blockchainDeposit.findMany({where:{wallet:{userId:user.id}},orderBy:{createdAt:"desc"},take:25}),
+  prisma.blockchainDeposit.count({where:{wallet:{userId:user.id}}}),
  ]);
+ const pages=Math.max(1,Math.ceil(depositCount/PAGE_SIZE));
+ const page=Math.min(requestedPage,pages);
+ const history=await prisma.blockchainDeposit.findMany({where:{wallet:{userId:user.id}},orderBy:[{createdAt:"desc"},{id:"desc"}],skip:(page-1)*PAGE_SIZE,take:PAGE_SIZE});
  const qr = depositWallet?.status === "ACTIVE" && depositWallet.address ? await QRCode.toDataURL(depositWallet.address, {errorCorrectionLevel:"M",width:220,margin:2}) : null;
  return <Shell><div className="mx-auto max-w-5xl">
   <header className="mb-12 border-b border-[#E3E8EE] pb-9"><h1 className="text-4xl sm:text-6xl font-semibold tracking-[-.065em]">Wallet</h1><p className="mt-3 text-sm text-[#425466]">Manage your Solana USDC deposits and balance.</p></header>
@@ -33,13 +40,31 @@ export default async function WalletPage(){
     <ActivateDepositWallet/>
    </div>}
    <div className="mt-10 border-t border-[#E3E8EE] pt-7">
-   <div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="text-lg font-semibold tracking-tight">Recent deposits</h3><span className="text-xs text-[#425466]">Confirmed deposits and pending sweeps</span></div>
-   {history.length === 0 ? <p className="mt-4 text-sm text-[#425466]">Your deposits will appear here.</p> : <div className="mt-5 divide-y divide-[#E3E8EE]">
-    {history.map(item=><div key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
-     <div><p className="font-semibold">USDC deposit</p><p className="mt-1 text-xs text-[#425466]">{item.creditedAt ? new Date(item.creditedAt).toLocaleString("en-US",{timeZone:"UTC",dateStyle:"medium",timeStyle:"short"})+" UTC" : "Awaiting transfer to master wallet"}</p><p className="mt-1 max-w-[240px] truncate font-mono text-xs text-[#425466]" title={item.transactionHash}>{item.transactionHash}</p></div>
-     <div className="text-right"><p className="font-semibold text-[#0A2540]">+{formatUsdc(item.amountUsdcMicros)}</p><p className="mt-1 text-xs text-[#425466]">{item.status === "CONFIRMED" ? "Confirmed" : "Confirming · awaiting sweep"}</p></div>
-    </div>)}
-   </div>}
+     <div><h3 className="text-lg font-semibold tracking-tight">Deposits</h3><p className="mt-2 text-sm text-[#64748B]">Track deposit confirmations and incoming USDC.</p></div>
+     {history.length===0?<p className="mt-5 text-sm text-[#64748B]">Your deposits will appear here.</p>:
+       <div role="region" aria-label="Deposits table" tabIndex={0} className="mt-5 w-full overflow-x-auto rounded-xl border border-[#E7EDF4]">
+         <table className="w-full min-w-[900px] border-collapse text-left">
+           <thead className="bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wide text-[#64748B]"><tr>
+             <th className="px-5 py-3">Received</th><th className="px-5 py-3">Amount</th><th className="px-5 py-3">Status</th>
+             <th className="px-5 py-3">Transaction hash</th><th className="px-5 py-3">Credited</th>
+           </tr></thead>
+           <tbody className="divide-y divide-[#E9EEF5]">{history.map(item=><tr key={item.id} className="transition-colors hover:bg-[#FAFBFF]">
+             <td className="whitespace-nowrap px-5 py-4 text-sm text-[#334155]">{item.createdAt.toLocaleString("en-US",{timeZone:"UTC",dateStyle:"medium",timeStyle:"short"})} UTC</td>
+             <td className="whitespace-nowrap px-5 py-4 text-sm font-semibold text-[#11263E]">+{formatUsdc(item.amountUsdcMicros)}</td>
+             <td className="whitespace-nowrap px-5 py-4"><span className={item.status==="CONFIRMED"?"rounded-full bg-[#ECF7F1] px-3 py-1 text-xs font-semibold text-[#317054]":"rounded-full bg-[#F5F1E9] px-3 py-1 text-xs font-semibold text-[#8B6F43]"}>{item.status==="CONFIRMED"?"Confirmed":"Confirming"}</span></td>
+             <td className="whitespace-nowrap px-5 py-4 font-mono text-xs text-[#64748B]" title={item.transactionHash}>{item.transactionHash}</td>
+             <td className="whitespace-nowrap px-5 py-4 text-sm text-[#64748B]">{item.creditedAt?item.creditedAt.toLocaleString("en-US",{timeZone:"UTC",dateStyle:"medium",timeStyle:"short"})+" UTC":"—"}</td>
+           </tr>)}</tbody>
+         </table>
+       </div>}
+     <nav aria-label="Deposit history pages" className="mt-4 flex flex-wrap items-center justify-between gap-3">
+       <span className="text-xs text-[#64748B]">{depositCount===0?"0 results":`Showing ${(page-1)*PAGE_SIZE+1}–${Math.min(page*PAGE_SIZE,depositCount)} of ${depositCount}`}</span>
+       <div className="flex items-center gap-2 text-xs font-semibold">
+         {page>1?<Link href={`/wallet?depositsPage=${page-1}`} className="rounded-lg border border-[#DEE5EE] px-3 py-2 hover:border-[#635BFF]">Previous</Link>:<span className="rounded-lg border border-[#DEE5EE] px-3 py-2 opacity-40">Previous</span>}
+         <span className="text-[#64748B]">Page {page} of {pages}</span>
+         {page<pages?<Link href={`/wallet?depositsPage=${page+1}`} className="rounded-lg border border-[#DEE5EE] px-3 py-2 hover:border-[#635BFF]">Next</Link>:<span className="rounded-lg border border-[#DEE5EE] px-3 py-2 opacity-40">Next</span>}
+       </div>
+     </nav>
    </div>
   </section>
   <div className="mt-8">
