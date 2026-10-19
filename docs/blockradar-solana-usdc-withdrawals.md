@@ -88,3 +88,7 @@ API reference: https://docs.blockradar.co/en/use-cases/withdraw-stablecoins
 - If a later payout fails, its pending withdrawal reserve is released, but completed deallocation is **not reversed**. Its USDC remains unallocated. The deallocation record remains COMPLETED.
 - Pending deallocation requests cancelled before external processing are retained as FAILED history rather than deleted. Once external deallocation is in PROCESSING or COMPLETED, withdrawal cancellation is disabled until reconciled.
 - The helper does not call Kalshi or update the master-wallet balance. A future audited Kalshi integration must verify the actual custody return and reconcile the corresponding master-wallet liquidity before confirming deallocation.
+
+## Deallocation preview and provenance
+- The withdrawal form displays a notice **before submission** when the gross request will create a new deallocation obligation, including its estimated incremental amount. Calculation: `max(0, pendingBefore + gross - unallocated) - max(0, pendingBefore - unallocated)`. The displayed amount is a snapshot; the backend remains authoritative and recomputes it transactionally.
+- Each `WithdrawalDeallocation` has a mandatory `withdrawalId` foreign key to the withdrawal that triggered it. The relationship is unique per withdrawal, and the user's deallocation history explicitly displays the triggering withdrawal ID as well as current withdrawal status.
