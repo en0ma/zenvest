@@ -68,12 +68,13 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
 
   return <form onSubmit={submit} className="mt-6 space-y-6">
     <section aria-label="Available withdrawal balance" className="rounded-2xl border border-[#E4E9F1] bg-[#F8FAFD] px-5 py-5 sm:px-6">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="flex items-center gap-2 text-sm font-medium text-[#64748B]"><Wallet size={16} className="shrink-0 text-[#635BFF]"/>Available to withdraw</p>
-          <p className="mt-2 text-3xl font-bold tracking-tight tabular-nums text-[#11263E] sm:text-4xl">{format(balance)} <span className="text-base font-semibold text-[#64748B]">USDC</span></p>
-        </div>
-        
+      <div className="flex items-center gap-2 text-sm font-medium text-[#64748B]">
+        <Wallet size={16} className="shrink-0 text-[#635BFF]" />
+        <span>Available to withdraw</span>
+      </div>
+      <div className="mt-4 flex items-end gap-2">
+        <span className="text-4xl font-bold leading-none tracking-tight tabular-nums text-[#11263E] sm:text-5xl">{format(balance)}</span>
+        <span className="mb-1 text-xl font-semibold leading-none text-[#64748B] sm:text-2xl">USDC</span>
       </div>
     </section>
 
