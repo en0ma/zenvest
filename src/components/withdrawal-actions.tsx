@@ -107,7 +107,7 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
         <p className="mt-0.5 text-xs text-[#687B91]">Review the estimated amount before submitting.</p></div>
       <dl className="space-y-3 px-5 py-5 text-sm">
         <div className="flex items-center justify-between gap-3"><dt className="text-[#687B91]">Gross withdrawal</dt><dd className="font-semibold tabular-nums text-[#11263E]">{format(grossPreview)} USDC</dd></div>
-        <div className="flex items-center justify-between gap-3"><dt className="text-[#687B91]">Processing fee</dt><dd className="font-medium tabular-nums text-[#11263E]">{WITHDRAWAL_FEE_USDC}.00 USDC</dd></div>
+        <div className="flex items-center justify-between gap-3"><dt className="text-[#687B91]">Processing fee</dt><dd className="font-medium tabular-nums text-[#11263E]">{WITHDRAWAL_FEE_USDC} USDC</dd></div>
         <div className="border-t border-dashed border-[#DBE3ED] pt-4">
           <div className="flex items-center justify-between gap-3"><dt className="font-semibold text-[#11263E]">Recipient receives</dt><dd className="text-xl font-bold tabular-nums tracking-tight text-[#11263E]">{format(netPreview)} <span className="text-sm font-semibold">USDC</span></dd></div>
         </div>
