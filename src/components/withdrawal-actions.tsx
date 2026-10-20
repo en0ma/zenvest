@@ -31,10 +31,6 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
   const eligibleAmount = gross > 2000000n && gross <= balance;
   const grossPreview = eligibleAmount ? gross : 0n;
   const netPreview = eligibleAmount ? gross - 2000000n : 0n;
-  const previousShortfall = pending > unallocated ? pending - unallocated : 0n;
-  const newPending = pending + grossPreview;
-  const newShortfall = newPending > unallocated ? newPending - unallocated : 0n;
-  const deallocation = eligibleAmount ? newShortfall - previousShortfall : 0n;
   const addressValid = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
   const canSubmit = eligibleAmount && addressValid && !submitting;
   const inputClass = "mt-2 w-full rounded-2xl border border-[#DCE3EC] bg-white px-4 py-3.5 text-base text-[#11263E] shadow-sm outline-none transition placeholder:text-[#9AA8B9] focus:border-[#635BFF] focus:ring-4 focus:ring-[#635BFF]/10";
@@ -116,14 +112,9 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
       </dl>
     </section>
 
-    {eligibleAmount && deallocation>0n && <div className="flex gap-3 rounded-2xl border border-[#E7D9B6] bg-[#FFFBF0] px-4 py-4 text-[#74531F]" role="status">
-      <Info size={19} className="mt-0.5 shrink-0"/><div><p className="text-sm font-semibold">Additional processing required</p>
-        <p className="mt-1 text-sm leading-6">Approximately {format(deallocation)} USDC will need to be made available from your allocated balance before this payout can be completed. You can track that request separately.</p></div>
-    </div>}
-
     <div className="flex items-start gap-2.5 text-xs leading-5 text-[#64748B]"><Clock3 size={16} className="mt-0.5 shrink-0"/>
       <div className="space-y-2"><p>Withdrawals are processed automatically when funds are ready. Processing time varies; submitting a request does not mean the payout is immediate.</p>
-      <p>Withdrawals may include allocated USDC, which may require additional processing before payout. <Link href="/wallet" className="font-medium underline underline-offset-2 hover:text-[#635BFF]">Return to wallet</Link>.</p></div></div>
+      <p>Withdrawals use available unallocated USDC only. To access invested capital, reduce or close a position on <Link href="/earn" className="font-medium underline underline-offset-2 hover:text-[#635BFF]">Earn</Link> and wait for verified return of funds.</p></div></div>
 
     <button type="submit" disabled={!canSubmit}
       className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#635BFF] px-5 py-4 text-sm font-semibold text-white shadow-sm transition-all duration-200 active:scale-[0.99] motion-reduce:transform-none hover:bg-[#544CE4] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#635BFF]/30 disabled:cursor-not-allowed disabled:bg-[#BBC3D1] disabled:shadow-none">
