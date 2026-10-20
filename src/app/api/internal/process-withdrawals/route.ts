@@ -81,6 +81,28 @@ export async function GET(request:Request) {
     return json({status:"fee_estimation_unavailable"});
   }
 
+  // Treasury row must exist before the external submission: uncertain outcomes
+  // remain auditable and must not be automatically retried.
+  const masterWalletAddress=process.env.BLOCKRADAR_MASTER_WALLET_ADDRESS;
+  if(!masterWalletAddress){
+    await prisma.$transaction(async tx=>{
+      const changed=await tx.investorWithdrawal.updateMany({where:{id:item!.id,status:"PROCESSING"},data:{status:"PENDING"}});
+      if(changed.count)await tx.masterWalletBalance.update({where:{walletId},data:{reservedUsdcMicros:{decrement:item!.amountUsdcMicros}}});
+    });
+    log("error","unconfigured",{withdrawalId:item.id});
+    return json({error:"Master wallet address not configured"},503);
+  }
+  const treasury=await prisma.$transaction(async tx=>{
+    const transfer=await tx.treasuryTransfer.create({data:{
+      direction:"PAYOUT",status:"PROCESSING",assetId,asset:"USDC",
+      amountUsdcMicros:item!.amountUsdcMicros,feeUsdcMicros:item!.feeUsdcMicros,
+      destinationWalletAddress:item!.destinationAddress,network:"solana",
+      masterWalletAddress,masterWalletId:walletId,
+      reference:`zenvest-withdrawal:${item!.id}`,
+    }});
+    await tx.investorWithdrawal.update({where:{id:item!.id},data:{treasuryId:transfer.id}});
+    return transfer;
+  });
   try{
     const response=await fetch(`https://api.blockradar.co/v1/wallets/${encodeURIComponent(walletId)}/withdraw`,{
       method:"POST",headers:{"x-api-key":key,"Content-Type":"application/json"},
@@ -91,10 +113,14 @@ export async function GET(request:Request) {
     if(!response.ok||typeof tx.id!=="string")throw Error("Uncertain outcome");
     await prisma.investorWithdrawal.updateMany({where:{id:item.id,status:"PROCESSING"},data:{
       providerTransactionId:tx.id,transactionHash:typeof tx.hash==="string"?tx.hash:null}});
+    await prisma.treasuryTransfer.update({where:{id:treasury.id},data:{originExternalId:tx.id}});
     log("info","submitted",{userId:item.userId,withdrawalId:item.id,providerTransactionId:tx.id});
     return json({status:"processing",withdrawalId:item.id});
   }catch(e){
-    await prisma.investorWithdrawal.updateMany({where:{id:item.id,status:"PROCESSING"},data:{status:"REVIEW",failureCode:"UNKNOWN_PROVIDER_OUTCOME"}});
+    await prisma.$transaction(async tx=>{
+      await tx.investorWithdrawal.updateMany({where:{id:item.id,status:"PROCESSING"},data:{status:"REVIEW",failureCode:"UNKNOWN_PROVIDER_OUTCOME"}});
+      await tx.treasuryTransfer.update({where:{id:treasury.id},data:{status:"REVIEW"}});
+    });
     log("error","manual_reconciliation",{userId:item.userId,withdrawalId:item.id,errorType:e instanceof Error?e.name:"unknown"});
     return json({status:"review",withdrawalId:item.id});
   }
