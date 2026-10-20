@@ -244,10 +244,13 @@ model InvestorWithdrawal {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   completedAt DateTime? @map("completed_at")
+  treasuryId String? @map("treasury_id")
+  treasury TreasuryTransfer? @relation(fields:[treasuryId],references:[id],onDelete:Restrict)
   deallocations WithdrawalDeallocation[]
   @@unique([userId, idempotencyKey])
   @@index([userId, createdAt])
   @@index([status, createdAt])
+  @@index([treasuryId])
   @@map("investor_withdrawals")
 }
 
@@ -328,6 +331,8 @@ model PositionAllocation {
   portfolioId String @map("portfolio_id")
   portfolio InvestorPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Restrict)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
+  treasuryId String? @map("treasury_id")
+  treasury TreasuryTransfer? @relation(fields:[treasuryId],references:[id],onDelete:Restrict)
   status PositionTransferStatus @default(PENDING)
   requestKey String @unique @map("request_key") @db.VarChar(180)
   providerReference String? @unique @map("provider_reference") @db.VarChar(180)
@@ -335,6 +340,7 @@ model PositionAllocation {
   updatedAt DateTime @updatedAt @map("updated_at")
   completedAt DateTime? @map("completed_at")
   @@index([userId, createdAt])
+  @@index([treasuryId])
   @@index([status, createdAt])
   @@map("position_allocations")
 }
@@ -349,6 +355,8 @@ model PositionDeallocation {
   portfolio InvestorPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Restrict)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
   settledUsdcMicros BigInt? @map("settled_usdc_micros")
+  treasuryId String? @map("treasury_id")
+  treasury TreasuryTransfer? @relation(fields:[treasuryId],references:[id],onDelete:Restrict)
   status PositionTransferStatus @default(PENDING)
   requestKey String @unique @map("request_key") @db.VarChar(180)
   providerReference String? @unique @map("provider_reference") @db.VarChar(180)
@@ -357,6 +365,47 @@ model PositionDeallocation {
   completedAt DateTime? @map("completed_at")
   @@index([userId, createdAt])
   @@index([positionId, status])
+  @@index([treasuryId])
   @@index([status, createdAt])
   @@map("position_deallocations")
+}
+
+enum TreasuryDirection {
+  ALLOCATE
+  DEALLOCATE
+  PAYOUT
+}
+enum TreasuryStatus {
+  PENDING
+  PROCESSING
+  COMPLETE
+  FAILED
+  REVIEW
+}
+/** One treasury transfer may fund or return capital for multiple investor positions. */
+model TreasuryTransfer {
+  id String @id @default(cuid())
+  direction TreasuryDirection
+  status TreasuryStatus @default(PENDING)
+  assetId String? @map("asset_id") @db.VarChar(180)
+  asset String @default("USDC") @db.VarChar(16)
+  amountUsdcMicros BigInt @map("amount_usdc_micros")
+  feeUsdcMicros BigInt @default(0) @map("fee_usdc_micros")
+  destinationWalletAddress String @map("destination_wallet_address") @db.VarChar(180)
+  network String @default("solana") @db.VarChar(32)
+  masterWalletAddress String @map("master_wallet_address") @db.VarChar(180)
+  masterWalletId String @map("master_wallet_id") @db.VarChar(180)
+  originExternalId String? @map("origin_external_id") @db.VarChar(180)
+  destinationExternalId String? @map("destination_external_id") @db.VarChar(180)
+  reference String @unique @db.VarChar(180)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+  allocations PositionAllocation[]
+  deallocations PositionDeallocation[]
+  withdrawals InvestorWithdrawal[]
+  @@index([direction,status,createdAt])
+  @@index([originExternalId])
+  @@index([destinationExternalId])
+  @@map("treasury")
 }
