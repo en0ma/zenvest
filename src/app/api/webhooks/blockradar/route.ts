@@ -131,6 +131,18 @@ export async function POST(request: Request) {
         data:{status:"CONFIRMED",sweepHash:sweepHash as string,creditedAt:new Date()},
       });
       if(changed.count!==1) return "duplicate";
+      // Record custody movement atomically with the confirmed investor deposit.
+      // The conditional CONFIRMING -> CONFIRMED transition is the idempotency gate.
+      await tx.treasuryTransfer.create({data:{
+        direction:"DEPOSIT",status:"COMPLETE",
+        assetId:mint,asset:"USDC",amountUsdcMicros:amount,feeUsdcMicros:0n,
+        destinationWalletAddress:master.address as string,
+        network:"solana",masterWalletAddress:master.address as string,
+        masterWalletId,originExternalId:id,
+        destinationExternalId:sweepHash as string,
+        reference:`blockradar-deposit:${id}`,completedAt:new Date(),
+      }});
+
       await tx.masterWalletBalance.upsert({where:{walletId:masterWalletId},create:{walletId:masterWalletId,confirmedUsdcMicros:amount},update:{confirmedUsdcMicros:{increment:amount}}});
       await tx.investorPortfolio.update({where:{id:portfolio.id},
         data:{pendingDepositsUsdcMicros:{decrement:amount},
