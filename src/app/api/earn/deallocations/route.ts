@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 function micros(raw:unknown):bigint|null {
- if(typeof raw!=="string"||!/^(0|[1-9]\\d*)(\\.\\d{1,6})?$/.test(raw))return null;
+ if(typeof raw!=="string"||!/^(0|[1-9]\d*)(\.\d{1,6})?$/.test(raw))return null;
  const [w,f=""]=raw.split(".");
  const n=BigInt(w)*1000000n+BigInt(f.padEnd(6,"0"));
  return n>0n&&n<=9223372036854775807n?n:null;
@@ -22,20 +22,19 @@ export async function POST(request:Request){
   return NextResponse.json({error:"Invalid request identifier"},{status:400});
  const reference=`position-reduce:${user.id}:${body.requestId}`;
  try {
-  const existing=await prisma.positionOperation.findUnique({where:{providerReference:reference}});
-  if(existing)return existing.positionId===positionId&&existing.amountUsdcMicros===amount&&existing.type==="DEALLOCATE"
+  const existing=await prisma.positionDeallocation.findUnique({where:{requestKey:reference}});
+  if(existing)return existing.positionId===positionId&&existing.amountUsdcMicros===amount
    ?NextResponse.json({operationId:existing.id,status:existing.status})
    :NextResponse.json({error:"Request identifier reused"},{status:409});
   const outcome=await prisma.$transaction(async tx=>{
    const pos=await tx.investorPosition.findFirst({where:{id:positionId,userId:user.id,status:"ACTIVE"}});
    if(!pos)return "INVALID";
    // One unsettled reduction per position keeps principal ownership unambiguous.
-   const other=await tx.positionOperation.count({where:{positionId,type:"DEALLOCATE",status:{in:["PENDING","PROCESSING","REVIEW"]}}});
+   const other=await tx.positionDeallocation.count({where:{positionId,status:{in:["PENDING","DEALLOCATING","REVIEW"]}}});
    if(other)return "BUSY";
    if(amount>pos.principalUsdcMicros)return "EXCEEDS";
-   const op=await tx.positionOperation.create({data:{
-    userId:user.id,portfolioId:pos.portfolioId,positionId:pos.id,type:"DEALLOCATE",
-    status:"PENDING",amountUsdcMicros:amount,providerReference:reference,
+   const op=await tx.positionDeallocation.create({data:{
+    userId:user.id,portfolioId:pos.portfolioId,positionId:pos.id,status:"PENDING",amountUsdcMicros:amount,requestKey:reference,
    }});
    return op.id;
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
@@ -45,8 +44,8 @@ export async function POST(request:Request){
   return NextResponse.json({operationId:outcome,status:"PENDING"},{status:201});
  }catch(error){
   if(error instanceof Prisma.PrismaClientKnownRequestError&&error.code==="P2002"){
-   const existing=await prisma.positionOperation.findUnique({where:{providerReference:reference}});
-   if(existing&&existing.positionId===positionId&&existing.type==="DEALLOCATE"&&existing.amountUsdcMicros===amount)
+   const existing=await prisma.positionDeallocation.findUnique({where:{requestKey:reference}});
+   if(existing&&existing.positionId===positionId&&existing.amountUsdcMicros===amount)
     return NextResponse.json({operationId:existing.id,status:existing.status});
   }
   return NextResponse.json({error:"Unable to request deallocation"},{status:503});
