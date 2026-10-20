@@ -10,7 +10,7 @@ import { ActivateDepositWallet, CopyDepositAddress } from "@/components/deposit-
 import { WalletWithdrawals } from "@/components/wallet-withdrawals";
 export const dynamic="force-dynamic";
 const PAGE_SIZE=10;
-export default async function WalletPage({searchParams}:{searchParams:Promise<{depositsPage?:string;withdrawalsPage?:string;deallocationsPage?:string}>}){
+export default async function WalletPage({searchParams}:{searchParams:Promise<{depositsPage?:string;withdrawalsPage?:string}>}){
  const params=await searchParams;
  const rawPage=Number(params.depositsPage??"1");
  const requestedPage=Number.isSafeInteger(rawPage)&&rawPage>0?Math.min(rawPage,100000):1;
@@ -45,7 +45,8 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
         <p className="flex items-center gap-2 text-sm text-[#78869A]"><Clock3 size={15}/>Pending withdrawals</p>
         <p className="text-sm font-semibold tabular-nums text-[#5B6B7F]">{formatUsdc(portfolio?.pendingWithdrawalsUsdcMicros??0n)}</p>
       </div>
-      <p className="mt-1 text-xs text-[#8A97A8]">Reserved for existing requests and excluded from the available withdrawal balance.</p>
+      <p className="mt-1 text-xs text-[#8A97A8]">Withdrawal and allocation requests reserve unallocated capital and reduce the available balance.</p>
+      <p className="mt-2 text-xs text-[#8A97A8]">Pending allocations: {formatUsdc(portfolio?.pendingAllocationsUsdcMicros??0n)}</p>
     </section>
   <section className="mt-8 rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-2xl font-semibold tracking-tight">Deposit USDC</h2><p className="mt-2 text-sm text-[#425466]">Use your personal Solana deposit address to add funds.</p></div><span className="rounded-full bg-[#F0EEFF] px-3 py-1.5 text-xs font-semibold text-[#635BFF]">Solana · USDC</span></div>
@@ -87,6 +88,6 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
      </nav>
    </div>
   </section>
-  <WalletWithdrawals userId={user.id} allocated={portfolio?.allocatedUsdcMicros??0n} unallocated={portfolio?.unallocatedUsdcMicros??0n} pending={portfolio?.pendingWithdrawalsUsdcMicros??0n} withdrawalsPage={params.withdrawalsPage} deallocationsPage={params.deallocationsPage} depositsPage={page}/>
+  <WalletWithdrawals userId={user.id} unallocated={portfolio?.unallocatedUsdcMicros??0n} pending={portfolio?.pendingWithdrawalsUsdcMicros??0n} pendingAllocations={portfolio?.pendingAllocationsUsdcMicros??0n} withdrawalsPage={params.withdrawalsPage} depositsPage={page}/>
  </div></Shell>;
 }
