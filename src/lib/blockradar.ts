@@ -14,7 +14,7 @@ export async function createSolanaDepositAddress(userId: string): Promise<Dedica
   const response = await fetch(`https://api.blockradar.co/v1/wallets/${encodeURIComponent(walletId)}/addresses`, {
     method: "POST",
     headers: { "x-api-key": key, "Content-Type": "application/json" },
-    body: JSON.stringify({ name: `Zenvest ${userId}`, metadata: { zenvestUserId: userId } }),
+    body: JSON.stringify({ name: `zen_${userId}`, metadata: { zenvestUserId: userId } }),
     cache: "no-store",
     signal: AbortSignal.timeout(15000),
   });
