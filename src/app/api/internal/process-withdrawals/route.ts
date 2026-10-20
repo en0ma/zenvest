@@ -92,17 +92,29 @@ export async function GET(request:Request) {
     log("error","unconfigured",{withdrawalId:item.id});
     return json({error:"Master wallet address not configured"},503);
   }
-  const treasury=await prisma.$transaction(async tx=>{
-    const transfer=await tx.treasuryTransfer.create({data:{
-      direction:"PAYOUT",status:"PROCESSING",assetId,asset:"USDC",
-      amountUsdcMicros:item!.amountUsdcMicros,feeUsdcMicros:item!.feeUsdcMicros,
-      destinationWalletAddress:item!.destinationAddress,network:"solana",
-      masterWalletAddress,masterWalletId:walletId,
-      reference:`zenvest-withdrawal:${item!.id}`,
-    }});
-    await tx.investorWithdrawal.update({where:{id:item!.id},data:{treasuryId:transfer.id}});
-    return transfer;
-  });
+  let treasury: {id:string};
+  try {
+    treasury=await prisma.$transaction(async tx=>{
+      const transfer=await tx.treasuryTransfer.create({data:{
+        direction:"PAYOUT",status:"PROCESSING",assetId,asset:"USDC",
+        amountUsdcMicros:item!.amountUsdcMicros,feeUsdcMicros:item!.feeUsdcMicros,
+        destinationWalletAddress:item!.destinationAddress,network:"solana",
+        masterWalletAddress,masterWalletId:walletId,
+        reference:`zenvest-withdrawal:${item!.id}`,
+      }});
+      await tx.investorWithdrawal.update({where:{id:item!.id},data:{treasuryId:transfer.id}});
+      return transfer;
+    });
+  } catch {
+    await prisma.$transaction(async tx=>{
+      const changed=await tx.investorWithdrawal.updateMany({
+        where:{id:item!.id,status:"PROCESSING",treasuryId:null},data:{status:"PENDING"}});
+      if(changed.count) await tx.masterWalletBalance.update({where:{walletId},
+        data:{reservedUsdcMicros:{decrement:item!.amountUsdcMicros}}});
+    });
+    log("error","treasury_create_failed",{withdrawalId:item.id});
+    return json({error:"Unable to record treasury transfer"},503);
+  }
   try{
     const response=await fetch(`https://api.blockradar.co/v1/wallets/${encodeURIComponent(walletId)}/withdraw`,{
       method:"POST",headers:{"x-api-key":key,"Content-Type":"application/json"},
