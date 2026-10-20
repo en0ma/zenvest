@@ -23,7 +23,7 @@ export function EarnActions({available,positions,operations}:{available:string;p
   }catch(e){setError(e instanceof Error?e.message:"Request failed");}
   finally{setWorking(false);}
  }
- const valid=(s:string)=>/^(0|[1-9]\\d*)(\\.\\d{1,6})?$/.test(s)&&Number(s)>0;
+ const valid=(s:string)=>/^(0|[1-9]\d*)(\.\d{1,6})?$/.test(s)&&Number(s)>0;
  const heading="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#64748B]";
  const cell="whitespace-nowrap px-5 py-4 text-sm text-[#334155]";
  return <div className="space-y-8">
