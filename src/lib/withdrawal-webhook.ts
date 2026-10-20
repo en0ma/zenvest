@@ -38,6 +38,19 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
         ...(targetStatus === "SUCCESS" ? {completedAt:new Date()} : {failureCode:event})},
     });
     if (updated.count !== 1) return false;
+    if (item.treasuryId) {
+      const changedTreasury=await tx.treasuryTransfer.updateMany({
+        where:{id:item.treasuryId,direction:"PAYOUT",status:{in:["PROCESSING","REVIEW"]},
+          masterWalletId,amountUsdcMicros:item.amountUsdcMicros,
+          destinationWalletAddress:item.destinationAddress},
+        data:{status:targetStatus==="SUCCESS"?"COMPLETE":"FAILED",
+          originExternalId:transactionId,
+          destinationExternalId:typeof data.hash==="string"?data.hash:null,
+          ...(targetStatus==="SUCCESS"?{completedAt:new Date()}:{})},
+      });
+      if(changedTreasury.count!==1)throw new Error("Treasury settlement mismatch");
+    }
+
     const reservedTotal=item.grossUsdcMicros;
     await tx.masterWalletBalance.update({where:{walletId:masterWalletId},data:{reservedUsdcMicros:{decrement:item.amountUsdcMicros},...(targetStatus==="SUCCESS"?{confirmedUsdcMicros:{decrement:item.amountUsdcMicros},feeReserveUsdcMicros:{increment:item.feeUsdcMicros}}:{})}});
     const portfolio=await tx.investorPortfolio.findUniqueOrThrow({where:{id:item.portfolioId}});
