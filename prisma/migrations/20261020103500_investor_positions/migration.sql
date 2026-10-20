@@ -45,7 +45,7 @@ ALTER TABLE "position_deallocations" ADD CONSTRAINT "position_deallocations_posi
 ALTER TABLE "position_deallocations" ADD CONSTRAINT "position_deallocations_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "position_deallocations" ADD CONSTRAINT "position_deallocations_portfolio_id_fkey" FOREIGN KEY ("portfolio_id") REFERENCES "investor_portfolios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
-CREATE TYPE "TreasuryDirection" AS ENUM ('ALLOCATE','DEALLOCATE','PAYOUT');
+CREATE TYPE "TreasuryDirection" AS ENUM ('DEPOSIT','ALLOCATE','DEALLOCATE','PAYOUT');
 CREATE TYPE "TreasuryStatus" AS ENUM ('PENDING','PROCESSING','COMPLETE','FAILED','REVIEW');
 CREATE TABLE "treasury" (
  "id" TEXT NOT NULL PRIMARY KEY,
