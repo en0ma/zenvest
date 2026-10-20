@@ -47,28 +47,21 @@ export async function POST(request: Request) {
     }
     const item = await prisma.$transaction(async tx => {
       const portfolio = await tx.investorPortfolio.findUnique({where:{userId:user.id},
-        select:{id:true,allocatedUsdcMicros:true,unallocatedUsdcMicros:true,pendingWithdrawalsUsdcMicros:true}});
+        select:{id:true,allocatedUsdcMicros:true,unallocatedUsdcMicros:true,pendingWithdrawalsUsdcMicros:true,pendingAllocationsUsdcMicros:true}});
       if (!portfolio) return null;
-      const total=portfolio.allocatedUsdcMicros+portfolio.unallocatedUsdcMicros;
+      const total=portfolio.unallocatedUsdcMicros-portfolio.pendingAllocationsUsdcMicros;
       const pendingBefore=portfolio.pendingWithdrawalsUsdcMicros;
       if(total-pendingBefore<amount) return null;
       // Reserve without changing invested/uninvested balances until payout settlement.
       // Conditional compare-and-swap protects concurrent requests and allocations.
       const reserved=await tx.investorPortfolio.updateMany({
         where:{id:portfolio.id,allocatedUsdcMicros:portfolio.allocatedUsdcMicros,
-          unallocatedUsdcMicros:portfolio.unallocatedUsdcMicros,pendingWithdrawalsUsdcMicros:pendingBefore},
+          unallocatedUsdcMicros:portfolio.unallocatedUsdcMicros,pendingAllocationsUsdcMicros:portfolio.pendingAllocationsUsdcMicros,pendingWithdrawalsUsdcMicros:pendingBefore},
         data:{pendingWithdrawalsUsdcMicros:{increment:amount}},
       });
       if(reserved.count!==1) throw new Error("Concurrent balance reservation");
-      const oldShortfall=pendingBefore>portfolio.unallocatedUsdcMicros?pendingBefore-portfolio.unallocatedUsdcMicros:0n;
-      const pendingAfter=pendingBefore+amount;
-      const newShortfall=pendingAfter>portfolio.unallocatedUsdcMicros?pendingAfter-portfolio.unallocatedUsdcMicros:0n;
-      const deallocationAmount=newShortfall-oldShortfall;
       const withdrawal = await tx.investorWithdrawal.create({
         data:{userId:user.id,portfolioId:portfolio.id,amountUsdcMicros:net,grossUsdcMicros:amount,asset:"USDC",feeUsdcMicros:WITHDRAWAL_FEE_USDC_MICROS,destinationAddress:address,idempotencyKey,status:"PENDING"},
-      });
-      if(deallocationAmount>0n) await tx.withdrawalDeallocation.create({
-        data:{withdrawalId:withdrawal.id,userId:user.id,portfolioId:portfolio.id,amountUsdcMicros:deallocationAmount},
       });
       await tx.investorActivity.create({
         data:{portfolioId:portfolio.id,type:"WITHDRAWAL_REQUESTED",amountKobo:0n,amountUsdcMicros:amount,
@@ -76,7 +69,7 @@ export async function POST(request: Request) {
       });
       return withdrawal;
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
-    if (!item) return NextResponse.json({error:"Insufficient available USDC after pending withdrawal reservations"},{status:409});
+    if (!item) return NextResponse.json({error:"Insufficient unallocated USDC after pending withdrawal and allocation reservations"},{status:409});
     console.info(JSON.stringify({component:"withdrawal",outcome:"requested",userId:user.id,withdrawalId:item.id}));
     return NextResponse.json({id:item.id,status:item.status,gross:item.grossUsdcMicros.toString(),net:item.amountUsdcMicros.toString(),fee:item.feeUsdcMicros.toString()},{status:201});
   } catch (error) {
