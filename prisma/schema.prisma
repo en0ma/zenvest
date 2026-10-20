@@ -27,7 +27,8 @@ model User {
   withdrawals InvestorWithdrawal[]
   deallocationRequests WithdrawalDeallocation[]
   positions InvestorPosition[]
-  positionOperations PositionOperation[]
+  positionAllocations PositionAllocation[]
+  positionDeallocations PositionDeallocation[]
   tokens       ActionToken[]
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -139,7 +140,8 @@ model InvestorPortfolio {
   withdrawals InvestorWithdrawal[]
   deallocationRequests WithdrawalDeallocation[]
   positions InvestorPosition[]
-  positionOperations PositionOperation[]
+  positionAllocations PositionAllocation[]
+  positionDeallocations PositionDeallocation[]
   @@map("investor_portfolios")
 }
 
@@ -290,15 +292,11 @@ enum PositionStatus {
   CLOSED
 }
 
-enum PositionOperationType {
-  ALLOCATE
-  DEALLOCATE
-}
-
-enum PositionOperationStatus {
+enum PositionTransferStatus {
   PENDING
-  PROCESSING
-  COMPLETED
+  ALLOCATING
+  DEALLOCATING
+  DONE
   FAILED
   REVIEW
 }
@@ -315,12 +313,13 @@ model InvestorPosition {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   closedAt DateTime? @map("closed_at")
-  operations PositionOperation[]
+  allocations PositionAllocation[]
+  deallocations PositionDeallocation[]
   @@index([userId, status, createdAt])
-  @@map("investor_positions")
+  @@map("positions")
 }
 
-model PositionOperation {
+model PositionAllocation {
   id String @id @default(cuid())
   positionId String @map("position_id")
   position InvestorPosition @relation(fields: [positionId], references: [id], onDelete: Restrict)
@@ -328,11 +327,30 @@ model PositionOperation {
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
   portfolioId String @map("portfolio_id")
   portfolio InvestorPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Restrict)
-  type PositionOperationType
-  status PositionOperationStatus @default(PENDING)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
-  /** Verified return amount, which can differ from requested principal when P&L is realized. */
+  status PositionTransferStatus @default(PENDING)
+  requestKey String @unique @map("request_key") @db.VarChar(180)
+  providerReference String? @unique @map("provider_reference") @db.VarChar(180)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("position_allocations")
+}
+
+model PositionDeallocation {
+  id String @id @default(cuid())
+  positionId String @map("position_id")
+  position InvestorPosition @relation(fields: [positionId], references: [id], onDelete: Restrict)
+  userId String @map("user_id")
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  portfolioId String @map("portfolio_id")
+  portfolio InvestorPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Restrict)
+  amountUsdcMicros BigInt @map("amount_usdc_micros")
   settledUsdcMicros BigInt? @map("settled_usdc_micros")
+  status PositionTransferStatus @default(PENDING)
+  requestKey String @unique @map("request_key") @db.VarChar(180)
   providerReference String? @unique @map("provider_reference") @db.VarChar(180)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -340,5 +358,5 @@ model PositionOperation {
   @@index([userId, createdAt])
   @@index([positionId, status])
   @@index([status, createdAt])
-  @@map("position_operations")
+  @@map("position_deallocations")
 }
