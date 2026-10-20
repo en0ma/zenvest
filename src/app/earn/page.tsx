@@ -1,0 +1,27 @@
+import { Shell } from "@/components/shell";
+import { EarnActions } from "@/components/earn-actions";
+import { requireUser } from "@/lib/access";
+import { prisma } from "@/lib/db";
+import { formatUsdc } from "@/lib/usdc-money";
+export const dynamic="force-dynamic";
+function date(d:Date|null){return d?d.toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short",timeZone:"UTC"})+" UTC":null;}
+export default async function EarnPage(){
+ const user=await requireUser();
+ const [p,positions,operations]=await Promise.all([
+  prisma.investorPortfolio.findUnique({where:{userId:user.id}}),
+  prisma.investorPosition.findMany({where:{userId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}]}),
+  prisma.positionOperation.findMany({where:{userId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}],take:200}),
+ ]);
+ const u=p?.unallocatedUsdcMicros??0n,w=p?.pendingWithdrawalsUsdcMicros??0n,a=p?.pendingAllocationsUsdcMicros??0n;
+ const available=u>w+a?u-w-a:0n;
+ return <Shell><div className="mx-auto max-w-6xl space-y-7">
+  <header><h1 className="text-3xl font-semibold tracking-tight text-[#11263E]">Earn</h1><p className="mt-2 text-sm text-[#64748B]">Manage allocations, view investment positions and request return of capital.</p></header>
+  <section aria-label="Capital overview" className="grid gap-4 sm:grid-cols-3">
+   {[{label:"Portfolio balance",value:(p?.allocatedUsdcMicros??0n)+u},{label:"Unallocated balance",value:u},{label:"Available for withdrawal or allocation",value:available}].map(m=>
+    <div key={m.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5"><p className="text-xs text-[#64748B]">{m.label}</p><p className="mt-3 text-xl font-semibold tabular-nums text-[#11263E]">{formatUsdc(m.value)}</p></div>)}
+  </section>
+  <p className="text-xs text-[#64748B]">Reserved: {formatUsdc(w)} withdrawing + {formatUsdc(a)} allocating. Portfolio = allocated + unallocated; available = max(0, unallocated − reservations).</p>
+  <EarnActions available={available.toString()} positions={positions.map(x=>({id:x.id,principal:x.principalUsdcMicros.toString(),status:x.status,created:date(x.createdAt)??"—",pending:operations.some(o=>o.positionId===x.id&&o.type==="DEALLOCATE"&&["PENDING","PROCESSING","REVIEW"].includes(o.status))}))}
+   operations={operations.map(x=>({id:x.id,positionId:x.positionId,type:x.type,amount:x.amountUsdcMicros.toString(),status:x.status,created:date(x.createdAt)??"—",completed:date(x.completedAt)}))}/>
+ </div></Shell>;
+}
