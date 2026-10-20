@@ -9,7 +9,11 @@
       "schedule": "* * * * *"
     },
     {
-      "path": "/api/internal/process-deallocations",
+      "path": "/api/internal/process-position-allocations",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/internal/process-position-deallocations",
       "schedule": "* * * * *"
     }
   ]
