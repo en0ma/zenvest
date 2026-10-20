@@ -1,7 +1,7 @@
 -- Pending requests reserve unallocated capital without moving custody or recognizing funding.
 ALTER TABLE "investor_portfolios" ADD COLUMN "pending_allocations_usdc_micros" BIGINT NOT NULL DEFAULT 0;
 CREATE TYPE "PositionStatus" AS ENUM ('PENDING','ACTIVE','CLOSED');
-CREATE TYPE "PositionTransferStatus" AS ENUM ('PENDING','ALLOCATING','DEALLOCATING','DONE','FAILED','REVIEW');
+CREATE TYPE "PositionTransferStatus" AS ENUM ('PENDING','ALLOCATING','DEALLOCATING','ALLOCATED','DEALLOCATED','FAILED','REVIEW');
 CREATE TABLE "positions" (
  "id" TEXT NOT NULL PRIMARY KEY, "user_id" TEXT NOT NULL, "portfolio_id" TEXT NOT NULL,
  "principal_usdc_micros" BIGINT NOT NULL DEFAULT 0,
