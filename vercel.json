@@ -15,6 +15,14 @@
     {
       "path": "/api/internal/process-position-deallocations",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/internal/blockradar-deposit-finder",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/internal/blockradar-sweep-assets",
+      "schedule": "*/2 * * * *"
     }
   ]
 }
