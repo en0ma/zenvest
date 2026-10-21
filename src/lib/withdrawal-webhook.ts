@@ -67,11 +67,23 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
       // Exactly one row per kind. A withdrawal decreases user-held master funds;
       // only the retained 2 USDC increases the fee bucket; network costs are not platform revenue.
       const {gross:spent}=withdrawalSplit(item.grossUsdcMicros,item.amountUsdcMicros,treasury.feeUsdcMicros);
-      const depositBucket=await tx.treasury.updateMany({
-        where:{kind:"DEPOSIT",amount:{gte:spent}},
-        data:{amount:{decrement:spent}},
-      });
-      if(depositBucket.count!==1)throw new Error("Insufficient treasury deposit balance");
+      // Spend from master-held DEPOSIT then DEALLOCATE capital. The sum must
+      // cover the gross debit and the whole split settles atomically.
+      const deposit=await tx.treasury.findUnique({where:{kind:"DEPOSIT"}});
+      const deallocate=await tx.treasury.findUnique({where:{kind:"DEALLOCATE"}});
+      if(!deposit||deposit.amount<0n||(deallocate&&deallocate.amount<0n))
+        throw new Error("Missing treasury funds");
+      const fromDeposit=deposit.amount>=spent?spent:deposit.amount;
+      const fromDeallocate=spent-fromDeposit;
+      if(fromDeallocate>(deallocate?.amount??0n))throw new Error("Insufficient master treasury balance");
+      if(fromDeposit>0n){
+        const updated=await tx.treasury.updateMany({where:{kind:"DEPOSIT",amount:{gte:fromDeposit}},data:{amount:{decrement:fromDeposit}}});
+        if(updated.count!==1)throw new Error("Deposit bucket changed");
+      }
+      if(fromDeallocate>0n){
+        const updated=await tx.treasury.updateMany({where:{kind:"DEALLOCATE",amount:{gte:fromDeallocate}},data:{amount:{decrement:fromDeallocate}}});
+        if(updated.count!==1)throw new Error("Deallocate bucket changed");
+      }
       await tx.treasury.upsert({where:{kind:"WITHDRAWAL_FEE"},create:{
         walletAddress:treasury.masterWalletAddress,walletId:masterWalletId,
         asset:treasury.asset,network:treasury.network,source:"MASTER_WALLET",
