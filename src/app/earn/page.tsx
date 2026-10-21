@@ -7,11 +7,12 @@ export const dynamic="force-dynamic";
 function date(d:Date|null){return d?d.toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short",timeZone:"UTC"})+" UTC":null;}
 export default async function EarnPage(){
  const user=await requireUser();
- const [p,positions,allocations,deallocations]=await Promise.all([
+ const [p,positions,allocations,deallocations,strategies]=await Promise.all([
   prisma.investorPortfolio.findUnique({where:{userId:user.id}}),
   prisma.investorPosition.findMany({where:{userId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}]}),
   prisma.positionAllocation.findMany({where:{userId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}],take:100}),
   prisma.positionDeallocation.findMany({where:{userId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}],take:100}),
+  prisma.strategy.findMany({where:{isActive:true,isPublic:true},orderBy:{name:"asc"}}),
  ]);
  const u=p?.unallocatedUsdcMicros??0n,w=p?.pendingWithdrawalsUsdcMicros??0n,a=p?.pendingAllocationsUsdcMicros??0n;
  const available=u>w+a?u-w-a:0n;
@@ -22,7 +23,7 @@ export default async function EarnPage(){
     <div key={m.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5"><p className="text-xs text-[#64748B]">{m.label}</p><p className="mt-3 text-xl font-semibold tabular-nums text-[#11263E]">{formatUsdc(m.value)}</p></div>)}
   </section>
   <p className="text-xs text-[#64748B]">Reserved: {formatUsdc(w)} withdrawing + {formatUsdc(a)} allocating. Portfolio = allocated + unallocated; available = max(0, unallocated − reservations).</p>
-  <EarnActions available={available.toString()} positions={positions.map(x=>({id:x.id,principal:x.principalUsdcMicros.toString(),status:x.status,created:date(x.createdAt)??"—",pending:deallocations.some(o=>o.positionId===x.id&&["PENDING","DEALLOCATING","REVIEW"].includes(o.status))}))}
+  <EarnActions strategies={strategies.map(x=>({id:x.id,name:x.name,description:x.description,min:x.minAllocationUsdcMicros.toString(),max:x.maxAllocationUsdcMicros.toString(),capacity:x.availableCapacityUsdcMicros.toString()}))} available={available.toString()} positions={positions.map(x=>({id:x.id,principal:x.principalUsdcMicros.toString(),status:x.status,created:date(x.createdAt)??"—",pending:deallocations.some(o=>o.positionId===x.id&&["PENDING","DEALLOCATING","REVIEW"].includes(o.status))}))}
    operations={[...allocations.map(x=>({id:x.id,positionId:x.positionId,type:"ALLOCATE",amount:x.amountUsdcMicros.toString(),status:x.status,created:date(x.createdAt)??"—",completed:date(x.completedAt)})),...deallocations.map(x=>({id:x.id,positionId:x.positionId,type:"DEALLOCATE",amount:x.amountUsdcMicros.toString(),status:x.status,created:date(x.createdAt)??"—",completed:date(x.completedAt)}))].sort((a,b)=>b.created.localeCompare(a.created))}/>
  </div></Shell>;
 }
