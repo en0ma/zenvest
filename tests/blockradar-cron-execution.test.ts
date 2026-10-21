@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
 import {executeBlockradarCron} from "../src/lib/blockradar-cron-execution.ts";
 import type {BlockradarCronAction} from "../src/lib/blockradar-wallet-actions.ts";
 
@@ -45,4 +46,13 @@ test("provider errors and missing wallet configuration return 503 instead of suc
    assert.equal(unconfigured.status,503);
   }
  }finally{if(previous===undefined)delete process.env.CRON_SECRET;else process.env.CRON_SECRET=previous;}
+});
+
+test("both Blockradar cron paths are scheduled every two minutes",()=>{
+ const config=JSON.parse(readFileSync(new URL("../vercel.json",import.meta.url),"utf8")) as {crons:Array<{path:string;schedule:string}>};
+ for(const path of ["/api/internal/blockradar-deposit-finder","/api/internal/blockradar-sweep-assets"]){
+  const jobs=config.crons.filter(c=>c.path===path);
+  assert.equal(jobs.length,1,path);
+  assert.equal(jobs[0].schedule,"*/2 * * * *");
+ }
 });
