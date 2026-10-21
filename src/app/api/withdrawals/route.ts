@@ -4,6 +4,8 @@ import { requireUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 
 import { WITHDRAWAL_FEE_USDC_MICROS } from "@/lib/withdrawal-fee";
+import {estimateWithdrawalNetworkFee} from "@/lib/blockradar-withdrawal-fee";
+import {withdrawalFeeBreakdown} from "@/lib/withdrawal-network-fee";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,7 +33,7 @@ export async function POST(request: Request) {
     return NextResponse.json({error:"Enter a valid USDC amount and Solana address"},{status:400});
 
   if (amount <= WITHDRAWAL_FEE_USDC_MICROS) return NextResponse.json({error:"Amount must exceed the 2 USDC fee"},{status:400});
-  const net = amount - WITHDRAWAL_FEE_USDC_MICROS;
+
 
   try {
     // Same user + request key always resolves to one request. A different
@@ -45,6 +47,9 @@ export async function POST(request: Request) {
       return NextResponse.json({id:existing.id,status:existing.status,gross:existing.grossUsdcMicros.toString(),
         net:existing.amountUsdcMicros.toString(),fee:existing.feeUsdcMicros.toString()});
     }
+    // Re-quote server-side: never trust the browser's fee preview.
+    const networkFee=await estimateWithdrawalNetworkFee(address,amount-WITHDRAWAL_FEE_USDC_MICROS);
+    const {total:totalFee,net}=withdrawalFeeBreakdown(amount,networkFee);
     const item = await prisma.$transaction(async tx => {
       const balance=await tx.user.findUniqueOrThrow({where:{id:user.id}});
       const [withdrawalHolds,allocationHolds]=await Promise.all([
@@ -54,7 +59,7 @@ export async function POST(request: Request) {
       const holds=(withdrawalHolds._sum.grossUsdcMicros??0n)+(allocationHolds._sum.amountUsdcMicros??0n);
       if(balance.unallocated-holds<amount)return null;
       const withdrawal = await tx.investorWithdrawal.create({
-        data:{userId:user.id,amountUsdcMicros:net,grossUsdcMicros:amount,asset:"USDC",feeUsdcMicros:WITHDRAWAL_FEE_USDC_MICROS,destinationAddress:address,idempotencyKey,status:"PENDING"},
+        data:{userId:user.id,amountUsdcMicros:net,grossUsdcMicros:amount,asset:"USDC",feeUsdcMicros:totalFee,destinationAddress:address,idempotencyKey,status:"PENDING"},
       });
       await tx.investorActivity.create({
         data:{userId:user.id,type:"WITHDRAWAL_REQUESTED",amountKobo:0n,amountUsdcMicros:amount,
