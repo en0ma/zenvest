@@ -65,7 +65,7 @@ export async function POST(request: Request) {
     return NextResponse.json({message:"success"});
   }
   const isSwept=event.event==="deposit.swept.success";
-  const sweepAmount=parseUsdcMicros(data.assetSweptAmount);
+  const sweepAmount=parsePositiveUsdcMicros(data.assetSweptAmount);
   const sweepHash=data.assetSweptHash;
   if (data.confirmed!==true || data.status!=="SUCCESS" || data.type!=="DEPOSIT" ||
       asset.symbol!=="USDC" || asset.address!==mint || asset.decimals!==6 ||
