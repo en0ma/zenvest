@@ -4,7 +4,7 @@
  * bodies, addresses, credentials, arbitrary provider payloads or Error.message.
  */
 export type LogSeverity = "info" | "warn" | "error";
-export type JourneyOperation = "wallet_activation" | "deposit_webhook" | "deposit_reconciliation" | "withdrawal_payout" | "withdrawal_settlement";
+export type JourneyOperation = "wallet_activation" | "deposit_webhook" | "deposit_reconciliation" | "withdrawal_payout" | "withdrawal_settlement" | "blockradar_rescan_cron" | "blockradar_sweep_cron";
 type FieldValue = string | number | boolean | null | undefined;
 export type JourneyFields = {
   requestId?: string;
