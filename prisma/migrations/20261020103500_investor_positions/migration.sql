@@ -84,7 +84,8 @@ ALTER TABLE "position_deallocations" ADD CONSTRAINT "position_deallocations_trea
 -- Rename the existing catalog without dropping its records or breaking
 -- the active_bot_trade foreign key. Legacy telemetry tables remain in place.
 ALTER TABLE "bots" RENAME TO "strategies";
-CREATE TYPE "StrategyStatus" AS ENUM ('TRADING','IDLE');
+CREATE TYPE "StrategyStatus" AS ENUM ('OFFLINE','IDLE','MONITORING','TRADING','PAUSED','ERROR');
+CREATE TYPE "MarketType" AS ENUM ('PREDICTION','PERP','SPOT');
 ALTER TABLE "strategies"
  ADD COLUMN "note" VARCHAR(1000),
  ADD COLUMN "min_capacity_usdc_micros" BIGINT NOT NULL DEFAULT 0,
@@ -94,9 +95,48 @@ ALTER TABLE "strategies"
  ADD COLUMN "max_allocation_usdc_micros" BIGINT NOT NULL DEFAULT 0,
  ADD COLUMN "is_active" BOOLEAN NOT NULL DEFAULT false,
  ADD COLUMN "is_public" BOOLEAN NOT NULL DEFAULT false,
- ADD COLUMN "status" "StrategyStatus" NOT NULL DEFAULT 'IDLE',
+ ADD COLUMN "status" "StrategyStatus" NOT NULL DEFAULT 'OFFLINE',
+ ADD COLUMN "market_type" "MarketType" NOT NULL DEFAULT 'PREDICTION',
  ADD COLUMN "market_id" VARCHAR(200),
  ADD COLUMN "market_name" VARCHAR(200);
 CREATE UNIQUE INDEX "strategies_name_key" ON "strategies"("name");
 CREATE INDEX "strategies_is_active_is_public_idx" ON "strategies"("is_active","is_public");
 ALTER TABLE "positions" ADD CONSTRAINT "positions_strategy_id_fkey" FOREIGN KEY ("strategy_id") REFERENCES "strategies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- Preserve verified existing status/P&L snapshot data before dropping the old status table.
+ALTER TABLE "strategies"
+ ADD COLUMN "available_funds_usdc_micros" BIGINT NOT NULL DEFAULT 0,
+ ADD COLUMN "releasable_funds_usdc_micros" BIGINT NOT NULL DEFAULT 0,
+ ADD COLUMN "realized_pnl_usdc_micros" BIGINT NOT NULL DEFAULT 0,
+ ADD COLUMN "unrealized_pnl_usdc_micros" BIGINT NOT NULL DEFAULT 0,
+ ADD COLUMN "telemetry_as_of" TIMESTAMP(3);
+UPDATE "strategies" AS s SET
+ "status" = bs."state"::text::"StrategyStatus",
+ "available_funds_usdc_micros" = bs."available_funds_usdc_micros",
+ "releasable_funds_usdc_micros" = bs."releasable_funds_usdc_micros",
+ "realized_pnl_usdc_micros" = bs."realized_pnl_usdc_micros",
+ "unrealized_pnl_usdc_micros" = bs."unrealized_pnl_usdc_micros",
+ "telemetry_as_of" = bs."as_of"
+FROM "bot_status" bs WHERE bs."bot_id"=s."id";
+
+-- Preserve historical trade rows and their existing IDs/financial amounts.
+ALTER TABLE "bot_trades" DROP CONSTRAINT IF EXISTS "bot_trades_bot_id_fkey";
+ALTER TABLE "bot_trades" RENAME TO "strategy_trades";
+ALTER TABLE "strategy_trades" RENAME COLUMN "bot_id" TO "strategy_id";
+ALTER TABLE "strategy_trades"
+ ADD COLUMN "market_trade_id" VARCHAR(180),
+ ADD COLUMN "market_start" TIMESTAMP(3),
+ ADD COLUMN "market_end" TIMESTAMP(3),
+ ADD COLUMN "open_price" DECIMAL(20,8),
+ ADD COLUMN "close_price" DECIMAL(20,8),
+ ADD COLUMN "current_price" DECIMAL(20,8);
+-- No event ID is synthesized from event_ticker: legacy rows remain NULL until verified.
+CREATE UNIQUE INDEX "strategy_trades_strategy_id_market_trade_id_key"
+ ON "strategy_trades"("strategy_id","market_trade_id");
+CREATE INDEX "strategy_trades_strategy_id_opened_at_idx"
+ ON "strategy_trades"("strategy_id","opened_at");
+ALTER TABLE "strategy_trades" ADD CONSTRAINT "strategy_trades_strategy_id_fkey"
+ FOREIGN KEY ("strategy_id") REFERENCES "strategies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DROP TABLE "active_bot_trade";
+DROP TABLE "bot_status";
+DROP TYPE "BotRunState";
