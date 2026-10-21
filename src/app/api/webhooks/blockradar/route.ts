@@ -111,17 +111,11 @@ export async function POST(request: Request) {
       if (prior && (prior.walletId!==wallet.id || prior.transactionHash!==hash ||
           prior.assetAddress!==mint || prior.amountUsdcMicros!==amount))
         throw new Error("Deposit identity mismatch");
-      const portfolio=await tx.investorPortfolio.upsert({
-        where:{userId:wallet.userId},create:{userId:wallet.userId},
-        update:{},
-      });
       if (!prior) {
         prior=await tx.blockchainDeposit.create({data:{
           walletId:wallet.id,providerTransactionId:id,transactionHash:hash,
           assetAddress:mint,amountUsdcMicros:amount,status:"CONFIRMING",
         }});
-        await tx.investorPortfolio.update({where:{id:portfolio.id},
-          data:{pendingDepositsUsdcMicros:{increment:amount}}});
       }
       if (!isSwept) return prior.status==="CONFIRMED" ? "already_confirmed" :
         "confirming";
@@ -143,11 +137,10 @@ export async function POST(request: Request) {
         reference:`blockradar-deposit:${id}`,completedAt:new Date(),
       }});
 
-      await tx.investorPortfolio.update({where:{id:portfolio.id},
-        data:{pendingDepositsUsdcMicros:{decrement:amount},
-          depositedUsdcMicros:{increment:amount},unallocatedUsdcMicros:{increment:amount}}});
+      await tx.user.update({where:{id:wallet.userId},data:{unallocated:{increment:amount}}});
+      await tx.treasury.create({data:{walletAddress:master.address as string,walletId:masterWalletId,asset:"USDC",network:"solana",source:"MASTER_WALLET",kind:"DEPOSIT",amount}});
       await tx.investorActivity.create({data:{
-        portfolioId:portfolio.id,type:"DEPOSIT_CONFIRMED",amountKobo:0n,
+        userId:wallet.userId,type:"DEPOSIT_CONFIRMED",amountKobo:0n,
         amountUsdcMicros:amount,reference:`blockradar:${id}`,
         description:"Confirmed Solana USDC deposit swept to master wallet",
       }});
