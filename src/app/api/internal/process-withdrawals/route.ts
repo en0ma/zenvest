@@ -1,14 +1,15 @@
-import { timingSafeEqual } from "node:crypto";
-import { NextResponse } from "next/server";
+import {NextResponse} from "next/server";
+import {authorizedCron} from "@/lib/cron-auth";
+import {processPendingWithdrawal} from "@/lib/withdrawal-payout-worker";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
-// Payout submissions are disabled until replacement treasury reservation checks exist.
-// This prevents unfunded or duplicate transfers while the test schema is being revised.
 export async function GET(request:Request){
- const secret=process.env.CRON_SECRET;
- const value=request.headers.get("authorization")?.replace(/^Bearer /,"")??"";
- if(!secret||!value||Buffer.byteLength(secret)!==Buffer.byteLength(value)||
-    !timingSafeEqual(Buffer.from(secret),Buffer.from(value)))
-  return NextResponse.json({error:"Unauthorized"},{status:401});
- return NextResponse.json({status:"disabled",reason:"Treasury liquidity and reservation reconciliation not implemented"},{status:503});
+ if(!authorizedCron(request))return NextResponse.json({error:"Unauthorized"},{status:401});
+ try{
+  const outcome=await processPendingWithdrawal();
+  return NextResponse.json({outcome},{headers:{"Cache-Control":"no-store"}});
+ }catch(error){
+  console.error(JSON.stringify({component:"withdrawal-worker",outcome:"review_required",errorType:error instanceof Error?error.name:"unknown"}));
+  return NextResponse.json({error:"Withdrawal payout requires review"},{status:503});
+ }
 }
