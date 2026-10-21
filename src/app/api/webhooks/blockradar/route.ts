@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import {validBlockradarSignature,parsePositiveUsdcMicros,validSweptDeposit} from "@/lib/blockradar-event-validation";
 import { journeyLog, type JourneyFields } from "@/lib/journey-log";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
@@ -8,20 +8,6 @@ import { handleWithdrawalWebhook } from "@/lib/withdrawal-webhook";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function verifySignature(body: string, signature: string | null, secret: string): boolean {
-  if (!signature || !/^[a-f\d]{128}$/i.test(signature)) return false;
-  const actual = Buffer.from(signature, "hex");
-  const expected = createHmac("sha512", secret).update(body, "utf8").digest();
-  return actual.length === expected.length && timingSafeEqual(actual, expected);
-}
-
-function parseUsdcMicros(raw: unknown): bigint | null {
-  if (typeof raw !== "string" || !/^(0|[1-9]\d*)(\.\d{1,6})?$/.test(raw)) return null;
-  const [whole, fraction = ""] = raw.split(".");
-  const amount = BigInt(whole) * 1000000n + BigInt(fraction.padEnd(6, "0"));
-  return amount > 0n && amount <= 9223372036854775807n ? amount : null;
-}
 
 export async function POST(request: Request) {
   const startedAt = Date.now();
@@ -34,7 +20,7 @@ export async function POST(request: Request) {
   catch { log("unconfigured", 503); return NextResponse.json({ error: "Deposit processing unconfigured" }, { status: 503 }); }
 
   const raw = await request.text();
-  if (!verifySignature(raw, request.headers.get("x-blockradar-signature"), apiKey)) {
+  if (!validBlockradarSignature(raw, request.headers.get("x-blockradar-signature"), apiKey)) {
     log("invalid_signature", 401);
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
@@ -71,7 +57,7 @@ export async function POST(request: Request) {
   const mint=process.env.BLOCKRADAR_SOLANA_USDC_MINT;
   if (!mint) return NextResponse.json({error:"USDC mint not configured"},{status:503});
   const id=data.id, recipient=data.recipientAddress, hash=data.hash;
-  const amount=parseUsdcMicros(data.amountPaid ?? data.amount);
+  const amount=parsePositiveUsdcMicros(data.amountPaid ?? data.amount);
   // A failed sweep is an operational warning, never a reason to release funds.
   // Preserve any existing CONFIRMING record and let later success finalize it.
   if (event.event==="deposit.swept.failed") {
@@ -97,11 +83,7 @@ export async function POST(request: Request) {
   }
   // A signed sweep notification must prove that the *full deposit* moved
   // from the user's deposit address to the declared master wallet address.
-  if (isSwept && (data.assetSwept!==true || !sweepAmount ||
-      sweepAmount!==amount || typeof sweepHash!=="string" || !sweepHash ||
-      data.assetSweptSenderAddress!==recipient ||
-      typeof master.address!=="string" ||
-      data.assetSweptRecipientAddress!==master.address)) {
+  if (isSwept && !validSweptDeposit(data,mint,masterWalletId,recipient,amount)) {
     log("sweep_not_verified",422,{userId:wallet.userId,depositId:id});
     return NextResponse.json({error:"Sweep details do not match master wallet"},{status:422});
   }
