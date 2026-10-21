@@ -4,6 +4,7 @@ CREATE TYPE "PositionStatus" AS ENUM ('PENDING','ACTIVE','CLOSED');
 CREATE TYPE "PositionTransferStatus" AS ENUM ('PENDING','ALLOCATING','DEALLOCATING','ALLOCATED','DEALLOCATED','FAILED','REVIEW');
 CREATE TABLE "positions" (
  "id" TEXT NOT NULL PRIMARY KEY, "user_id" TEXT NOT NULL, "portfolio_id" TEXT NOT NULL,
+ "strategy_id" VARCHAR(64) NOT NULL,
  "principal_usdc_micros" BIGINT NOT NULL DEFAULT 0,
  "realized_pnl_usdc_micros" BIGINT NOT NULL DEFAULT 0,
  "status" "PositionStatus" NOT NULL DEFAULT 'PENDING',
@@ -79,3 +80,23 @@ CREATE INDEX "position_deallocations_treasury_id_idx" ON "position_deallocations
 ALTER TABLE "investor_withdrawals" ADD CONSTRAINT "investor_withdrawals_treasury_id_fkey" FOREIGN KEY ("treasury_id") REFERENCES "treasury"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "position_allocations" ADD CONSTRAINT "position_allocations_treasury_id_fkey" FOREIGN KEY ("treasury_id") REFERENCES "treasury"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "position_deallocations" ADD CONSTRAINT "position_deallocations_treasury_id_fkey" FOREIGN KEY ("treasury_id") REFERENCES "treasury"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- Rename the existing catalog without dropping its records or breaking
+-- the active_bot_trade foreign key. Legacy telemetry tables remain in place.
+ALTER TABLE "bots" RENAME TO "strategies";
+CREATE TYPE "StrategyStatus" AS ENUM ('TRADING','IDLE');
+ALTER TABLE "strategies"
+ ADD COLUMN "note" VARCHAR(1000),
+ ADD COLUMN "min_capacity_usdc_micros" BIGINT NOT NULL DEFAULT 0,
+ ADD COLUMN "max_capacity_usdc_micros" BIGINT NOT NULL DEFAULT 0,
+ ADD COLUMN "available_capacity_usdc_micros" BIGINT NOT NULL DEFAULT 0,
+ ADD COLUMN "min_allocation_usdc_micros" BIGINT NOT NULL DEFAULT 0,
+ ADD COLUMN "max_allocation_usdc_micros" BIGINT NOT NULL DEFAULT 0,
+ ADD COLUMN "is_active" BOOLEAN NOT NULL DEFAULT false,
+ ADD COLUMN "is_public" BOOLEAN NOT NULL DEFAULT false,
+ ADD COLUMN "status" "StrategyStatus" NOT NULL DEFAULT 'IDLE',
+ ADD COLUMN "market_id" VARCHAR(200),
+ ADD COLUMN "market_name" VARCHAR(200);
+CREATE UNIQUE INDEX "strategies_name_key" ON "strategies"("name");
+CREATE INDEX "strategies_is_active_is_public_idx" ON "strategies"("is_active","is_public");
+ALTER TABLE "positions" ADD CONSTRAINT "positions_strategy_id_fkey" FOREIGN KEY ("strategy_id") REFERENCES "strategies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
