@@ -7,8 +7,6 @@ export const runtime="nodejs";
 export const dynamic="force-dynamic";
 export async function GET(request:Request){
  if(!authorizedCron(request))return NextResponse.json({error:"Unauthorized"},{status:401});
- if(process.env.BLOCKRADAR_DEPOSITS_ENABLED!=="true"||process.env.BLOCKRADAR_SWEEP_CRON_ENABLED!=="true")
-  return NextResponse.json({status:"disabled"},{status:503});
  try{
   await requestBlockradarWalletAction("sweep",blockradarConfig());
   journeyLog("info","blockradar_sweep_cron","requested",{});
