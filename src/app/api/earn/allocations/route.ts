@@ -35,6 +35,13 @@ export async function POST(request: Request) {
     const result = await prisma.$transaction(async tx=>{
       const strategy=await tx.strategy.findFirst({where:{id:strategyId,isActive:true,isPublic:true}});
       if(!strategy || strategy.minAllocationUsdcMicros<=0n || strategy.maxAllocationUsdcMicros<strategy.minAllocationUsdcMicros || amount<strategy.minAllocationUsdcMicros || amount>strategy.maxAllocationUsdcMicros || amount>strategy.availableCapacityUsdcMicros) return null;
+      // Count outstanding requests against the strategy's advertised capacity.
+      // Serializable isolation protects the concurrent capacity predicate.
+      const outstanding=await tx.positionAllocation.aggregate({
+        where:{position:{strategyId},status:{in:["PENDING","ALLOCATING","REVIEW"]}},
+        _sum:{amountUsdcMicros:true},
+      });
+      if((outstanding._sum.amountUsdcMicros??0n)+amount>strategy.availableCapacityUsdcMicros)return null;
       const p=await tx.investorPortfolio.findUnique({where:{userId:user.id}});
       if (!p || p.unallocatedUsdcMicros-p.pendingWithdrawalsUsdcMicros-p.pendingAllocationsUsdcMicros<amount) return null;
       const claimed=await tx.investorPortfolio.updateMany({
