@@ -10,7 +10,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
   const id = reference.slice("zenvest-withdrawal:".length);
   const item = await prisma.investorWithdrawal.findUnique({where:{id},include:{treasury:true}});
   if (!item) return "unknown_withdrawal";
-  if(!item.treasury || item.treasury.direction!=="WITHDRAWAL" || treasury.feeUsdcMicros!==item.feeUsdcMicros || item.treasury.amountUsdcMicros!==item.amountUsdcMicros)return "treasury_mismatch";
+  if(!item.treasury || item.treasury.direction!=="WITHDRAWAL" || item.treasury.feeUsdcMicros!==item.feeUsdcMicros || item.treasury.amountUsdcMicros!==item.amountUsdcMicros)return "treasury_mismatch";
   const treasury=item.treasury;
   const asset = data.asset && typeof data.asset === "object" ? data.asset as Record<string,unknown> : {};
   const wallet = data.wallet && typeof data.wallet === "object" ? data.wallet as Record<string,unknown> : {};
