@@ -43,7 +43,7 @@ export async function processPendingWithdrawal(){
   const available=await prisma.treasury.findUnique({where:{kind:"DEPOSIT"}});
   const reserved=await prisma.investorWithdrawal.aggregate({where:{status:{in:["PROCESSING","REVIEW","SUBMITTING"]}},_sum:{amountUsdcMicros:true}});
   if(!available||available.amount<(reserved._sum.amountUsdcMicros??0n))throw new Error("Insufficient master ledger liquidity");
-  const fee=await estimateWithdrawalNetworkFee(candidate.destinationAddress,candidate.amountUsdcMicros);
+  const fee=await estimateWithdrawalNetworkFee(candidate.destinationAddress,candidate.amountUsdcMicros,true);
   const split=withdrawalFeeBreakdown(candidate.grossUsdcMicros,fee);
   if(split.total>candidate.feeUsdcMicros)throw new Error("Network fee grew beyond investor-approved fee");
   const receipt=await submitBlockradarPayout({id:candidate.id,address:candidate.destinationAddress,amount:candidate.amountUsdcMicros},{key,walletId,assetId});
