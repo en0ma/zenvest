@@ -38,7 +38,8 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
         ...(targetStatus === "SUCCESS" ? {completedAt:new Date()} : {failureCode:event})},
     });
     if (updated.count !== 1) return false;
-    if (item.treasuryId) {
+    if (!item.treasuryId) throw new Error("Missing treasury transaction for payout");
+    {
       const changedTreasury=await tx.treasuryTransfer.updateMany({
         where:{id:item.treasuryId,direction:"PAYOUT",status:{in:["PROCESSING","REVIEW"]},
           masterWalletId,amountUsdcMicros:item.amountUsdcMicros,
