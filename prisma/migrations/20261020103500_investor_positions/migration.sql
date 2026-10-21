@@ -1,3 +1,5 @@
+-- Rename wallet table while retaining existing rows.
+ALTER TABLE "investor_deposit_wallets" RENAME TO "user_wallets";
 -- Rename existing withdrawals table before adding new foreign keys.
 ALTER TABLE "investor_withdrawals" RENAME TO "withdrawals";
 -- Pending requests reserve unallocated capital without moving custody or recognizing funding.
@@ -47,7 +49,7 @@ ALTER TABLE "position_deallocations" ADD CONSTRAINT "position_deallocations_user
 
 CREATE TYPE "TreasuryDirection" AS ENUM ('DEPOSIT','ALLOCATE','DEALLOCATE','PAYOUT');
 CREATE TYPE "TreasuryStatus" AS ENUM ('PENDING','PROCESSING','COMPLETE','FAILED','REVIEW');
-CREATE TABLE "treasury" (
+CREATE TABLE "treasury_transactions" (
  "id" TEXT NOT NULL PRIMARY KEY,
  "direction" "TreasuryDirection" NOT NULL,
  "status" "TreasuryStatus" NOT NULL DEFAULT 'PENDING',
@@ -66,19 +68,19 @@ CREATE TABLE "treasury" (
  "updated_at" TIMESTAMP(3) NOT NULL,
  "completed_at" TIMESTAMP(3)
 );
-CREATE UNIQUE INDEX "treasury_reference_key" ON "treasury"("reference");
-CREATE INDEX "treasury_direction_status_created_at_idx" ON "treasury"("direction","status","created_at");
-CREATE INDEX "treasury_origin_external_id_idx" ON "treasury"("origin_external_id");
-CREATE INDEX "treasury_destination_external_id_idx" ON "treasury"("destination_external_id");
+CREATE UNIQUE INDEX "treasury_reference_key" ON "treasury_transactions"("reference");
+CREATE INDEX "treasury_direction_status_created_at_idx" ON "treasury_transactions"("direction","status","created_at");
+CREATE INDEX "treasury_origin_external_id_idx" ON "treasury_transactions"("origin_external_id");
+CREATE INDEX "treasury_destination_external_id_idx" ON "treasury_transactions"("destination_external_id");
 ALTER TABLE "withdrawals" ADD COLUMN "treasury_id" TEXT;
 ALTER TABLE "position_allocations" ADD COLUMN "treasury_id" TEXT;
 ALTER TABLE "position_deallocations" ADD COLUMN "treasury_id" TEXT;
 CREATE INDEX "investor_withdrawals_treasury_id_idx" ON "withdrawals"("treasury_id");
 CREATE INDEX "position_allocations_treasury_id_idx" ON "position_allocations"("treasury_id");
 CREATE INDEX "position_deallocations_treasury_id_idx" ON "position_deallocations"("treasury_id");
-ALTER TABLE "withdrawals" ADD CONSTRAINT "investor_withdrawals_treasury_id_fkey" FOREIGN KEY ("treasury_id") REFERENCES "treasury"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "position_allocations" ADD CONSTRAINT "position_allocations_treasury_id_fkey" FOREIGN KEY ("treasury_id") REFERENCES "treasury"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "position_deallocations" ADD CONSTRAINT "position_deallocations_treasury_id_fkey" FOREIGN KEY ("treasury_id") REFERENCES "treasury"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "withdrawals" ADD CONSTRAINT "investor_withdrawals_treasury_id_fkey" FOREIGN KEY ("treasury_id") REFERENCES "treasury_transactions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "position_allocations" ADD CONSTRAINT "position_allocations_treasury_id_fkey" FOREIGN KEY ("treasury_id") REFERENCES "treasury_transactions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "position_deallocations" ADD CONSTRAINT "position_deallocations_treasury_id_fkey" FOREIGN KEY ("treasury_id") REFERENCES "treasury_transactions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- Rename the existing catalog without dropping its records or breaking
 -- the active_bot_trade foreign key. Legacy telemetry tables remain in place.
@@ -141,3 +143,24 @@ ALTER TABLE "strategy_trades" ADD CONSTRAINT "strategy_trades_strategy_id_fkey" 
 DROP TABLE "active_bot_trade";
 DROP TABLE "bot_status";
 DROP TYPE "BotRunState";
+
+-- DESTRUCTIVE: remove deprecated withdrawal-linked deallocation records after historical backup.
+DROP TABLE "withdrawal_deallocations";
+DROP TYPE "DeallocationStatus";
+CREATE TYPE "TreasurySource" AS ENUM ('KALSHI','MASTER_WALLET');
+CREATE TYPE "TreasuryKind" AS ENUM ('WITHDRAWAL_FEE','DEPOSIT_FEE','DEPOSIT','WITHDRAWAL','ALLOCATE','DEALLOCATE');
+CREATE TABLE "treasuries" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "wallet_address" VARCHAR(180) NOT NULL,
+  "wallet_id" VARCHAR(180) NOT NULL,
+  "asset" VARCHAR(16) NOT NULL DEFAULT 'USDC',
+  "network" VARCHAR(32) NOT NULL DEFAULT 'solana',
+  "source" "TreasurySource" NOT NULL,
+  "kind" "TreasuryKind" NOT NULL,
+  "amount" BIGINT NOT NULL,
+  "updated_at" TIMESTAMP(3) NOT NULL
+);
+CREATE INDEX "treasuries_wallet_id_asset_network_idx" ON "treasuries"("wallet_id","asset","network");
+CREATE INDEX "treasuries_source_kind_idx" ON "treasuries"("source","kind");
+-- master_wallet_balances is temporarily retained because the payout worker and webhook
+-- use confirmed/reserved/fee-reserve accounting that cannot be reconstructed from these new columns.
