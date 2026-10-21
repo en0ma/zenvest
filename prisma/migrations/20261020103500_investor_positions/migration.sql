@@ -163,3 +163,22 @@ CREATE TABLE "treasuries" (
 CREATE INDEX "treasuries_wallet_id_asset_network_idx" ON "treasuries"("wallet_id","asset","network");
 CREATE INDEX "treasuries_source_kind_idx" ON "treasuries"("source","kind");
 DROP TABLE "master_wallet_balances";
+
+-- User-balance transition. Keep existing balances, move accounting ownership.
+ALTER TYPE "Role" RENAME VALUE 'INVESTOR' TO 'USER';
+ALTER TABLE "users" ADD COLUMN "unallocated" BIGINT NOT NULL DEFAULT 0;
+UPDATE "users" AS u SET "unallocated" = p."unallocated_usdc_micros"
+ FROM "investor_portfolios" AS p WHERE p."user_id"=u."id";
+ALTER TABLE "blockchain_deposits" RENAME TO "deposits";
+ALTER TABLE "investor_activity" ADD COLUMN "user_id" TEXT;
+UPDATE "investor_activity" AS a SET "user_id"=p."user_id"
+ FROM "investor_portfolios" p WHERE a."portfolio_id"=p."id";
+ALTER TABLE "investor_activity" ALTER COLUMN "user_id" SET NOT NULL;
+ALTER TABLE "investor_activity" DROP CONSTRAINT IF EXISTS "investor_activity_portfolio_id_fkey";
+ALTER TABLE "investor_activity" DROP COLUMN "portfolio_id";
+CREATE INDEX "investor_activity_user_id_occurred_at_idx" ON "investor_activity"("user_id","occurred_at");
+ALTER TABLE "investor_activity" ADD CONSTRAINT "investor_activity_user_id_fkey"
+ FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "withdrawals" DROP CONSTRAINT IF EXISTS "investor_withdrawals_portfolio_id_fkey";
+ALTER TABLE "withdrawals" DROP COLUMN "portfolio_id";
+DROP TABLE "investor_portfolios";
