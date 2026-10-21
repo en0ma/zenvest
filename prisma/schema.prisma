@@ -209,6 +209,7 @@ model InvestorWithdrawal {
   destinationAddress String @map("destination_address") @db.VarChar(128)
   idempotencyKey String @map("idempotency_key") @db.VarChar(64)
   status WithdrawalStatus @default(REQUESTED)
+  attempts Int @default(0)
   providerTransactionId String? @unique @map("provider_transaction_id") @db.VarChar(180)
   transactionHash String? @map("transaction_hash") @db.VarChar(180)
   failureCode String? @map("failure_code") @db.VarChar(100)
@@ -232,6 +233,7 @@ enum TreasuryKind {
   WITHDRAWAL_FEE
   DEPOSIT_FEE
   DEPOSIT
+  DEALLOCATE
   ALLOCATE
   M_BANK
   K_BANK
