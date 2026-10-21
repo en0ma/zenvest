@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {parseBlockradarNetworkFee,withdrawalFeeBreakdown,formatMicros} from "../src/lib/withdrawal-network-fee.ts";
+import {parseBlockradarNetworkFee,withdrawalFeeBreakdown,formatMicros,assertSufficientNativeGas} from "../src/lib/withdrawal-network-fee.ts";
 test("Blockradar mock response reads data.networkFeeInUSD and rounds up to USDC micros",()=>{
  assert.equal(parseBlockradarNetworkFee({data:{networkFee:"0.00005",networkFeeInUSD:"0.01234567",transactionFee:"0.00006"}}),12346n);
  assert.equal(parseBlockradarNetworkFee({data:{networkFeeInUSD:"0"}}),0n);
@@ -16,4 +16,12 @@ test("Gross pays 2 USDC service fee plus estimated network USD fee; balance cons
  assert.equal(formatMicros(fees.net),"7.968750");
  assert.throws(()=>withdrawalFeeBreakdown(2_031_250n,network));
  assert.throws(()=>withdrawalFeeBreakdown(10_000_000n,-1n));
+});
+
+test("native SOL gas sufficiency is checked exactly before paying out",()=>{
+ assert.doesNotThrow(()=>assertSufficientNativeGas({data:{nativeBalance:"0.000000050",networkFee:"0.000000050"}}));
+ assert.doesNotThrow(()=>assertSufficientNativeGas({data:{nativeBalance:"0.123456789123456789",networkFee:"0.000000050"}}));
+ assert.throws(()=>assertSufficientNativeGas({data:{nativeBalance:"0.000000049",networkFee:"0.000000050"}}));
+ assert.throws(()=>assertSufficientNativeGas({data:{networkFee:"0.000000050"}}));
+ assert.throws(()=>assertSufficientNativeGas({data:{nativeBalance:"0.01",networkFee:"invalid"}}));
 });
