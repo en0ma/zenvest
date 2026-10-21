@@ -36,3 +36,11 @@ The authoritative prelaunch DB is defined by `prisma/schema.prisma`; historical 
 - Conversion to six-decimal USDC micro amounts **rounds upward** to avoid understating a fractional-micro fee. User withdrawal gross = recipient net USDC + service fee + estimated network fee. UI fetches a quote after valid address/amount, and submission re-quotes server-side, rejecting if fees exceed the user's approved quote.
 - `withdrawals.fee_usdc_micros` and linked `treasury_transactions.fee_usdc_micros` hold total (service + network). Successful payout credits only **2 USDC** to retained `treasuries.WITHDRAWAL_FEE`. The network component is not retained platform revenue.
 - `tests/withdrawal-network-fee.test.ts` injects sample response objects without calling Blockradar. The actual payout CRON remains intentionally disabled; estimated USD fees may differ from future native-SOL execution cost. Native gas sufficiency and provider fee changes must be checked at actual payout.
+
+## Automated Blockradar wallet discovery and sweep
+- Deposit Finder: `POST /v1/wallets/{walletId}/rescan/blocks`, accepts optional `transactionHash`. Every-two-minute cron calls with `{}` for a wallet-wide scan.
+- Sweep: `POST /v1/wallets/{walletId}/sweep/assets`, optional `forceSweep` and `transactionId`. Every-two-minute cron calls with `{}` (no forced sweep, no single-transaction override).
+- Vercel cron routes: `/api/internal/blockradar-deposit-finder` and `/api/internal/blockradar-sweep-assets`. Both require `CRON_SECRET`, `BLOCKRADAR_DEPOSITS_ENABLED=true`, and respectively `BLOCKRADAR_DEPOSIT_FINDER_ENABLED=true` or `BLOCKRADAR_SWEEP_CRON_ENABLED=true`.
+- The API response means only that rescan/sweep was *initiated*, not that a deposit was found or funds have been swept. User funds are credited only by the separately authenticated `deposit.swept.success` webhook.
+- Calls happen every two minutes only if the Vercel deployment plan permits that frequency. Confirm provider rate limits before enabling both feature flags.
+- `tests/blockradar-wallet-actions.test.ts` mocks each endpoint and checks method, headers, body, and provider errors. No real sweep is performed by CI.
