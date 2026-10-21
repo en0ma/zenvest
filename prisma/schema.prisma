@@ -71,6 +71,7 @@ model Strategy {
   availableCapacityUsdcMicros BigInt @default(0) @map("available_capacity_usdc_micros")
   minAllocationUsdcMicros BigInt @default(0) @map("min_allocation_usdc_micros")
   maxAllocationUsdcMicros BigInt @default(0) @map("max_allocation_usdc_micros")
+  platformProfitPercentage Decimal @default(0) @map("platform_profit_percentage") @db.Decimal(7,4)
   isActive Boolean @default(false) @map("is_active")
   isPublic Boolean @default(false) @map("is_public")
   status StrategyStatus @default(OFFLINE)
@@ -102,6 +103,8 @@ model StrategyTrade {
   yesCostUsdcMicros BigInt @default(0) @map("yes_cost_usdc_micros")
   noCostUsdcMicros BigInt @default(0) @map("no_cost_usdc_micros")
   realizedPnlUsdcMicros BigInt? @map("realized_pnl_usdc_micros")
+  profit BigInt? @map("profit")
+  platformProfitShare BigInt? @map("platform_profit_share")
   marketStart DateTime? @map("market_start")
   marketEnd DateTime? @map("market_end")
   openPrice Decimal? @map("open_price") @db.Decimal(20,8)
@@ -175,6 +178,7 @@ model BlockchainDeposit {
   transactionHash String @map("transaction_hash") @db.VarChar(180)
   assetAddress String @map("asset_address") @db.VarChar(128)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
+  feeUsdcMicros BigInt @default(0) @map("fee_usdc_micros")
   status BlockchainDepositStatus @default(CONFIRMING)
   sweepHash String? @map("sweep_hash") @db.VarChar(180)
   creditedAt DateTime? @map("credited_at")
@@ -228,9 +232,9 @@ enum TreasuryKind {
   WITHDRAWAL_FEE
   DEPOSIT_FEE
   DEPOSIT
-  WITHDRAWAL
   ALLOCATE
-  DEALLOCATE
+  M_BANK
+  K_BANK
 }
 /** Treasury accounting entries; not a substitute for custody reconciliation. */
 model Treasury {
@@ -240,7 +244,7 @@ model Treasury {
   asset String @default("USDC") @db.VarChar(16)
   network String @default("solana") @db.VarChar(32)
   source TreasurySource
-  kind TreasuryKind
+  kind TreasuryKind @unique
   amount BigInt
   updatedAt DateTime @updatedAt @map("updated_at")
   @@index([walletId,asset,network])
@@ -335,7 +339,10 @@ enum TreasuryDirection {
   DEPOSIT
   ALLOCATE
   DEALLOCATE
-  PAYOUT
+  WITHDRAWAL
+  PLATFORM_PULL
+  PLATFORM_M_BANK
+  PLATFORM_K_BANK
 }
 enum TreasuryStatus {
   PENDING
