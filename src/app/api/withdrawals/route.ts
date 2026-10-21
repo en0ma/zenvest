@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     const {total:totalFee,net}=withdrawalFeeBreakdown(amount,networkFee);
     // Do not charge above the fee accepted in the UI; require a fresh quote instead.
     const acceptedFee=input.maxTotalFeeMicros;
-    if(typeof acceptedFee!=="string"||!/^\\d+$/.test(acceptedFee)||totalFee>BigInt(acceptedFee))
+    if(typeof acceptedFee!=="string"||!/^\d+$/.test(acceptedFee)||totalFee>BigInt(acceptedFee))
       return NextResponse.json({error:"Network fee changed; review the updated fee and retry"},{status:409});
     const item = await prisma.$transaction(async tx => {
       const balance=await tx.user.findUniqueOrThrow({where:{id:user.id}});
