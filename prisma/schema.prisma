@@ -26,9 +26,6 @@ model User {
   depositWallet InvestorDepositWallet?
   withdrawals InvestorWithdrawal[]
   deallocationRequests WithdrawalDeallocation[]
-  positions InvestorPosition[]
-  positionAllocations PositionAllocation[]
-  positionDeallocations PositionDeallocation[]
   tokens       ActionToken[]
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -95,7 +92,7 @@ model StrategyTrade {
   strategyId String @map("strategy_id") @db.VarChar(64)
   strategy Strategy @relation(fields:[strategyId],references:[id],onDelete:Restrict)
   marketTradeId String? @map("market_trade_id") @db.VarChar(180)
-  eventTicker String @map("event_ticker") @db.VarChar(200)
+  marketTradeName String @map("market_trade_name") @db.VarChar(200)
   status StrategyTradeStatus @default(TRADING)
   yesContracts Int @default(0) @map("yes_contracts")
   noContracts Int @default(0) @map("no_contracts")
@@ -136,9 +133,6 @@ model InvestorPortfolio {
   activity InvestorActivity[]
   withdrawals InvestorWithdrawal[]
   deallocationRequests WithdrawalDeallocation[]
-  positions InvestorPosition[]
-  positionAllocations PositionAllocation[]
-  positionDeallocations PositionDeallocation[]
   @@map("investor_portfolios")
 }
 
@@ -306,8 +300,6 @@ model InvestorPosition {
   id String @id @default(cuid())
   userId String @map("user_id")
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
-  portfolioId String @map("portfolio_id")
-  portfolio InvestorPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Restrict)
   strategyId String @map("strategy_id") @db.VarChar(64)
   strategy Strategy @relation(fields:[strategyId], references:[id],onDelete:Restrict)
   principalUsdcMicros BigInt @default(0) @map("principal_usdc_micros")
@@ -328,8 +320,6 @@ model PositionAllocation {
   position InvestorPosition @relation(fields: [positionId], references: [id], onDelete: Restrict)
   userId String @map("user_id")
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
-  portfolioId String @map("portfolio_id")
-  portfolio InvestorPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Restrict)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
   treasuryId String? @map("treasury_id")
   treasury TreasuryTransfer? @relation(fields:[treasuryId],references:[id],onDelete:Restrict)
@@ -351,8 +341,6 @@ model PositionDeallocation {
   position InvestorPosition @relation(fields: [positionId], references: [id], onDelete: Restrict)
   userId String @map("user_id")
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
-  portfolioId String @map("portfolio_id")
-  portfolio InvestorPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Restrict)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
   settledUsdcMicros BigInt? @map("settled_usdc_micros")
   treasuryId String? @map("treasury_id")
