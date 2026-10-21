@@ -15,6 +15,7 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
  const rawPage=Number(params.depositsPage??"1");
  const requestedPage=Number.isSafeInteger(rawPage)&&rawPage>0?Math.min(rawPage,100000):1;
  const user=await requireUser();
+ const account=await prisma.user.findUniqueOrThrow({where:{id:user.id},select:{unallocated:true}});
  const [positions, depositWallet, depositCount, pendingWithdrawals, pendingAllocations]=await Promise.all([
   prisma.investorPosition.findMany({where:{userId:user.id}}),
   prisma.investorDepositWallet.findUnique({where:{userId:user.id}}),
@@ -39,7 +40,7 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
         </div>
         <div className="rounded-2xl border border-[#E8EDF4] bg-[#FAFBFD] p-5">
           <p className="flex items-center gap-2 text-sm font-medium text-[#5B6B7F]"><ArrowUpFromLine size={17}/>Unallocated capital</p>
-          <p className="mt-3 text-2xl font-bold tracking-tight text-[#11263E] sm:text-3xl">{formatUsdc(user.unallocated)}</p>
+          <p className="mt-3 text-2xl font-bold tracking-tight text-[#11263E] sm:text-3xl">{formatUsdc(account.unallocated)}</p>
           <p className="mt-2 text-xs text-[#7A889A]">Not currently allocated</p>
         </div>
       </div>
@@ -90,6 +91,6 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
      </nav>
    </div>
   </section>
-  <WalletWithdrawals userId={user.id} unallocated={user.unallocated} pending={pendingWithdrawals._sum.grossUsdcMicros??0n} pendingAllocations={pendingAllocations._sum.amountUsdcMicros??0n} withdrawalsPage={params.withdrawalsPage} depositsPage={page}/>
+  <WalletWithdrawals userId={user.id} unallocated={account.unallocated} pending={pendingWithdrawals._sum.grossUsdcMicros??0n} pendingAllocations={pendingAllocations._sum.amountUsdcMicros??0n} withdrawalsPage={params.withdrawalsPage} depositsPage={page}/>
  </div></Shell>;
 }
