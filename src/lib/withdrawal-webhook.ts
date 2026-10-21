@@ -8,8 +8,9 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
   const reference = data.reference;
   if (typeof reference !== "string" || !/^zenvest-withdrawal:c[a-z0-9]{10,40}$/.test(reference)) return "unrelated";
   const id = reference.slice("zenvest-withdrawal:".length);
-  const item = await prisma.investorWithdrawal.findUnique({where:{id}});
+  const item = await prisma.investorWithdrawal.findUnique({where:{id},include:{treasury:true}});
   if (!item) return "unknown_withdrawal";
+  if(!item.treasury || item.treasury.direction!=="WITHDRAWAL" || item.treasury.feeUsdcMicros!==item.feeUsdcMicros || item.treasury.amountUsdcMicros!==item.amountUsdcMicros)return "treasury_mismatch";
   const asset = data.asset && typeof data.asset === "object" ? data.asset as Record<string,unknown> : {};
   const wallet = data.wallet && typeof data.wallet === "object" ? data.wallet as Record<string,unknown> : {};
   const amount = (item.amountUsdcMicros / 1000000n).toString() + "." + (item.amountUsdcMicros % 1000000n).toString().padStart(6,"0");
@@ -41,7 +42,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
     if (!item.treasuryId) throw new Error("Missing treasury transaction for payout");
     {
       const changedTreasury=await tx.treasuryTransfer.updateMany({
-        where:{id:item.treasuryId,direction:"PAYOUT",status:{in:["PROCESSING","REVIEW"]},
+        where:{id:item.treasuryId,direction:"WITHDRAWAL",status:{in:["PROCESSING","REVIEW"]},
           masterWalletId,amountUsdcMicros:item.amountUsdcMicros,
           destinationWalletAddress:item.destinationAddress},
         data:{status:targetStatus==="SUCCESS"?"COMPLETE":"FAILED",
@@ -60,16 +61,20 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
         data:{unallocated:{decrement:item.grossUsdcMicros}},
       });
       if(changedUser.count!==1)throw new Error("Insufficient unallocated funds at payout settlement");
-      await tx.treasury.create({data:{
-        walletAddress:item.destinationAddress,walletId:masterWalletId,
-        asset:"USDC",network:"solana",source:"MASTER_WALLET",kind:"WITHDRAWAL",
-        amount:-item.amountUsdcMicros,
-      }});
-      await tx.treasury.create({data:{
-        walletAddress:item.destinationAddress,walletId:masterWalletId,
-        asset:"USDC",network:"solana",source:"MASTER_WALLET",kind:"WITHDRAWAL_FEE",
-        amount:-item.feeUsdcMicros,
-      }});
+      // Exactly one row per kind. A withdrawal decreases user-held master funds;
+      // the retained service fee increases the fee bucket, not an outbound fee.
+      const spent=item.amountUsdcMicros+item.treasury.feeUsdcMicros;
+      if(spent!==item.grossUsdcMicros)throw new Error("Withdrawal gross/fee mismatch");
+      const depositBucket=await tx.treasury.updateMany({
+        where:{kind:"DEPOSIT",amount:{gte:spent}},
+        data:{amount:{decrement:spent}},
+      });
+      if(depositBucket.count!==1)throw new Error("Insufficient treasury deposit balance");
+      await tx.treasury.upsert({where:{kind:"WITHDRAWAL_FEE"},create:{
+        walletAddress:item.treasury.masterWalletAddress,walletId:masterWalletId,
+        asset:item.treasury.asset,network:item.treasury.network,source:"MASTER_WALLET",
+        kind:"WITHDRAWAL_FEE",amount:item.treasury.feeUsdcMicros,
+      },update:{amount:{increment:item.treasury.feeUsdcMicros}}});
       await tx.investorActivity.create({
         data:{userId:item.userId,type:"WITHDRAWAL_COMPLETED",amountKobo:0n,
           amountUsdcMicros:item.amountUsdcMicros,reference:`withdrawal:${id}:completed`,
