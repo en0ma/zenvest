@@ -7,6 +7,7 @@ export const dynamic="force-dynamic";
 function date(d:Date|null){return d?d.toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short",timeZone:"UTC"})+" UTC":null;}
 export default async function EarnPage(){
  const user=await requireUser();
+ const account=await prisma.user.findUniqueOrThrow({where:{id:user.id},select:{unallocated:true}});
  const [positions,allocations,deallocations,strategies,withdrawalReservations]=await Promise.all([
   prisma.investorPosition.findMany({where:{userId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}]}),
   prisma.positionAllocation.findMany({where:{userId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}],take:100}),
@@ -14,7 +15,7 @@ export default async function EarnPage(){
   prisma.strategy.findMany({where:{isActive:true,isPublic:true},orderBy:{name:"asc"}}),
   prisma.investorWithdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
  ]);
- const u=user.unallocated,w=withdrawalReservations._sum.grossUsdcMicros??0n,a=allocations.filter(x=>["PENDING","ALLOCATING","REVIEW"].includes(x.status)).reduce((total,x)=>total+x.amountUsdcMicros,0n);
+ const u=account.unallocated,w=withdrawalReservations._sum.grossUsdcMicros??0n,a=allocations.filter(x=>["PENDING","ALLOCATING","REVIEW"].includes(x.status)).reduce((total,x)=>total+x.amountUsdcMicros,0n);
  const allocated=positions.reduce((total,x)=>total+x.principalUsdcMicros,0n);
  const available=u>w+a?u-w-a:0n;
  return <Shell><div className="mx-auto max-w-6xl space-y-7">
