@@ -18,16 +18,23 @@ export async function POST(request: Request) {
   try { input = await request.json(); } catch { return NextResponse.json({error:"Invalid JSON"},{status:400}); }
   const body = input && typeof input === "object" ? input as Record<string,unknown> : {};
   const amount = micros(body.amount);
+  const strategyId=body.strategyId;
+  if(typeof strategyId!=="string" || !strategyId || strategyId.length>64)return NextResponse.json({error:"Select a strategy"},{status:400});
   if (!amount) return NextResponse.json({error:"Invalid allocation amount"},{status:400});
   if (typeof body.requestId !== "string" || !/^[0-9a-f-]{36}$/i.test(body.requestId))
     return NextResponse.json({error:"Invalid request identifier"},{status:400});
   const reference = `position-open:${user.id}:${body.requestId}`;
   try {
     const existing = await prisma.positionAllocation.findUnique({where:{requestKey:reference}});
-    if (existing) return existing.amountUsdcMicros===amount
+    if (existing) {
+      const position=await prisma.investorPosition.findUnique({where:{id:existing.positionId},select:{strategyId:true}});
+      return existing.amountUsdcMicros===amount && position?.strategyId===strategyId
       ? NextResponse.json({positionId:existing.positionId,operationId:existing.id,status:existing.status})
       : NextResponse.json({error:"Request identifier reused"},{status:409});
+    }
     const result = await prisma.$transaction(async tx=>{
+      const strategy=await tx.strategy.findFirst({where:{id:strategyId,isActive:true,isPublic:true}});
+      if(!strategy || strategy.minAllocationUsdcMicros<=0n || strategy.maxAllocationUsdcMicros<strategy.minAllocationUsdcMicros || amount<strategy.minAllocationUsdcMicros || amount>strategy.maxAllocationUsdcMicros || amount>strategy.availableCapacityUsdcMicros) return null;
       const p=await tx.investorPortfolio.findUnique({where:{userId:user.id}});
       if (!p || p.unallocatedUsdcMicros-p.pendingWithdrawalsUsdcMicros-p.pendingAllocationsUsdcMicros<amount) return null;
       const claimed=await tx.investorPortfolio.updateMany({
@@ -37,18 +44,19 @@ export async function POST(request: Request) {
         data:{pendingAllocationsUsdcMicros:{increment:amount}},
       });
       if(claimed.count!==1) throw new Error("Concurrent reservation");
-      const position=await tx.investorPosition.create({data:{userId:user.id,portfolioId:p.id}});
+      const position=await tx.investorPosition.create({data:{userId:user.id,portfolioId:p.id,strategyId}});
       const op=await tx.positionAllocation.create({data:{
         userId:user.id,portfolioId:p.id,positionId:position.id,
         status:"PENDING",amountUsdcMicros:amount,requestKey:reference,
       }});
       return {positionId:position.id,operationId:op.id,status:op.status};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
-    return result ? NextResponse.json(result,{status:201}) : NextResponse.json({error:"Insufficient available unallocated USDC"},{status:409});
+    return result ? NextResponse.json(result,{status:201}) : NextResponse.json({error:"Unavailable strategy, invalid allocation limits, insufficient strategy capacity or insufficient unallocated USDC"},{status:409});
   }catch(error){
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code==="P2002") {
       const existing=await prisma.positionAllocation.findUnique({where:{requestKey:reference}});
-      if(existing && existing.amountUsdcMicros===amount)
+      const position=existing&&await prisma.investorPosition.findUnique({where:{id:existing.positionId},select:{strategyId:true}});
+      if(existing && existing.amountUsdcMicros===amount && position?.strategyId===strategyId)
         return NextResponse.json({positionId:existing.positionId,operationId:existing.id,status:existing.status});
     }
     if(error instanceof Prisma.PrismaClientKnownRequestError && error.code==="P2034")return NextResponse.json({error:"Concurrent request; retry"},{status:409});
