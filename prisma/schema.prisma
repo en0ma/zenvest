@@ -271,12 +271,6 @@ model Treasury {
 }
 
 
-enum DeallocationStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
-}
 
 
 
