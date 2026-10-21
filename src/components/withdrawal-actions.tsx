@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, ArrowRight, CheckCircle2, Clock3, Info, Loader2, ShieldCheck, Wallet } from "lucide-react";
@@ -12,6 +12,9 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [quote,setQuote]=useState<{networkFeeMicros:string;totalFeeMicros:string;netMicros:string}|null>(null);
+  const [quoteError,setQuoteError]=useState<string|null>(null);
+  const [quoting,setQuoting]=useState(false);
   const [feedback, setFeedback] = useState<{kind:"success"|"error";text:string}|null>(null);
   const requestKey = useRef<string|null>(null);
   const inFlight = useRef(false);
@@ -30,11 +33,33 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
   const tooSmall = gross > 0n && gross <= 2000000n;
   const eligibleAmount = gross > 2000000n && gross <= balance;
   const grossPreview = eligibleAmount ? gross : 0n;
-  const netPreview = eligibleAmount ? gross - 2000000n : 0n;
+  const netPreview = quote ? BigInt(quote.netMicros) : 0n;
+  const feePreview = quote ? BigInt(quote.totalFeeMicros) : 2000000n;
   const addressValid = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
-  const canSubmit = eligibleAmount && addressValid && !submitting;
+  const canSubmit = eligibleAmount && addressValid && !!quote && !quoting && !submitting;
   const inputClass = "mt-2 w-full rounded-2xl border border-[#DCE3EC] bg-white px-4 py-3.5 text-base text-[#11263E] shadow-sm outline-none transition placeholder:text-[#9AA8B9] focus:border-[#635BFF] focus:ring-4 focus:ring-[#635BFF]/10";
-  const onEdit = () => { requestKey.current = null; setFeedback(null); };
+  const onEdit = () => { requestKey.current = null; setFeedback(null); setQuote(null); };
+
+  useEffect(()=>{
+    setQuote(null);setQuoteError(null);
+    if(!eligibleAmount||!addressValid)return;
+    const controller=new AbortController();
+    const timer=setTimeout(async()=>{
+      setQuoting(true);
+      try{
+        const response=await fetch("/api/withdrawals/estimate-fee",{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({amount,address}),signal:controller.signal
+        });
+        const data=await response.json();
+        if(!response.ok)throw new Error(data.error??"Network fee unavailable");
+        if(!controller.signal.aborted)setQuote(data);
+      }catch(error){
+        if(!controller.signal.aborted)setQuoteError(error instanceof Error?error.message:"Network fee unavailable");
+      }finally{if(!controller.signal.aborted)setQuoting(false);}
+    },400);
+    return ()=>{clearTimeout(timer);controller.abort();setQuoting(false);};
+  },[amount,address,eligibleAmount,addressValid]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -105,7 +130,11 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
         <p className="mt-0.5 text-xs text-[#687B91]">Review the estimated amount before submitting.</p></div>
       <dl className="space-y-3 px-5 py-5 text-sm">
         <div className="flex items-center justify-between gap-3"><dt className="text-[#687B91]">Gross withdrawal</dt><dd className="font-semibold tabular-nums text-[#11263E]">{format(grossPreview)} USDC</dd></div>
-        <div className="flex items-center justify-between gap-3"><dt className="text-[#687B91]">Processing fee</dt><dd className="font-medium tabular-nums text-[#11263E]">{WITHDRAWAL_FEE_USDC} USDC</dd></div>
+        <div className="flex items-center justify-between gap-3"><dt className="text-[#687B91]">Zenvest service fee</dt><dd className="font-medium tabular-nums text-[#11263E]">{WITHDRAWAL_FEE_USDC} USDC</dd></div>
+        <div className="flex items-center justify-between gap-3"><dt className="text-[#687B91]">Estimated network fee</dt><dd className="font-medium tabular-nums text-[#11263E]">{quote ? format(BigInt(quote.networkFeeMicros))+" USDC" : "—"}</dd></div>
+        <div className="flex items-center justify-between gap-3"><dt className="font-medium text-[#687B91]">Total estimated fees</dt><dd className="font-semibold tabular-nums text-[#11263E]">{quote ? format(feePreview)+" USDC" : "—"}</dd></div>
+        {quoting && <p role="status" className="text-xs text-[#687B91]">Estimating network fee…</p>}
+        {quoteError && <p role="alert" className="text-xs text-[#97605A]">{quoteError}</p>}
         <div className="border-t border-dashed border-[#DBE3ED] pt-4">
           <div className="flex items-center justify-between gap-3"><dt className="font-semibold text-[#11263E]">Recipient receives</dt><dd className="text-xl font-bold tabular-nums tracking-tight text-[#11263E]">{format(netPreview)} <span className="text-sm font-semibold">USDC</span></dd></div>
         </div>
