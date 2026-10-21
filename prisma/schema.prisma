@@ -77,40 +77,40 @@ model Strategy {
   marketType MarketType @default(PREDICTION) @map("market_type")
   marketId String? @map("market_id") @db.VarChar(200)
   marketName String? @map("market_name") @db.VarChar(200)
-  availableFundsUsdcMicros BigInt @default(0) @map("available_funds_usdc_micros")
-  releasableFundsUsdcMicros BigInt @default(0) @map("releasable_funds_usdc_micros")
-  realizedPnlUsdcMicros BigInt @default(0) @map("realized_pnl_usdc_micros")
-  unrealizedPnlUsdcMicros BigInt @default(0) @map("unrealized_pnl_usdc_micros")
-  telemetryAsOf DateTime? @map("telemetry_as_of")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
   positions InvestorPosition[]
   trades StrategyTrade[]
   @@index([isActive,isPublic])
   @@map("strategies")
 }
 /** A strategy's event trade record, keyed by Kalshi event ID and strategy. */
+enum StrategyTradeStatus {
+  TRADING
+  ENDED
+  ERROR
+}
 model StrategyTrade {
-  id String @id @default(cuid())
+  id String @id @default(cuid()) @db.VarChar(64)
   strategyId String @map("strategy_id") @db.VarChar(64)
   strategy Strategy @relation(fields:[strategyId],references:[id],onDelete:Restrict)
   marketTradeId String? @map("market_trade_id") @db.VarChar(180)
-  externalTradeId String @unique @map("external_trade_id") @db.VarChar(180)
   eventTicker String @map("event_ticker") @db.VarChar(200)
-  side String @db.VarChar(12)
-  outcome String? @db.VarChar(12)
-  contracts Int
-  entryCostUsdcMicros BigInt @map("entry_cost_usdc_micros")
-  payoutUsdcMicros BigInt? @map("payout_usdc_micros")
-  feesUsdcMicros BigInt @default(0) @map("fees_usdc_micros")
+  status StrategyTradeStatus @default(TRADING)
+  yesContracts Int @default(0) @map("yes_contracts")
+  noContracts Int @default(0) @map("no_contracts")
+  yesCostUsdcMicros BigInt @default(0) @map("yes_cost_usdc_micros")
+  noCostUsdcMicros BigInt @default(0) @map("no_cost_usdc_micros")
   realizedPnlUsdcMicros BigInt? @map("realized_pnl_usdc_micros")
   marketStart DateTime? @map("market_start")
   marketEnd DateTime? @map("market_end")
   openPrice Decimal? @map("open_price") @db.Decimal(20,8)
   closePrice Decimal? @map("close_price") @db.Decimal(20,8)
   currentPrice Decimal? @map("current_price") @db.Decimal(20,8)
-  openedAt DateTime @map("opened_at")
+  createdAt DateTime @default(now()) @map("created_at")
   settledAt DateTime? @map("settled_at")
   @@unique([strategyId,marketTradeId])
-  @@index([strategyId,openedAt])
+  @@index([strategyId,createdAt])
   @@map("strategy_trades")
 }
 
@@ -248,7 +248,7 @@ model InvestorWithdrawal {
   @@index([userId, createdAt])
   @@index([status, createdAt])
   @@index([treasuryId])
-  @@map("investor_withdrawals")
+  @@map("withdrawals")
 }
 
 model MasterWalletBalance {
