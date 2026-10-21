@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { journeyLog } from "@/lib/journey-log";
 import { prisma } from "@/lib/db";
 import { withdrawalSplit } from "@/lib/treasury-accounting";
+import {WITHDRAWAL_FEE_USDC_MICROS} from "@/lib/withdrawal-fee";
 
 // Called only after the Blockradar HMAC signature has been verified.
 export async function handleWithdrawalWebhook(event: string, data: Record<string,unknown>, masterWalletId: string) {
@@ -11,7 +12,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
   const id = reference.slice("zenvest-withdrawal:".length);
   const item = await prisma.investorWithdrawal.findUnique({where:{id},include:{treasury:true}});
   if (!item) return "unknown_withdrawal";
-  if(!item.treasury || item.treasury.direction!=="WITHDRAWAL" || item.treasury.feeUsdcMicros!==item.feeUsdcMicros || item.treasury.amountUsdcMicros!==item.amountUsdcMicros)return "treasury_mismatch";
+  if(!item.treasury || item.treasury.direction!=="WITHDRAWAL" || item.treasury.feeUsdcMicros!==item.feeUsdcMicros || item.feeUsdcMicros<WITHDRAWAL_FEE_USDC_MICROS || item.treasury.amountUsdcMicros!==item.amountUsdcMicros)return "treasury_mismatch";
   const treasury=item.treasury;
   const asset = data.asset && typeof data.asset === "object" ? data.asset as Record<string,unknown> : {};
   const wallet = data.wallet && typeof data.wallet === "object" ? data.wallet as Record<string,unknown> : {};
@@ -64,7 +65,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
       });
       if(changedUser.count!==1)throw new Error("Insufficient unallocated funds at payout settlement");
       // Exactly one row per kind. A withdrawal decreases user-held master funds;
-      // the retained service fee increases the fee bucket, not an outbound fee.
+      // only the retained 2 USDC increases the fee bucket; network costs are not platform revenue.
       const {gross:spent}=withdrawalSplit(item.grossUsdcMicros,item.amountUsdcMicros,treasury.feeUsdcMicros);
       const depositBucket=await tx.treasury.updateMany({
         where:{kind:"DEPOSIT",amount:{gte:spent}},
@@ -74,8 +75,8 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
       await tx.treasury.upsert({where:{kind:"WITHDRAWAL_FEE"},create:{
         walletAddress:treasury.masterWalletAddress,walletId:masterWalletId,
         asset:treasury.asset,network:treasury.network,source:"MASTER_WALLET",
-        kind:"WITHDRAWAL_FEE",amount:treasury.feeUsdcMicros,
-      },update:{amount:{increment:treasury.feeUsdcMicros}}});
+        kind:"WITHDRAWAL_FEE",amount:WITHDRAWAL_FEE_USDC_MICROS,
+      },update:{amount:{increment:WITHDRAWAL_FEE_USDC_MICROS}}});
       await tx.investorActivity.create({
         data:{userId:item.userId,type:"WITHDRAWAL_COMPLETED",amountKobo:0n,
           amountUsdcMicros:item.amountUsdcMicros,reference:`withdrawal:${id}:completed`,
