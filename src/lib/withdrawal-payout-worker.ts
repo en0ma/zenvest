@@ -2,6 +2,7 @@ import {Prisma} from "@prisma/client";
 import {prisma} from "./db";
 import {blockradarConfig} from "./blockradar";
 import {submitBlockradarPayout,withdrawalReference} from "./blockradar-payout";
+import {readBlockradarUsdcBalance} from "./blockradar-master-balance";
 import {estimateWithdrawalNetworkFee} from "./blockradar-withdrawal-fee";
 import {WITHDRAWAL_FEE_USDC_MICROS} from "./withdrawal-fee";
 import {withdrawalFeeBreakdown} from "./withdrawal-network-fee";
@@ -42,7 +43,10 @@ export async function processPendingWithdrawal(){
  try{
   const available=await prisma.treasury.findUnique({where:{kind:"DEPOSIT"}});
   const reserved=await prisma.investorWithdrawal.aggregate({where:{status:{in:["PROCESSING","REVIEW","SUBMITTING"]}},_sum:{amountUsdcMicros:true}});
-  if(!available||available.amount<(reserved._sum.amountUsdcMicros??0n))throw new Error("Insufficient master ledger liquidity");
+  const reservedNet=reserved._sum.amountUsdcMicros??0n;
+  if(!available||available.amount<reservedNet)throw new Error("Insufficient master ledger liquidity");
+  const onChain=await readBlockradarUsdcBalance({key,walletId,assetId});
+  if(onChain<reservedNet)throw new Error("Insufficient master wallet USDC custody");
   const fee=await estimateWithdrawalNetworkFee(candidate.destinationAddress,candidate.amountUsdcMicros,true);
   const split=withdrawalFeeBreakdown(candidate.grossUsdcMicros,fee);
   if(split.total>candidate.feeUsdcMicros)throw new Error("Network fee grew beyond investor-approved fee");
