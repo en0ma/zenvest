@@ -10,8 +10,8 @@ try {
  assert.equal(position.strategy.name,"CI Test Strategy");
  assert.equal(position.principalUsdcMicros,25_000_000n);
  const buckets=await prisma.treasury.findMany({orderBy:{kind:"asc"}});
- assert.equal(buckets.length,6);
- assert.deepEqual(buckets.map(x=>x.kind).sort(),["ALLOCATE","DEPOSIT","DEPOSIT_FEE","K_BANK","M_BANK","WITHDRAWAL_FEE"].sort());
+ assert.equal(buckets.length,7);
+ assert.deepEqual(buckets.map(x=>x.kind).sort(),["ALLOCATE","DEALLOCATE","DEPOSIT","DEPOSIT_FEE","K_BANK","M_BANK","WITHDRAWAL_FEE"].sort());
  const schemaTables=await prisma.$queryRawUnsafe(`SELECT tablename FROM pg_tables WHERE schemaname='public'`);
  const tableNames=new Set(schemaTables.map(x=>x.tablename));
  for(const name of ["users","deposits","user_wallets","withdrawals","positions","strategy_trades","strategies","treasuries","treasury_transactions"])assert.ok(tableNames.has(name),name);
