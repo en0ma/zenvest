@@ -26,3 +26,14 @@ export function withdrawalFeeBreakdown(gross:bigint,network:bigint){
 export function formatMicros(value:bigint):string{
  return (value/1000000n).toString()+"."+(value%1000000n).toString().padStart(6,"0");
 }
+
+/** Native gas must be present in provider's fee estimate; no floating-point comparisons. */
+export function assertSufficientNativeGas(payload:unknown):void{
+ const data=(payload&&typeof payload==="object"&&(payload as Record<string,unknown>).data) as Record<string,unknown>|undefined;
+ const normalize=(v:unknown):bigint=>{
+  if((typeof v!=="string"&&typeof v!=="number")||!/^(0|[1-9]\d*)(\.\d{1,18})?$/.test(String(v)))throw new Error("Invalid native gas balance or fee");
+  const [whole,fraction=""]=String(v).split(".");
+  return BigInt(whole)*10n**18n+BigInt(fraction.padEnd(18,"0"));
+ };
+ if(!data||normalize(data.nativeBalance)<normalize(data.networkFee))throw new Error("Insufficient native gas");
+}
