@@ -51,30 +51,28 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
       if(changedTreasury.count!==1)throw new Error("Treasury settlement mismatch");
     }
 
-    const reservedTotal=item.grossUsdcMicros;
-
-    const portfolio=await tx.investorPortfolio.findUniqueOrThrow({where:{id:item.portfolioId}});
-    const fromUnallocated=targetStatus==="SUCCESS"
-      ? (portfolio.unallocatedUsdcMicros>=reservedTotal?reservedTotal:portfolio.unallocatedUsdcMicros) : 0n;
-    const fromAllocated=targetStatus==="SUCCESS"?reservedTotal-fromUnallocated:0n;
-    if(fromAllocated>portfolio.allocatedUsdcMicros) throw new Error("Insufficient allocated accounting on settlement");
-    await tx.investorPortfolio.update({
-      where:{id:item.portfolioId},
-      data:{
-        pendingWithdrawalsUsdcMicros:{decrement:reservedTotal},
-        ...(targetStatus==="SUCCESS"?{
-          unallocatedUsdcMicros:{decrement:fromUnallocated},
-          allocatedUsdcMicros:{decrement:fromAllocated},
-        }:{}),
-      },
-    });
-    if(targetStatus==="FAILED"){
-    }
-    if (targetStatus === "SUCCESS") {
+    // Only verified payout success consumes the user balance; failed payouts release
+    // their derived pending reservation by leaving the pending status set.
+    if(targetStatus==="SUCCESS"){
+      const changedUser=await tx.user.updateMany({
+        where:{id:item.userId,unallocated:{gte:item.grossUsdcMicros}},
+        data:{unallocated:{decrement:item.grossUsdcMicros}},
+      });
+      if(changedUser.count!==1)throw new Error("Insufficient unallocated funds at payout settlement");
+      await tx.treasury.create({data:{
+        walletAddress:item.destinationAddress,walletId:masterWalletId,
+        asset:"USDC",network:"solana",source:"MASTER_WALLET",kind:"WITHDRAWAL",
+        amount:-item.amountUsdcMicros,
+      }});
+      await tx.treasury.create({data:{
+        walletAddress:item.destinationAddress,walletId:masterWalletId,
+        asset:"USDC",network:"solana",source:"MASTER_WALLET",kind:"WITHDRAWAL_FEE",
+        amount:-item.feeUsdcMicros,
+      }});
       await tx.investorActivity.create({
-        data:{portfolioId:item.portfolioId,type:"WITHDRAWAL_COMPLETED",amountKobo:0n,
+        data:{userId:item.userId,type:"WITHDRAWAL_COMPLETED",amountKobo:0n,
           amountUsdcMicros:item.amountUsdcMicros,reference:`withdrawal:${id}:completed`,
-          description:`Confirmed Solana USDC withdrawal (fee: ${item.feeUsdcMicros.toString()} micros)`},
+          description:"Verified Solana USDC payout"},
       });
     }
     return true;
