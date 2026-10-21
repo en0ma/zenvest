@@ -4,6 +4,7 @@ import {blockradarConfig} from "./blockradar";
 import {submitBlockradarPayout,withdrawalReference} from "./blockradar-payout";
 import {readBlockradarUsdcBalance} from "./blockradar-master-balance";
 import {WITHDRAWAL_FEE_USDC_MICROS} from "./withdrawal-fee";
+import {MAX_WITHDRAWAL_ATTEMPTS,masterCustodyCoversTreasury,nextWithdrawalAttempt} from "./withdrawal-worker-rules";
 
 export async function processPendingWithdrawal(){
  const {key,walletId}=blockradarConfig();
@@ -13,11 +14,11 @@ export async function processPendingWithdrawal(){
  if(!master||master.walletId!==walletId||master.source!=="MASTER_WALLET"||master.asset!=="USDC")throw new Error("Missing master deposit treasury");
  // One claim per invocation. Retry preflight failures at most 15 times;
  // ambiguous provider responses remain in REVIEW (never blind-resubmit money).
- const candidate=await prisma.investorWithdrawal.findFirst({where:{status:"PENDING",treasuryId:null,attempts:{lt:15}},orderBy:[{updatedAt:"asc"},{createdAt:"asc"}]});
+ const candidate=await prisma.investorWithdrawal.findFirst({where:{status:"PENDING",treasuryId:null,attempts:{lt:MAX_WITHDRAWAL_ATTEMPTS}},orderBy:[{updatedAt:"asc"},{createdAt:"asc"}]});
  if(!candidate)return "empty";
  const claim=await prisma.$transaction(async tx=>{
   const current=await tx.investorWithdrawal.findUnique({where:{id:candidate.id}});
-  if(!current||current.status!=="PENDING"||current.treasuryId||current.attempts>=15)return false;
+  if(!current||current.status!=="PENDING"||current.treasuryId||current.attempts>=MAX_WITHDRAWAL_ATTEMPTS)return false;
   if(current.grossUsdcMicros!==current.amountUsdcMicros+current.feeUsdcMicros||current.feeUsdcMicros<WITHDRAWAL_FEE_USDC_MICROS)throw new Error("Withdrawal totals mismatch");
   const balance=await tx.user.findUniqueOrThrow({where:{id:current.userId}});
   const pending=await tx.investorWithdrawal.aggregate({where:{userId:current.userId,status:{in:["PENDING","PROCESSING","REVIEW","SUBMITTING"]},id:{not:current.id}},_sum:{grossUsdcMicros:true}});
@@ -46,9 +47,8 @@ export async function processPendingWithdrawal(){
   ]);
   if(!deposit||deposit.amount<0n||(deallocate&&deallocate.amount<0n))
     throw new Error("Invalid treasury custody accounting");
-  const required=deposit.amount+(deallocate?.amount??0n);
   const onChain=await readBlockradarUsdcBalance({key,walletId,assetId});
-  if(onChain<required)throw new Error("Insufficient master wallet custody for treasury liabilities");
+  if(!masterCustodyCoversTreasury(onChain,deposit.amount,deallocate?.amount??0n))throw new Error("Insufficient master wallet custody for treasury liabilities");
   providerSubmissionStarted=true;
   const receipt=await submitBlockradarPayout({id:candidate.id,address:candidate.destinationAddress,amount:candidate.amountUsdcMicros},{key,walletId,assetId});
   await prisma.$transaction(async tx=>{
@@ -62,7 +62,7 @@ export async function processPendingWithdrawal(){
    await prisma.$transaction(async tx=>{
     const current=await tx.investorWithdrawal.findUnique({where:{id:candidate.id}});
     if(!current||current.status!=="SUBMITTING")return;
-    const failed=current.attempts>=15;
+    const failed=nextWithdrawalAttempt(current.attempts-1).onPreflightFailure==="FAILED";
     await tx.investorWithdrawal.update({where:{id:current.id},data:{
       status:failed?"FAILED":"PENDING",treasuryId:null,
       failureCode:failed?"PREFLIGHT_ATTEMPTS_EXHAUSTED":null
