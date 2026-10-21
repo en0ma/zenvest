@@ -401,5 +401,5 @@ model MasterWalletBalance {
   reservedUsdcMicros BigInt @default(0) @map("reserved_usdc_micros")
   feeReserveUsdcMicros BigInt @default(0) @map("fee_reserve_usdc_micros")
   updatedAt DateTime @updatedAt @map("updated_at")
-  @@map("master_wallet_balances")
+  @@map("master_wallet_liquidity")
 }
