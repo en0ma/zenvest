@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { journeyLog } from "@/lib/journey-log";
 import { prisma } from "@/lib/db";
+import { withdrawalSplit } from "@/lib/treasury-accounting";
 
 // Called only after the Blockradar HMAC signature has been verified.
 export async function handleWithdrawalWebhook(event: string, data: Record<string,unknown>, masterWalletId: string) {
@@ -64,8 +65,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
       if(changedUser.count!==1)throw new Error("Insufficient unallocated funds at payout settlement");
       // Exactly one row per kind. A withdrawal decreases user-held master funds;
       // the retained service fee increases the fee bucket, not an outbound fee.
-      const spent=item.amountUsdcMicros+treasury.feeUsdcMicros;
-      if(spent!==item.grossUsdcMicros)throw new Error("Withdrawal gross/fee mismatch");
+      const {gross:spent}=withdrawalSplit(item.grossUsdcMicros,item.amountUsdcMicros,treasury.feeUsdcMicros);
       const depositBucket=await tx.treasury.updateMany({
         where:{kind:"DEPOSIT",amount:{gte:spent}},
         data:{amount:{decrement:spent}},
