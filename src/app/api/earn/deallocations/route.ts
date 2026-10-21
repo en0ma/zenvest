@@ -34,7 +34,7 @@ export async function POST(request:Request){
    if(other)return "BUSY";
    if(amount>pos.principalUsdcMicros)return "EXCEEDS";
    const op=await tx.positionDeallocation.create({data:{
-    userId:user.id,portfolioId:pos.portfolioId,positionId:pos.id,status:"PENDING",amountUsdcMicros:amount,requestKey:reference,
+    userId:user.id,positionId:pos.id,status:"PENDING",amountUsdcMicros:amount,requestKey:reference,
    }});
    return op.id;
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
