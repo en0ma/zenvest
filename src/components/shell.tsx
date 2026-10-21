@@ -11,7 +11,7 @@ export function Shell({ admin = false, preview = false, children }: {admin?:bool
     {text:"Overview",href:"/dashboard"},
     {text:"Wallet",href:"/wallet"},
     {text:"Earn",href:"/earn"},
-    {text:"Strategy",href:"/bot"},
+    {text:"Radar",href:"/radar"},
     {text:"Settings",href:"/settings"},
   ];
   const items = preview ? nav.map(item => ({ ...item, href: item.href.replace("/dashboard", "/preview/investor").replace("/admin", "/preview/admin") })) : nav;
