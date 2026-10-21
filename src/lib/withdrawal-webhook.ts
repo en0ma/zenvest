@@ -52,7 +52,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
     }
 
     const reservedTotal=item.grossUsdcMicros;
-    await tx.masterWalletBalance.update({where:{walletId:masterWalletId},data:{reservedUsdcMicros:{decrement:item.amountUsdcMicros},...(targetStatus==="SUCCESS"?{confirmedUsdcMicros:{decrement:item.amountUsdcMicros},feeReserveUsdcMicros:{increment:item.feeUsdcMicros}}:{})}});
+
     const portfolio=await tx.investorPortfolio.findUniqueOrThrow({where:{id:item.portfolioId}});
     const fromUnallocated=targetStatus==="SUCCESS"
       ? (portfolio.unallocatedUsdcMicros>=reservedTotal?reservedTotal:portfolio.unallocatedUsdcMicros) : 0n;
