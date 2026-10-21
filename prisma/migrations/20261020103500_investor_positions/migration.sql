@@ -47,7 +47,7 @@ ALTER TABLE "position_allocations" ADD CONSTRAINT "position_allocations_user_id_
 ALTER TABLE "position_deallocations" ADD CONSTRAINT "position_deallocations_position_id_fkey" FOREIGN KEY ("position_id") REFERENCES "positions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "position_deallocations" ADD CONSTRAINT "position_deallocations_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
-CREATE TYPE "TreasuryDirection" AS ENUM ('DEPOSIT','ALLOCATE','DEALLOCATE','PAYOUT');
+CREATE TYPE "TreasuryDirection" AS ENUM ('DEPOSIT','ALLOCATE','DEALLOCATE','WITHDRAWAL','PLATFORM_PULL','PLATFORM_M_BANK','PLATFORM_K_BANK');
 CREATE TYPE "TreasuryStatus" AS ENUM ('PENDING','PROCESSING','COMPLETE','FAILED','REVIEW');
 CREATE TABLE "treasury_transactions" (
  "id" TEXT NOT NULL PRIMARY KEY,
@@ -94,6 +94,7 @@ ALTER TABLE "strategies"
  ADD COLUMN "available_capacity_usdc_micros" BIGINT NOT NULL DEFAULT 0,
  ADD COLUMN "min_allocation_usdc_micros" BIGINT NOT NULL DEFAULT 0,
  ADD COLUMN "max_allocation_usdc_micros" BIGINT NOT NULL DEFAULT 0,
+ ADD COLUMN "platform_profit_percentage" DECIMAL(7,4) NOT NULL DEFAULT 0,
  ADD COLUMN "is_active" BOOLEAN NOT NULL DEFAULT false,
  ADD COLUMN "is_public" BOOLEAN NOT NULL DEFAULT false,
  ADD COLUMN "status" "StrategyStatus" NOT NULL DEFAULT 'OFFLINE',
@@ -121,6 +122,8 @@ ALTER TABLE "strategy_trades"
  ADD COLUMN "open_price" DECIMAL(20,8),
  ADD COLUMN "close_price" DECIMAL(20,8),
  ADD COLUMN "current_price" DECIMAL(20,8),
+ ADD COLUMN "profit" BIGINT,
+ ADD COLUMN "platform_profit_share" BIGINT,
  ADD COLUMN "yes_contracts" INTEGER NOT NULL DEFAULT 0,
  ADD COLUMN "no_contracts" INTEGER NOT NULL DEFAULT 0,
  ADD COLUMN "yes_cost_usdc_micros" BIGINT NOT NULL DEFAULT 0,
@@ -148,7 +151,7 @@ DROP TYPE "BotRunState";
 DROP TABLE "withdrawal_deallocations";
 DROP TYPE "DeallocationStatus";
 CREATE TYPE "TreasurySource" AS ENUM ('KALSHI','MASTER_WALLET');
-CREATE TYPE "TreasuryKind" AS ENUM ('WITHDRAWAL_FEE','DEPOSIT_FEE','DEPOSIT','WITHDRAWAL','ALLOCATE','DEALLOCATE');
+CREATE TYPE "TreasuryKind" AS ENUM ('WITHDRAWAL_FEE','DEPOSIT_FEE','DEPOSIT','ALLOCATE','M_BANK','K_BANK');
 CREATE TABLE "treasuries" (
   "id" TEXT NOT NULL PRIMARY KEY,
   "wallet_address" VARCHAR(180) NOT NULL,
@@ -161,6 +164,7 @@ CREATE TABLE "treasuries" (
   "updated_at" TIMESTAMP(3) NOT NULL
 );
 CREATE INDEX "treasuries_wallet_id_asset_network_idx" ON "treasuries"("wallet_id","asset","network");
+CREATE UNIQUE INDEX "treasuries_kind_key" ON "treasuries"("kind");
 CREATE INDEX "treasuries_source_kind_idx" ON "treasuries"("source","kind");
 DROP TABLE "master_wallet_balances";
 
@@ -170,6 +174,7 @@ ALTER TABLE "users" ADD COLUMN "unallocated" BIGINT NOT NULL DEFAULT 0;
 UPDATE "users" AS u SET "unallocated" = p."unallocated_usdc_micros"
  FROM "investor_portfolios" AS p WHERE p."user_id"=u."id";
 ALTER TABLE "blockchain_deposits" RENAME TO "deposits";
+ALTER TABLE "deposits" ADD COLUMN "fee_usdc_micros" BIGINT NOT NULL DEFAULT 0;
 ALTER TABLE "investor_activity" ADD COLUMN "user_id" TEXT;
 UPDATE "investor_activity" AS a SET "user_id"=p."user_id"
  FROM "investor_portfolios" p WHERE a."portfolio_id"=p."id";
