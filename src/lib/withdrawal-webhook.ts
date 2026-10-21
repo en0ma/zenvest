@@ -36,7 +36,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
     const targetStatus = event === "withdraw.success" ? "SUCCESS" : "FAILED";
     // Conditional transition makes duplicate webhooks harmless.
     const updated = await tx.investorWithdrawal.updateMany({
-      where:{id,status:{in:["PROCESSING","REVIEW"]}},
+      where:{id,status:{in:["PROCESSING","REVIEW","SUBMITTING"]}},
       data:{status:targetStatus,providerTransactionId:transactionId,
         transactionHash:typeof data.hash === "string" ? data.hash : item.transactionHash,
         ...(targetStatus === "SUCCESS" ? {completedAt:new Date()} : {failureCode:event})},
