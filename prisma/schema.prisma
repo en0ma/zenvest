@@ -6,7 +6,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 enum Role {
-  INVESTOR
+  USER
   ADMIN
 }
 enum TokenPurpose {
@@ -18,13 +18,14 @@ model User {
   email        String   @unique @db.VarChar(254)
   name         String   @db.VarChar(120)
   passwordHash String   @map("password_hash") @db.VarChar(255)
-  role         Role     @default(INVESTOR)
+  role         Role     @default(USER)
   isActive     Boolean  @default(true) @map("is_active")
   emailVerifiedAt DateTime? @map("email_verified_at")
   sessionVersion Int @default(0) @map("session_version")
-  portfolio InvestorPortfolio?
+  unallocated BigInt @default(0)
   depositWallet InvestorDepositWallet?
   withdrawals InvestorWithdrawal[]
+  activity InvestorActivity[]
   tokens       ActionToken[]
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -110,30 +111,6 @@ model StrategyTrade {
   @@map("strategy_trades")
 }
 
-model InvestorPortfolio {
-  id String @id @default(cuid())
-  userId String @unique @map("user_id")
-  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
-  mode String @default("SANDBOX") @db.VarChar(16)
-  depositedKobo BigInt @default(0) @map("deposited_kobo")
-  depositedUsdcMicros BigInt @default(0) @map("deposited_usdc_micros")
-  allocatedKobo BigInt @default(0) @map("allocated_kobo")
-  allocatedUsdcMicros BigInt @default(0) @map("allocated_usdc_micros")
-  unallocatedKobo BigInt @default(0) @map("unallocated_kobo")
-  unallocatedUsdcMicros BigInt @default(0) @map("unallocated_usdc_micros")
-  realizedPnlKobo BigInt @default(0) @map("realized_pnl_kobo")
-  realizedPnlUsdcMicros BigInt @default(0) @map("realized_pnl_usdc_micros")
-  pendingDepositsKobo BigInt @default(0) @map("pending_deposits_kobo")
-  pendingDepositsUsdcMicros BigInt @default(0) @map("pending_deposits_usdc_micros")
-  pendingWithdrawalsKobo BigInt @default(0) @map("pending_withdrawals_kobo")
-  pendingWithdrawalsUsdcMicros BigInt @default(0) @map("pending_withdrawals_usdc_micros")
-  pendingAllocationsUsdcMicros BigInt @default(0) @map("pending_allocations_usdc_micros")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  activity InvestorActivity[]
-  withdrawals InvestorWithdrawal[]
-  @@map("investor_portfolios")
-}
-
 enum InvestorActivityType {
   DEPOSIT_REQUESTED
   DEPOSIT_CONFIRMED
@@ -147,8 +124,8 @@ enum InvestorActivityType {
 
 model InvestorActivity {
   id String @id @default(cuid())
-  portfolioId String @map("portfolio_id")
-  portfolio InvestorPortfolio @relation(fields:[portfolioId],references:[id],onDelete:Restrict)
+  userId String @map("user_id")
+  user User @relation(fields:[userId],references:[id],onDelete:Restrict)
   type InvestorActivityType
   amountKobo BigInt @map("amount_kobo")
   amountUsdcMicros BigInt @default(0) @map("amount_usdc_micros")
@@ -156,7 +133,7 @@ model InvestorActivity {
   description String @db.VarChar(320)
   occurredAt DateTime @default(now()) @map("occurred_at")
   createdAt DateTime @default(now()) @map("created_at")
-  @@index([portfolioId,occurredAt])
+  @@index([userId,occurredAt])
   @@map("investor_activity")
 }
 
@@ -200,7 +177,7 @@ model BlockchainDeposit {
   creditedAt DateTime? @map("credited_at")
   createdAt DateTime @default(now()) @map("created_at")
   @@index([walletId, createdAt])
-  @@map("blockchain_deposits")
+  @@map("deposits")
 }
 
 enum WithdrawalStatus {
@@ -218,8 +195,6 @@ model InvestorWithdrawal {
   id String @id @default(cuid())
   userId String @map("user_id")
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
-  portfolioId String @map("portfolio_id")
-  portfolio InvestorPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Restrict)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
   grossUsdcMicros BigInt @map("gross_usdc_micros")
   asset String @default("USDC") @db.VarChar(16)
