@@ -1,3 +1,5 @@
+-- Rename existing withdrawals table before adding new foreign keys.
+ALTER TABLE "investor_withdrawals" RENAME TO "withdrawals";
 -- Pending requests reserve unallocated capital without moving custody or recognizing funding.
 ALTER TABLE "investor_portfolios" ADD COLUMN "pending_allocations_usdc_micros" BIGINT NOT NULL DEFAULT 0;
 CREATE TYPE "PositionStatus" AS ENUM ('PENDING','ACTIVE','CLOSED');
@@ -84,7 +86,6 @@ ALTER TABLE "position_deallocations" ADD CONSTRAINT "position_deallocations_trea
 -- Rename the existing catalog without dropping its records or breaking
 -- the active_bot_trade foreign key. Legacy telemetry tables remain in place.
 ALTER TABLE "bots" RENAME TO "strategies";
-ALTER TABLE "investor_withdrawals" RENAME TO "withdrawals";
 CREATE TYPE "StrategyStatus" AS ENUM ('OFFLINE','IDLE','MONITORING','TRADING','PAUSED','ERROR');
 CREATE TYPE "MarketType" AS ENUM ('PREDICTION','PERP','SPOT');
 ALTER TABLE "strategies"
