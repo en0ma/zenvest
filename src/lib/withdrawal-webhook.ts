@@ -69,7 +69,6 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
       },
     });
     if(targetStatus==="FAILED"){
-      await tx.withdrawalDeallocation.updateMany({where:{withdrawalId:id,status:"PENDING"},data:{status:"FAILED"}});
     }
     if (targetStatus === "SUCCESS") {
       await tx.investorActivity.create({
