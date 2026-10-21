@@ -9,7 +9,7 @@ Status: **not approved for merge or live custody**. A passing lint/typecheck/uni
 
 ## High-priority gaps and required integration tests
 
-1. **Database migration rehearsal:** apply `prisma migrate deploy` against a disposable copy with realistic users, bot trades, withdrawals, legacy foreign keys and deposits. Validate all table renames, drops, enum transitions, wallet FKs and history preservation. Confirm `users.unallocated` backfill. Explicitly archive dropped tables before running a destructive migration.
+1. **Clean-slate schema verification:** The project is prelaunch and all existing data may be wiped. Treat the current Prisma schema as authoritative. CI should create an empty PostgreSQL database, apply the schema/migrations, seed synthetic fixtures and validate table constraints; legacy-data preservation and backfills are not release requirements.
 2. **Deposit provider replay and concurrency:** signed, matching `deposit.success` then `deposit.swept.success`; duplicate success in parallel; unrelated mint/wallet/network/amount; failed sweep and late success; verify exactly one credit each to `deposits`, `users.unallocated`, `treasury_transactions`, `treasuries.DEPOSIT`, and investor activity.
 3. **Withdrawal fee accounting:** successful signed payout must debit user gross exactly once, reduce DEPOSIT bucket by gross and credit WITHDRAWAL_FEE bucket by treasury transaction fee; reject mismatched gross, treasury fee, address, asset, tx ID, signature, and repeated or out-of-order events. Test error/rollback if one bucket cannot be changed. Existing requests created before the new ledger must be migrated deliberately.
 4. **Concurrent reservation:** multiple same-user withdrawal and position allocation requests must not exceed `users.unallocated`. Assert serializable conflict/retry behavior using real PostgreSQL concurrent transactions. At present no explicit shared `users` write lock is acquired before request insertion; verify PostgreSQL predicate-read protection under the exact isolation level or add one.
@@ -26,4 +26,4 @@ Status: **not approved for merge or live custody**. A passing lint/typecheck/uni
 - No verified investor allocation proceeds or investor-specific P&L settlement currently exists. Do not equate strategy-wide trade P&L to user P&L.
 - Provider integrations are not covered by the current unit tests and were not tested against production custody.
 
-**Release gate:** CI green, PostgreSQL migration on test database, webhook replay/concurrency integration suite, trusted provider test environment verification, and explicit review of monetary invariants.
+**Release gate:** CI green on fresh PostgreSQL, mocked-provider webhook replay and concurrency integration suite, and explicit review of monetary invariants. A future live rollout will still require provider sandbox verification.
