@@ -15,10 +15,12 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
  const rawPage=Number(params.depositsPage??"1");
  const requestedPage=Number.isSafeInteger(rawPage)&&rawPage>0?Math.min(rawPage,100000):1;
  const user=await requireUser();
- const [portfolio, depositWallet, depositCount]=await Promise.all([
-  prisma.investorPortfolio.findUnique({where:{userId:user.id}}),
+ const [positions, depositWallet, depositCount, pendingWithdrawals, pendingAllocations]=await Promise.all([
+  prisma.investorPosition.findMany({where:{userId:user.id}}),
   prisma.investorDepositWallet.findUnique({where:{userId:user.id}}),
   prisma.blockchainDeposit.count({where:{wallet:{userId:user.id}}}),
+  prisma.investorWithdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
+  prisma.positionAllocation.aggregate({where:{userId:user.id,status:{in:["PENDING","ALLOCATING","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
  ]);
  const pages=Math.max(1,Math.ceil(depositCount/PAGE_SIZE));
  const page=Math.min(requestedPage,pages);
@@ -32,21 +34,21 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-[#E8EDF4] bg-[#FAFBFD] p-5">
           <p className="flex items-center gap-2 text-sm font-medium text-[#5B6B7F]"><ShieldCheck size={17}/>Allocated capital</p>
-          <p className="mt-3 text-2xl font-bold tracking-tight text-[#11263E] sm:text-3xl">{formatUsdc(portfolio?.allocatedUsdcMicros??0n)}</p>
+          <p className="mt-3 text-2xl font-bold tracking-tight text-[#11263E] sm:text-3xl">{formatUsdc(positions.reduce((sum,p)=>sum+p.principalUsdcMicros,0n))}</p>
           <p className="mt-2 text-xs text-[#7A889A]">May require deallocation</p>
         </div>
         <div className="rounded-2xl border border-[#E8EDF4] bg-[#FAFBFD] p-5">
           <p className="flex items-center gap-2 text-sm font-medium text-[#5B6B7F]"><ArrowUpFromLine size={17}/>Unallocated capital</p>
-          <p className="mt-3 text-2xl font-bold tracking-tight text-[#11263E] sm:text-3xl">{formatUsdc(portfolio?.unallocatedUsdcMicros??0n)}</p>
+          <p className="mt-3 text-2xl font-bold tracking-tight text-[#11263E] sm:text-3xl">{formatUsdc(user.unallocated)}</p>
           <p className="mt-2 text-xs text-[#7A889A]">Not currently allocated</p>
         </div>
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#EDF1F6] pt-4">
         <p className="flex items-center gap-2 text-sm text-[#78869A]"><Clock3 size={15}/>Pending withdrawals</p>
-        <p className="text-sm font-semibold tabular-nums text-[#5B6B7F]">{formatUsdc(portfolio?.pendingWithdrawalsUsdcMicros??0n)}</p>
+        <p className="text-sm font-semibold tabular-nums text-[#5B6B7F]">{formatUsdc(pendingWithdrawals._sum.grossUsdcMicros??0n)}</p>
       </div>
       <p className="mt-1 text-xs text-[#8A97A8]">Withdrawal and allocation requests reserve unallocated capital and reduce the available balance.</p>
-      <p className="mt-2 text-xs text-[#8A97A8]">Pending allocations: {formatUsdc(portfolio?.pendingAllocationsUsdcMicros??0n)}</p>
+      <p className="mt-2 text-xs text-[#8A97A8]">Pending allocations: {formatUsdc(pendingAllocations._sum.amountUsdcMicros??0n)}</p>
     </section>
   <section className="mt-8 rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-2xl font-semibold tracking-tight">Deposit USDC</h2><p className="mt-2 text-sm text-[#425466]">Use your personal Solana deposit address to add funds.</p></div><span className="rounded-full bg-[#F0EEFF] px-3 py-1.5 text-xs font-semibold text-[#635BFF]">Solana · USDC</span></div>
@@ -88,6 +90,6 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
      </nav>
    </div>
   </section>
-  <WalletWithdrawals userId={user.id} unallocated={portfolio?.unallocatedUsdcMicros??0n} pending={portfolio?.pendingWithdrawalsUsdcMicros??0n} pendingAllocations={portfolio?.pendingAllocationsUsdcMicros??0n} withdrawalsPage={params.withdrawalsPage} depositsPage={page}/>
+  <WalletWithdrawals userId={user.id} unallocated={user.unallocated} pending={pendingWithdrawals._sum.grossUsdcMicros??0n} pendingAllocations={pendingAllocations._sum.amountUsdcMicros??0n} withdrawalsPage={params.withdrawalsPage} depositsPage={page}/>
  </div></Shell>;
 }
