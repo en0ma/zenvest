@@ -92,7 +92,7 @@ model StrategyTrade {
   id String @id @default(cuid())
   strategyId String @map("strategy_id") @db.VarChar(64)
   strategy Strategy @relation(fields:[strategyId],references:[id],onDelete:Restrict)
-  marketTradeId String @map("market_trade_id") @db.VarChar(180)
+  marketTradeId String? @map("market_trade_id") @db.VarChar(180)
   externalTradeId String @unique @map("external_trade_id") @db.VarChar(180)
   eventTicker String @map("event_ticker") @db.VarChar(200)
   side String @db.VarChar(12)
