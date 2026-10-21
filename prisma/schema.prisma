@@ -25,6 +25,9 @@ model User {
   unallocated BigInt @default(0)
   depositWallet InvestorDepositWallet?
   withdrawals InvestorWithdrawal[]
+  positions InvestorPosition[]
+  positionAllocations PositionAllocation[]
+  positionDeallocations PositionDeallocation[]
   activity InvestorActivity[]
   tokens       ActionToken[]
   createdAt    DateTime @default(now()) @map("created_at")
