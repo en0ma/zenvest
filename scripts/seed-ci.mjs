@@ -16,6 +16,7 @@ try {
  },update:{}});
  for(const [kind,source,amount] of [
   ["DEPOSIT","MASTER_WALLET",123_000_000n],
+  ["DEALLOCATE","MASTER_WALLET",0n],
   ["WITHDRAWAL_FEE","MASTER_WALLET",0n],
   ["DEPOSIT_FEE","MASTER_WALLET",0n],
   ["ALLOCATE","KALSHI",25_000_000n],
