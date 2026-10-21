@@ -74,19 +74,36 @@ model BotStatus {
   @@map("bot_status")
 }
 
-/** Registered trading bots; each bot has at most one active market snapshot. */
-model Bot {
+/** Public strategy catalog and per-strategy allocation constraints. */
+enum StrategyStatus {
+  TRADING
+  IDLE
+}
+model Strategy {
   id String @id @db.VarChar(64)
-  name String @db.VarChar(120)
+  name String @unique @db.VarChar(120)
   description String @db.VarChar(500)
+  note String? @db.VarChar(1000)
+  minCapacityUsdcMicros BigInt @default(0) @map("min_capacity_usdc_micros")
+  maxCapacityUsdcMicros BigInt @default(0) @map("max_capacity_usdc_micros")
+  availableCapacityUsdcMicros BigInt @default(0) @map("available_capacity_usdc_micros")
+  minAllocationUsdcMicros BigInt @default(0) @map("min_allocation_usdc_micros")
+  maxAllocationUsdcMicros BigInt @default(0) @map("max_allocation_usdc_micros")
+  isActive Boolean @default(false) @map("is_active")
+  isPublic Boolean @default(false) @map("is_public")
+  status StrategyStatus @default(IDLE)
+  marketId String? @map("market_id") @db.VarChar(200)
+  marketName String? @map("market_name") @db.VarChar(200)
   activeTrade ActiveBotTrade?
-  @@map("bots")
+  positions InvestorPosition[]
+  @@index([isActive,isPublic])
+  @@map("strategies")
 }
 
 /** Latest active 15-minute market snapshot: Python bot upserts by bot_id. */
 model ActiveBotTrade {
   botId String @id @map("bot_id") @db.VarChar(64)
-  bot Bot @relation(fields:[botId],references:[id],onDelete:Restrict)
+  strategy Strategy @relation(fields:[botId],references:[id],onDelete:Restrict)
   status BotRunState @default(OFFLINE)
   eventTicker String? @map("event_ticker") @db.VarChar(200)
   yesContracts Int @default(0) @map("yes_contracts")
@@ -311,6 +328,8 @@ model InvestorPosition {
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
   portfolioId String @map("portfolio_id")
   portfolio InvestorPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Restrict)
+  strategyId String @map("strategy_id") @db.VarChar(64)
+  strategy Strategy @relation(fields:[strategyId], references:[id],onDelete:Restrict)
   principalUsdcMicros BigInt @default(0) @map("principal_usdc_micros")
   realizedPnlUsdcMicros BigInt @default(0) @map("realized_pnl_usdc_micros")
   status PositionStatus @default(PENDING)
