@@ -51,9 +51,9 @@ export async function POST(request: Request) {
         data:{pendingAllocationsUsdcMicros:{increment:amount}},
       });
       if(claimed.count!==1) throw new Error("Concurrent reservation");
-      const position=await tx.investorPosition.create({data:{userId:user.id,portfolioId:p.id,strategyId}});
+      const position=await tx.investorPosition.create({data:{userId:user.id,strategyId}});
       const op=await tx.positionAllocation.create({data:{
-        userId:user.id,portfolioId:p.id,positionId:position.id,
+        userId:user.id,positionId:position.id,
         status:"PENDING",amountUsdcMicros:amount,requestKey:reference,
       }});
       return {positionId:position.id,operationId:op.id,status:op.status};
