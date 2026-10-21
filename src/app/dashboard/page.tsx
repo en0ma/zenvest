@@ -6,11 +6,11 @@ import { formatUsdc } from "@/lib/usdc-money";
 export const dynamic = "force-dynamic";
 export default async function Dashboard(){
  const session = await requireUser();
- const portfolio = await prisma.investorPortfolio.findUnique({where:{userId:session.id}});
- const allocated=portfolio?.allocatedUsdcMicros??0n;
- const unallocated=portfolio?.unallocatedUsdcMicros??0n;
- const realized=portfolio?.realizedPnlUsdcMicros??0n;
- const equity=allocated+unallocated+realized;
+ const positions=await prisma.investorPosition.findMany({where:{userId:session.id}});
+ const allocated=positions.reduce((total,p)=>total+p.principalUsdcMicros,0n);
+ const unallocated=session.unallocated;
+ const realized=positions.reduce((total,p)=>total+p.realizedPnlUsdcMicros,0n);
+ const equity=allocated+unallocated;
  const capital=allocated+unallocated;
  const allocatedPct=capital>0n?Number(allocated*10000n/capital)/100:0;
  const unallocatedPct=capital>0n?100-allocatedPct:0;
