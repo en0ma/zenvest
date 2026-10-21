@@ -138,7 +138,7 @@ export async function POST(request: Request) {
       }});
 
       await tx.user.update({where:{id:wallet.userId},data:{unallocated:{increment:amount}}});
-      await tx.treasury.create({data:{walletAddress:master.address as string,walletId:masterWalletId,asset:"USDC",network:"solana",source:"MASTER_WALLET",kind:"DEPOSIT",amount}});
+      await tx.treasury.upsert({where:{kind:"DEPOSIT"},create:{walletAddress:master.address as string,walletId:masterWalletId,asset:"USDC",network:"solana",source:"MASTER_WALLET",kind:"DEPOSIT",amount},update:{amount:{increment:amount}}});
       await tx.investorActivity.create({data:{
         userId:wallet.userId,type:"DEPOSIT_CONFIRMED",amountKobo:0n,
         amountUsdcMicros:amount,reference:`blockradar:${id}`,
