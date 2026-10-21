@@ -9,6 +9,9 @@ export async function readBlockradarUsdcBalance(config:{key:string;walletId:stri
  const root=body as Record<string,unknown>;
  const data=root.data&&typeof root.data==="object"?root.data as Record<string,unknown>:null;
  if(root.statusCode!==200||!data)throw new Error("Missing master balance");
+ const asset=data.asset;
+ if((typeof asset==="string"&&asset!=="USDC") || (asset&&typeof asset==="object"&&"symbol" in asset&&(asset as {symbol:unknown}).symbol!=="USDC"))
+  throw new Error("Unexpected Blockradar balance asset");
  // Only accept unambiguous USDC-denominated balance; never infer available funds
  // from unrelated assets or from a total balance across tokens.
  const balance=parsePositiveUsdcMicros(data.balance);
