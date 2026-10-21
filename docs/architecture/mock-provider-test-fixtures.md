@@ -28,3 +28,11 @@ Test strategy:
 - Full route-level signed-webhook integration, concurrent operations and provider callback replay remain follow-up coverage.
 
 The authoritative prelaunch DB is defined by `prisma/schema.prisma`; historical customer-data preservation is not required and disposable test data may be wiped.
+
+## Withdrawal network-fee estimation (implemented in draft PR)
+- Required environment: `BLOCKRADAR_SOLANA_USDC_ASSET_ID` (Blockradar asset UUID, not Solana mint); existing `BLOCK_RADAR_API_KEY` and `BLOCK_RADAR_MASTER_WALLET_ID`.
+- Authenticated `POST /api/withdrawals/estimate-fee` calls Blockradar `POST /v1/wallets/{walletId}/withdraw/network-fee`, with `assetId`, `address`, and `amount`.
+- Single-estimate response field `data.networkFeeInUSD` is the USD cost to add to the 2 USDC Zenvest service fee; `data.networkFee` is denominated in native Solana gas token and **must not** be treated as USDC.
+- Conversion to six-decimal USDC micro amounts **rounds upward** to avoid understating a fractional-micro fee. User withdrawal gross = recipient net USDC + service fee + estimated network fee. UI fetches a quote after valid address/amount, and submission re-quotes server-side, rejecting if fees exceed the user's approved quote.
+- `withdrawals.fee_usdc_micros` and linked `treasury_transactions.fee_usdc_micros` hold total (service + network). Successful payout credits only **2 USDC** to retained `treasuries.WITHDRAWAL_FEE`. The network component is not retained platform revenue.
+- `tests/withdrawal-network-fee.test.ts` injects sample response objects without calling Blockradar. The actual payout CRON remains intentionally disabled; estimated USD fees may differ from future native-SOL execution cost. Native gas sufficiency and provider fee changes must be checked at actual payout.
