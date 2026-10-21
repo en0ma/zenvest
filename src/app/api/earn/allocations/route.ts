@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
+import {availableUnallocated,canRequestAllocation} from "@/lib/allocation-rules";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -34,21 +35,23 @@ export async function POST(request: Request) {
     }
     const result = await prisma.$transaction(async tx=>{
       const strategy=await tx.strategy.findFirst({where:{id:strategyId,isActive:true,isPublic:true}});
-      if(!strategy || strategy.minAllocationUsdcMicros<=0n || strategy.maxAllocationUsdcMicros<strategy.minAllocationUsdcMicros || amount<strategy.minAllocationUsdcMicros || amount>strategy.maxAllocationUsdcMicros || amount>strategy.availableCapacityUsdcMicros) return null;
+      if(!strategy)return null;
       // Count outstanding requests against the strategy's advertised capacity.
       // Serializable isolation protects the concurrent capacity predicate.
       const outstanding=await tx.positionAllocation.aggregate({
         where:{position:{strategyId},status:{in:["PENDING","ALLOCATING","REVIEW"]}},
         _sum:{amountUsdcMicros:true},
       });
-      if((outstanding._sum.amountUsdcMicros??0n)+amount>strategy.availableCapacityUsdcMicros)return null;
+
       const balance=await tx.user.findUniqueOrThrow({where:{id:user.id}});
       const [withdrawalHolds,allocationHolds]=await Promise.all([
         tx.investorWithdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
         tx.positionAllocation.aggregate({where:{userId:user.id,status:{in:["PENDING","ALLOCATING","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
       ]);
-      const holds=(withdrawalHolds._sum.grossUsdcMicros??0n)+(allocationHolds._sum.amountUsdcMicros??0n);
-      if(balance.unallocated-holds<amount)return null;
+      const availableUser=availableUnallocated(balance.unallocated,withdrawalHolds._sum.grossUsdcMicros??0n,allocationHolds._sum.amountUsdcMicros??0n);
+      if(!canRequestAllocation({amount,minimum:strategy.minAllocationUsdcMicros,maximum:strategy.maxAllocationUsdcMicros,
+        capacity:strategy.availableCapacityUsdcMicros,pendingStrategy:outstanding._sum.amountUsdcMicros??0n,
+        availableUser,active:strategy.isActive,isPublic:strategy.isPublic}))return null;
       const position=await tx.investorPosition.create({data:{userId:user.id,strategyId}});
       const op=await tx.positionAllocation.create({data:{
         userId:user.id,positionId:position.id,
