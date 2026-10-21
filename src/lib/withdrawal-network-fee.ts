@@ -3,7 +3,7 @@ const MAX=9223372036854775807n;
 function usdMicrosCeil(raw:unknown):bigint{
  if(typeof raw!=="string"&&typeof raw!=="number")throw new Error("Missing Blockradar USD network fee");
  const value=String(raw);
- if(!/^(0|[1-9]\d*)(\\.\d{1,18})?$/.test(value))throw new Error("Invalid network fee");
+ if(!/^(0|[1-9]\d*)(\.\d{1,18})?$/.test(value))throw new Error("Invalid network fee");
  const [whole,fraction=""]=value.split(".");
  const padded=fraction.padEnd(18,"0");
  const result=BigInt(whole)*1000000n+BigInt(padded.slice(0,6))+(BigInt(padded.slice(6))>0n?1n:0n);
