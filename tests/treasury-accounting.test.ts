@@ -5,8 +5,8 @@ import {withdrawalSplit,platformShareMicros,availablePlatformBank} from "../src/
 test("withdrawal debit equals payout plus fee",()=>{
  assert.deepEqual(withdrawalSplit(102_000_000n,100_000_000n,2_000_000n),{gross:102_000_000n,net:100_000_000n,fee:2_000_000n});
  assert.deepEqual(withdrawalSplit(100n,100n,0n),{gross:100n,net:100n,fee:0n});
- for(const args of [[102n,101n,2n],[0n,0n,0n],[100n,100n,-1n],[2n,0n,2n]] as const)
-  assert.throws(()=>withdrawalSplit(...args));
+ for(const [gross,net,fee] of [[102n,101n,2n],[0n,0n,0n],[100n,100n,-1n],[2n,0n,2n]])
+  assert.throws(()=>withdrawalSplit(gross,net,fee));
 });
 test("platform share only accrues on strictly profitable events using exact micros",()=>{
  assert.equal(platformShareMicros(1_234_567n,250_000n),308_641n);
