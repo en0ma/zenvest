@@ -1,3 +1,5 @@
+-- Preserve the existing liquidity and reservation state under a new explicit name.
+ALTER TABLE "master_wallet_balances" RENAME TO "master_wallet_liquidity";
 -- Rename wallet table while retaining existing rows.
 ALTER TABLE "investor_deposit_wallets" RENAME TO "user_wallets";
 -- Rename existing withdrawals table before adding new foreign keys.
@@ -162,5 +164,5 @@ CREATE TABLE "treasuries" (
 );
 CREATE INDEX "treasuries_wallet_id_asset_network_idx" ON "treasuries"("wallet_id","asset","network");
 CREATE INDEX "treasuries_source_kind_idx" ON "treasuries"("source","kind");
--- master_wallet_balances is temporarily retained because the payout worker and webhook
+-- master_wallet_liquidity is retained because the payout worker and webhook
 -- use confirmed/reserved/fee-reserve accounting that cannot be reconstructed from these new columns.
