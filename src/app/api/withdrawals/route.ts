@@ -46,25 +46,18 @@ export async function POST(request: Request) {
         net:existing.amountUsdcMicros.toString(),fee:existing.feeUsdcMicros.toString()});
     }
     const item = await prisma.$transaction(async tx => {
-      const portfolio = await tx.investorPortfolio.findUnique({where:{userId:user.id},
-        select:{id:true,allocatedUsdcMicros:true,unallocatedUsdcMicros:true,pendingWithdrawalsUsdcMicros:true,pendingAllocationsUsdcMicros:true}});
-      if (!portfolio) return null;
-      const total=portfolio.unallocatedUsdcMicros-portfolio.pendingAllocationsUsdcMicros;
-      const pendingBefore=portfolio.pendingWithdrawalsUsdcMicros;
-      if(total-pendingBefore<amount) return null;
-      // Reserve without changing invested/uninvested balances until payout settlement.
-      // Conditional compare-and-swap protects concurrent requests and allocations.
-      const reserved=await tx.investorPortfolio.updateMany({
-        where:{id:portfolio.id,allocatedUsdcMicros:portfolio.allocatedUsdcMicros,
-          unallocatedUsdcMicros:portfolio.unallocatedUsdcMicros,pendingAllocationsUsdcMicros:portfolio.pendingAllocationsUsdcMicros,pendingWithdrawalsUsdcMicros:pendingBefore},
-        data:{pendingWithdrawalsUsdcMicros:{increment:amount}},
-      });
-      if(reserved.count!==1) throw new Error("Concurrent balance reservation");
+      const balance=await tx.user.findUniqueOrThrow({where:{id:user.id}});
+      const [withdrawalHolds,allocationHolds]=await Promise.all([
+        tx.investorWithdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
+        tx.positionAllocation.aggregate({where:{userId:user.id,status:{in:["PENDING","ALLOCATING","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
+      ]);
+      const holds=(withdrawalHolds._sum.grossUsdcMicros??0n)+(allocationHolds._sum.amountUsdcMicros??0n);
+      if(balance.unallocated-holds<amount)return null;
       const withdrawal = await tx.investorWithdrawal.create({
-        data:{userId:user.id,portfolioId:portfolio.id,amountUsdcMicros:net,grossUsdcMicros:amount,asset:"USDC",feeUsdcMicros:WITHDRAWAL_FEE_USDC_MICROS,destinationAddress:address,idempotencyKey,status:"PENDING"},
+        data:{userId:user.id,amountUsdcMicros:net,grossUsdcMicros:amount,asset:"USDC",feeUsdcMicros:WITHDRAWAL_FEE_USDC_MICROS,destinationAddress:address,idempotencyKey,status:"PENDING"},
       });
       await tx.investorActivity.create({
-        data:{portfolioId:portfolio.id,type:"WITHDRAWAL_REQUESTED",amountKobo:0n,amountUsdcMicros:amount,
+        data:{userId:user.id,type:"WITHDRAWAL_REQUESTED",amountKobo:0n,amountUsdcMicros:amount,
           reference:`withdrawal:${withdrawal.id}:requested`,description:"Solana USDC withdrawal requested"},
       });
       return withdrawal;
