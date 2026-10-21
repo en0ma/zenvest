@@ -1,4 +1,5 @@
 import {formatMicros} from "./withdrawal-network-fee.ts";
+import {parsePositiveUsdcMicros} from "./blockradar-event-validation.ts";
 export type Payout={id:string;address:string;amount:bigint};
 export function withdrawalReference(id:string){return `zenvest-withdrawal:${id}`;}
 export async function submitBlockradarPayout(input:Payout,config:{key:string;walletId:string;assetId:string},send:typeof fetch=fetch){
@@ -15,7 +16,7 @@ export async function submitBlockradarPayout(input:Payout,config:{key:string;wal
  const data=root.data&&typeof root.data==="object"?root.data as Record<string,unknown>:{};
  if(root.statusCode!==200||typeof data.id!=="string"||!data.id||
     data.reference!==reference||data.recipientAddress!==input.address||
-    data.amount!==formatMicros(input.amount)||!["PENDING","PROCESSING","SUCCESS"].includes(String(data.status)))
+    parsePositiveUsdcMicros(data.amount)!==input.amount||!["PENDING","PROCESSING","SUCCESS"].includes(String(data.status)))
   throw new Error("Blockradar payout acknowledgement mismatch");
  return {id:data.id,hash:typeof data.hash==="string"?data.hash:null};
 }
