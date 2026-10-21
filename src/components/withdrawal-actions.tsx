@@ -71,7 +71,7 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
     try {
       const response = await fetch("/api/withdrawals", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({amount,address,idempotencyKey:requestKey.current})
+        body:JSON.stringify({amount,address,idempotencyKey:requestKey.current,maxTotalFeeMicros:quote?.totalFeeMicros})
       });
       const result: {error?:string;id?:string} = await response.json();
       if (!response.ok) throw new Error(result.error ?? "We couldn't create your withdrawal. Please try again.");
