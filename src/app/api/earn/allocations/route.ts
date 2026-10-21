@@ -42,15 +42,13 @@ export async function POST(request: Request) {
         _sum:{amountUsdcMicros:true},
       });
       if((outstanding._sum.amountUsdcMicros??0n)+amount>strategy.availableCapacityUsdcMicros)return null;
-      const p=await tx.investorPortfolio.findUnique({where:{userId:user.id}});
-      if (!p || p.unallocatedUsdcMicros-p.pendingWithdrawalsUsdcMicros-p.pendingAllocationsUsdcMicros<amount) return null;
-      const claimed=await tx.investorPortfolio.updateMany({
-        where:{id:p.id,unallocatedUsdcMicros:p.unallocatedUsdcMicros,
-          pendingWithdrawalsUsdcMicros:p.pendingWithdrawalsUsdcMicros,
-          pendingAllocationsUsdcMicros:p.pendingAllocationsUsdcMicros},
-        data:{pendingAllocationsUsdcMicros:{increment:amount}},
-      });
-      if(claimed.count!==1) throw new Error("Concurrent reservation");
+      const balance=await tx.user.findUniqueOrThrow({where:{id:user.id}});
+      const [withdrawalHolds,allocationHolds]=await Promise.all([
+        tx.investorWithdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
+        tx.positionAllocation.aggregate({where:{userId:user.id,status:{in:["PENDING","ALLOCATING","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
+      ]);
+      const holds=(withdrawalHolds._sum.grossUsdcMicros??0n)+(allocationHolds._sum.amountUsdcMicros??0n);
+      if(balance.unallocated-holds<amount)return null;
       const position=await tx.investorPosition.create({data:{userId:user.id,strategyId}});
       const op=await tx.positionAllocation.create({data:{
         userId:user.id,positionId:position.id,
