@@ -5,7 +5,7 @@ ALTER TABLE "investor_portfolios" ADD COLUMN "pending_allocations_usdc_micros" B
 CREATE TYPE "PositionStatus" AS ENUM ('PENDING','ACTIVE','CLOSED');
 CREATE TYPE "PositionTransferStatus" AS ENUM ('PENDING','ALLOCATING','DEALLOCATING','ALLOCATED','DEALLOCATED','FAILED','REVIEW');
 CREATE TABLE "positions" (
- "id" TEXT NOT NULL PRIMARY KEY, "user_id" TEXT NOT NULL, "portfolio_id" TEXT NOT NULL,
+ "id" TEXT NOT NULL PRIMARY KEY, "user_id" TEXT NOT NULL, 
  "strategy_id" VARCHAR(64) NOT NULL,
  "principal_usdc_micros" BIGINT NOT NULL DEFAULT 0,
  "realized_pnl_usdc_micros" BIGINT NOT NULL DEFAULT 0,
@@ -15,14 +15,14 @@ CREATE TABLE "positions" (
  "closed_at" TIMESTAMP(3)
 );
 CREATE TABLE "position_allocations" (
- "id" TEXT NOT NULL PRIMARY KEY,"position_id" TEXT NOT NULL,"user_id" TEXT NOT NULL,"portfolio_id" TEXT NOT NULL,
+ "id" TEXT NOT NULL PRIMARY KEY,"position_id" TEXT NOT NULL,"user_id" TEXT NOT NULL,
  "amount_usdc_micros" BIGINT NOT NULL,"status" "PositionTransferStatus" NOT NULL DEFAULT 'PENDING',
  "request_key" VARCHAR(180) NOT NULL,"provider_reference" VARCHAR(180),
  "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
  "updated_at" TIMESTAMP(3) NOT NULL,"completed_at" TIMESTAMP(3)
 );
 CREATE TABLE "position_deallocations" (
- "id" TEXT NOT NULL PRIMARY KEY,"position_id" TEXT NOT NULL,"user_id" TEXT NOT NULL,"portfolio_id" TEXT NOT NULL,
+ "id" TEXT NOT NULL PRIMARY KEY,"position_id" TEXT NOT NULL,"user_id" TEXT NOT NULL,
  "amount_usdc_micros" BIGINT NOT NULL,"settled_usdc_micros" BIGINT,
  "status" "PositionTransferStatus" NOT NULL DEFAULT 'PENDING',
  "request_key" VARCHAR(180) NOT NULL,"provider_reference" VARCHAR(180),
@@ -40,13 +40,10 @@ CREATE INDEX "position_deallocations_user_id_created_at_idx" ON "position_deallo
 CREATE INDEX "position_deallocations_position_id_status_idx" ON "position_deallocations"("position_id","status");
 CREATE INDEX "position_deallocations_status_created_at_idx" ON "position_deallocations"("status","created_at");
 ALTER TABLE "positions" ADD CONSTRAINT "positions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "positions" ADD CONSTRAINT "positions_portfolio_id_fkey" FOREIGN KEY ("portfolio_id") REFERENCES "investor_portfolios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "position_allocations" ADD CONSTRAINT "position_allocations_position_id_fkey" FOREIGN KEY ("position_id") REFERENCES "positions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "position_allocations" ADD CONSTRAINT "position_allocations_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "position_allocations" ADD CONSTRAINT "position_allocations_portfolio_id_fkey" FOREIGN KEY ("portfolio_id") REFERENCES "investor_portfolios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "position_deallocations" ADD CONSTRAINT "position_deallocations_position_id_fkey" FOREIGN KEY ("position_id") REFERENCES "positions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "position_deallocations" ADD CONSTRAINT "position_deallocations_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "position_deallocations" ADD CONSTRAINT "position_deallocations_portfolio_id_fkey" FOREIGN KEY ("portfolio_id") REFERENCES "investor_portfolios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 CREATE TYPE "TreasuryDirection" AS ENUM ('DEPOSIT','ALLOCATE','DEALLOCATE','PAYOUT');
 CREATE TYPE "TreasuryStatus" AS ENUM ('PENDING','PROCESSING','COMPLETE','FAILED','REVIEW');
@@ -114,6 +111,7 @@ ALTER TABLE "bot_trades" DROP CONSTRAINT IF EXISTS "bot_trades_bot_id_fkey";
 ALTER TABLE "bot_trades" RENAME TO "strategy_trades";
 ALTER TABLE "strategy_trades" RENAME COLUMN "bot_id" TO "strategy_id";
 ALTER TABLE "strategy_trades" RENAME COLUMN "opened_at" TO "created_at";
+ALTER TABLE "strategy_trades" RENAME COLUMN "event_ticker" TO "market_trade_name";
 ALTER TABLE "strategy_trades"
  ADD COLUMN "market_trade_id" VARCHAR(180),
  ADD COLUMN "market_start" TIMESTAMP(3),
