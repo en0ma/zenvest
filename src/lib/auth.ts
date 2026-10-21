@@ -34,7 +34,7 @@ export const authOptions: NextAuthOptions = {
       const record = await prisma.user.findUnique({ where: { id: token.sub }, select: { isActive: true, role: true, emailVerifiedAt: true, sessionVersion: true } });
       if (token.sessionVersion === undefined && user && record) token.sessionVersion = record.sessionVersion;
       token.active = Boolean(record?.isActive && record.emailVerifiedAt && token.sessionVersion === record.sessionVersion);
-      token.role = record?.role ?? "INVESTOR";
+      token.role = record?.role ?? "USER";
       return token;
     },
     async session({ session, token }) {
