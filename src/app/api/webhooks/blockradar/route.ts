@@ -143,7 +143,6 @@ export async function POST(request: Request) {
         reference:`blockradar-deposit:${id}`,completedAt:new Date(),
       }});
 
-      await tx.masterWalletBalance.upsert({where:{walletId:masterWalletId},create:{walletId:masterWalletId,confirmedUsdcMicros:amount},update:{confirmedUsdcMicros:{increment:amount}}});
       await tx.investorPortfolio.update({where:{id:portfolio.id},
         data:{pendingDepositsUsdcMicros:{decrement:amount},
           depositedUsdcMicros:{increment:amount},unallocatedUsdcMicros:{increment:amount}}});
