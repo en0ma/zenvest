@@ -15,7 +15,7 @@ try {
  // Verify the real PostgreSQL enum values after migration.
  for(const name of ['WithdrawalStatus','PositionTransferStatus']){
   const rows=await prisma.$queryRawUnsafe('SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid WHERE t.typname=$1',name);
-  assert.deepEqual(rows.map(r=>r.enumlabel).sort(),['PENDING','SUBMITTING','PROCESSING','COMPLETED','FAILED','CANCELLED'].sort());
+  assert.deepEqual(rows.map(r=>r.enumlabel).sort(),['PENDING','SUBMITTING','PROCESSING','REVIEW','COMPLETED','FAILED','CANCELLED'].sort());
  }
  const schemaTables=await prisma.$queryRawUnsafe(`SELECT tablename FROM pg_tables WHERE schemaname='public'`);
  const tableNames=new Set(schemaTables.map(x=>x.tablename));
@@ -46,6 +46,8 @@ try {
   grossUsdcMicros:102_000_000n,feeUsdcMicros:2_000_000n,
   destinationAddress:"CI_DESTINATION_WALLET",idempotencyKey:"ci-request-1",status:"PENDING"
  }});
+ assert.equal(withdrawal.attempts,0);
+ assert.equal(withdrawal.nextRetry,null);
  await assert.rejects(()=>prisma.investorWithdrawal.create({data:{
   userId:user.id,amountUsdcMicros:100_000_000n,grossUsdcMicros:102_000_000n,
   destinationAddress:"CI_DESTINATION_WALLET",idempotencyKey:"ci-request-1"
