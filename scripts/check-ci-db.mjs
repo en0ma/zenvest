@@ -19,7 +19,7 @@ try {
  }
  const schemaTables=await prisma.$queryRawUnsafe(`SELECT tablename FROM pg_tables WHERE schemaname='public'`);
  const tableNames=new Set(schemaTables.map(x=>x.tablename));
- for(const name of ["users","deposits","user_wallets","withdrawals","positions","strategy_trades","strategies","treasuries","treasury_transactions"])assert.ok(tableNames.has(name),name);
+ for(const name of ["users","deposits","user_wallets","withdrawals","positions","strategy_trades","strategies","treasuries","treasury_transactions","webhook_dead_later"])assert.ok(tableNames.has(name),name);
  for(const obsolete of ["investor_portfolios","master_wallet_balances","bot_status","active_bot_trade","withdrawal_deallocations"])assert.ok(!tableNames.has(obsolete),obsolete);
  await assert.rejects(()=>prisma.treasury.create({data:{kind:"DEPOSIT",source:"MASTER_WALLET",amount:1n,walletAddress:"ci",walletId:"ci"}}),e=>e.code==="P2002");
 
@@ -94,6 +94,18 @@ try {
  assert.equal((await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).amount,21_000_000n);
  assert.equal((await prisma.treasury.findUniqueOrThrow({where:{kind:"WITHDRAWAL_FEE"}})).amount,2_000_000n);
  assert.equal((await prisma.treasuryTransfer.findUniqueOrThrow({where:{id:payout.id}})).status,"COMPLETE");
+ const archived=await prisma.webhookDeadLater.create({data:{
+  kind:"withdrawal",userId:user.id,reference:withdrawal.id,providerTransactionId:"ci-provider-late-success",
+  payload:{event:"withdraw.success",data:{reference:withdrawal.id,status:"SUCCESS"}},
+ }});
+ assert.equal(archived.kind,"withdrawal");
+ assert.equal(archived.userId,user.id);
+ assert.equal(archived.reference,withdrawal.id);
+ assert.equal(archived.payload.event,"withdraw.success");
+ await assert.rejects(()=>prisma.webhookDeadLater.create({data:{
+  kind:"withdrawal",userId:user.id,reference:withdrawal.id,providerTransactionId:"ci-provider-late-success",
+  payload:{event:"withdraw.success"},
+ }}),e=>e.code==="P2002","duplicate late webhook must not create another archive");
  console.log("CI PostgreSQL transaction rollback, uniqueness and idempotent settlement assertions passed");
  console.log("CI PostgreSQL migration, fixtures and uniqueness assertions passed");
 }finally{await prisma.$disconnect();}
