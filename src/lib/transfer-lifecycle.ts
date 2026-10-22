@@ -1,5 +1,5 @@
-export const ACTIVE_TRANSFER_STATUSES=["PENDING","SUBMITTING","PROCESSING"] as const;
-export type TransferStatus="PENDING"|"SUBMITTING"|"PROCESSING"|"COMPLETED"|"FAILED"|"CANCELLED";
+export const ACTIVE_TRANSFER_STATUSES=["PENDING","SUBMITTING","PROCESSING","REVIEW"] as const;
+export type TransferStatus="PENDING"|"SUBMITTING"|"PROCESSING"|"REVIEW"|"COMPLETED"|"FAILED"|"CANCELLED";
 export function withdrawalWebhookTarget(event:string,providerStatus:unknown):TransferStatus|null{
  if(event==="withdraw.success"&&providerStatus==="SUCCESS")return "COMPLETED";
  if(event==="withdraw.failed"&&providerStatus==="FAILED")return "FAILED";
