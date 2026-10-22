@@ -30,7 +30,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
     (item.providerTransactionId && item.providerTransactionId !== transactionId)) return "mismatch";
 
   // Blockradar documents withdraw.success as chain-confirmed; its example payload omits confirmed.
-  if (event === "withdraw.success" && (data.status !== "SUCCESS" || data.confirmed === false || typeof data.hash !== "string")) return "unconfirmed";
+  if (event === "withdraw.success" && (data.status !== "COMPLETED" || data.confirmed === false || typeof data.hash !== "string")) return "unconfirmed";
   if (event !== "withdraw.success" && data.status !== "FAILED" && data.status !== "CANCELLED") return "unconfirmed";
   const result = await prisma.$transaction(async tx => {
     const targetStatus = event === "withdraw.success" ? "COMPLETED" : event === "withdraw.cancelled" ? "CANCELLED" : "FAILED";
@@ -51,14 +51,14 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
         data:{status:targetStatus==="COMPLETED"?"COMPLETE":"FAILED",
           originExternalId:transactionId,
           destinationExternalId:typeof data.hash==="string"?data.hash:null,
-          ...(targetStatus==="SUCCESS"?{completedAt:new Date()}:{})},
+          ...(targetStatus==="COMPLETED"?{completedAt:new Date()}:{})},
       });
       if(changedTreasury.count!==1)throw new Error("Treasury settlement mismatch");
     }
 
     // Only verified payout success consumes the user balance; failed payouts release
     // their derived pending reservation by leaving the pending status set.
-    if(targetStatus==="SUCCESS"){
+    if(targetStatus==="COMPLETED"){
       const changedUser=await tx.user.updateMany({
         where:{id:item.userId,unallocated:{gte:item.grossUsdcMicros}},
         data:{unallocated:{decrement:item.grossUsdcMicros}},
