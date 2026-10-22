@@ -8,14 +8,15 @@ function date(d:Date|null){return d?d.toLocaleString("en-US",{dateStyle:"medium"
 export default async function EarnPage(){
  const user=await requireUser();
  const account=await prisma.user.findUniqueOrThrow({where:{id:user.id},select:{unallocated:true}});
- const [positions,allocations,deallocations,strategies,withdrawalReservations]=await Promise.all([
+ const [positions,allocations,deallocations,strategies,withdrawalReservations,allocationReservations]=await Promise.all([
   prisma.investorPosition.findMany({where:{userId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}]}),
   prisma.positionAllocation.findMany({where:{userId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}],take:100}),
   prisma.positionDeallocation.findMany({where:{userId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}],take:100}),
   prisma.strategy.findMany({where:{isActive:true,isPublic:true},orderBy:{name:"asc"}}),
   prisma.investorWithdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING"]}},_sum:{grossUsdcMicros:true}}),
+  prisma.positionAllocation.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING"]}},_sum:{amountUsdcMicros:true}}),
  ]);
- const u=account.unallocated,w=withdrawalReservations._sum.grossUsdcMicros??0n,a=allocations.filter(x=>["PENDING","SUBMITTING","PROCESSING"].includes(x.status)).reduce((total,x)=>total+x.amountUsdcMicros,0n);
+ const u=account.unallocated,w=withdrawalReservations._sum.grossUsdcMicros??0n,a=allocationReservations._sum.amountUsdcMicros??0n;
  const allocated=positions.reduce((total,x)=>total+x.principalUsdcMicros,0n);
  const available=u>w+a?u-w-a:0n;
  return <Shell><div className="mx-auto max-w-6xl space-y-7">
