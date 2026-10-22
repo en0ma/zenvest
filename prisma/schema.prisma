@@ -25,6 +25,7 @@ model User {
   unallocated BigInt @default(0)
   depositWallet InvestorDepositWallet?
   withdrawals InvestorWithdrawal[]
+  webhookDeadLater WebhookDeadLater[]
   positions InvestorPosition[]
   positionAllocations PositionAllocation[]
   positionDeallocations PositionDeallocation[]
@@ -377,4 +378,19 @@ model TreasuryTransfer {
   @@index([originExternalId])
   @@index([destinationExternalId])
   @@map("treasury_transactions")
+}
+
+/** Signed, late success webhooks for withdrawals already marked FAILED. */
+model WebhookDeadLater {
+  id String @id @default(cuid())
+  kind String @db.VarChar(32)
+  userId String @map("user_id")
+  user User @relation(fields:[userId],references:[id],onDelete:Restrict)
+  reference String @db.VarChar(180)
+  providerTransactionId String @map("provider_transaction_id") @db.VarChar(180)
+  payload Json
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([kind,reference,providerTransactionId])
+  @@index([userId,createdAt])
+  @@map("webhook_dead_later")
 }
