@@ -5,6 +5,7 @@ import {submitBlockradarPayout,withdrawalReference} from "./blockradar-payout";
 import {readBlockradarUsdcBalance} from "./blockradar-master-balance";
 import {WITHDRAWAL_FEE_USDC_MICROS} from "./withdrawal-fee";
 import {masterCustodyCoversTreasury} from "./withdrawal-worker-rules";
+import {scheduleWithdrawalRetry,MAX_WITHDRAWAL_ATTEMPTS} from "./withdrawal-retry";
 
 export async function processPendingWithdrawal(){
  const {key,walletId}=blockradarConfig();
@@ -12,7 +13,14 @@ export async function processPendingWithdrawal(){
  if(!assetId)throw new Error("Missing Blockradar asset ID");
  const master=await prisma.treasury.findUnique({where:{kind:"DEPOSIT"}});
  if(!master||master.walletId!==walletId||master.source!=="MASTER_WALLET"||master.asset!=="USDC")throw new Error("Missing master deposit treasury");
- // One claim per invocation; no automatic resubmission after a provider call.
+ // Revisit due REVIEW records first without resending a transfer.
+ const due=await prisma.investorWithdrawal.findFirst({where:{status:"REVIEW",nextRetry:{lte:new Date()},attempts:{lt:MAX_WITHDRAWAL_ATTEMPTS}},orderBy:{nextRetry:"asc"}});
+ if(due){
+  const schedule=scheduleWithdrawalRetry(due.attempts,new Date());
+  const changed=await prisma.investorWithdrawal.updateMany({where:{id:due.id,status:"REVIEW",attempts:due.attempts,nextRetry:{lte:new Date()}},data:{attempts:schedule.attempts,nextRetry:schedule.nextRetry}});
+  // No blind resubmission: the provider might have paid on the first call.
+  return changed.count===1?(schedule.nextRetry?"reconciliation_scheduled":"reconciliation_exhausted"):"already_claimed";
+ }
  const candidate=await prisma.investorWithdrawal.findFirst({where:{status:"PENDING",treasuryId:null},orderBy:[{updatedAt:"asc"},{createdAt:"asc"}]});
  if(!candidate)return "empty";
  const claim=await prisma.$transaction(async tx=>{
@@ -69,11 +77,12 @@ export async function processPendingWithdrawal(){
    },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
    return "preflight_retry";
   }
+  const retry=scheduleWithdrawalRetry(0,new Date());
   await prisma.investorWithdrawal.updateMany({where:{id:candidate.id,status:"SUBMITTING"},data:{
-    status:"PROCESSING",failureCode:"PAYOUT_RESPONSE_UNKNOWN"
+    status:"REVIEW",failureCode:"PAYOUT_RESPONSE_UNKNOWN",attempts:retry.attempts,nextRetry:retry.nextRetry
   }});
-  // A timeout/invalid response can occur after Blockradar accepted the payout.
-  // Do not re-send until provider transaction is positively reconciled.
-  return "awaiting_webhook";
+  // A timeout can hide an accepted payout. REVIEW retains the balance hold and
+  // allows scheduled reconciliation; it never resubmits a potentially paid transfer.
+  return "review_scheduled";
  }
 }
