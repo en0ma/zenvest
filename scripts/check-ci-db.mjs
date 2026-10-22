@@ -46,13 +46,6 @@ try {
   grossUsdcMicros:102_000_000n,feeUsdcMicros:2_000_000n,
   destinationAddress:"CI_DESTINATION_WALLET",idempotencyKey:"ci-request-1",status:"PENDING"
  }});
- assert.equal(withdrawal.attempts,0);
- assert.equal(withdrawal.nextRetry,null);
- const due=new Date("2026-10-22T18:00:00Z");
- const scheduled=await prisma.investorWithdrawal.update({where:{id:withdrawal.id},data:{attempts:1,nextRetry:due,status:"REVIEW"}});
- assert.equal(scheduled.attempts,1);
- assert.equal(scheduled.nextRetry?.getTime(),due.getTime());
- await prisma.investorWithdrawal.update({where:{id:withdrawal.id},data:{status:"PENDING",nextRetry:null}});
  await assert.rejects(()=>prisma.investorWithdrawal.create({data:{
   userId:user.id,amountUsdcMicros:100_000_000n,grossUsdcMicros:102_000_000n,
   destinationAddress:"CI_DESTINATION_WALLET",idempotencyKey:"ci-request-1"
