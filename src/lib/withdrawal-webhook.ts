@@ -8,8 +8,8 @@ import {WITHDRAWAL_FEE_USDC_MICROS} from "@/lib/withdrawal-fee";
 export async function handleWithdrawalWebhook(event: string, data: Record<string,unknown>, masterWalletId: string) {
   if (!["withdraw.success","withdraw.failed","withdraw.cancelled"].includes(event)) return "ignored";
   const reference = data.reference;
-  if (typeof reference !== "string" || !/^zenvest-withdrawal:c[a-z0-9]{10,40}$/.test(reference)) return "unrelated";
-  const id = reference.slice("zenvest-withdrawal:".length);
+  if (typeof reference !== "string" || !/^c[a-z0-9]{10,40}$/.test(reference)) return "unrelated";
+  const id = reference;
   const item = await prisma.investorWithdrawal.findUnique({where:{id},include:{treasury:true}});
   if (!item) return "unknown_withdrawal";
   if(!item.treasury || item.treasury.direction!=="WITHDRAWAL" || item.treasury.feeUsdcMicros!==item.feeUsdcMicros || item.feeUsdcMicros<WITHDRAWAL_FEE_USDC_MICROS || item.treasury.amountUsdcMicros!==item.amountUsdcMicros)return "treasury_mismatch";
