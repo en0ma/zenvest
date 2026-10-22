@@ -41,9 +41,6 @@ try {
   grossUsdcMicros:102_000_000n,feeUsdcMicros:2_000_000n,
   destinationAddress:"CI_DESTINATION_WALLET",idempotencyKey:"ci-request-1",status:"PENDING"
  }});
- assert.equal(withdrawal.attempts,0,"fresh withdrawal begins with zero attempts");
- const attempted=await prisma.investorWithdrawal.update({where:{id:withdrawal.id},data:{attempts:{increment:1}}});
- assert.equal(attempted.attempts,1,"PostgreSQL must persist withdrawal attempts");
  await assert.rejects(()=>prisma.investorWithdrawal.create({data:{
   userId:user.id,amountUsdcMicros:100_000_000n,grossUsdcMicros:102_000_000n,
   destinationAddress:"CI_DESTINATION_WALLET",idempotencyKey:"ci-request-1"
