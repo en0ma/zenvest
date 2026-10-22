@@ -12,7 +12,7 @@ export async function processPendingWithdrawal(){
  if(!assetId)throw new Error("Missing Blockradar asset ID");
  const master=await prisma.treasury.findUnique({where:{kind:"DEPOSIT"}});
  if(!master||master.walletId!==walletId||master.source!=="MASTER_WALLET"||master.asset!=="USDC")throw new Error("Missing master deposit treasury");
- // One claim per invocation; unknown submitted outcomes remain in REVIEW.
+ // One claim per invocation; no automatic resubmission after a provider call.
  const candidate=await prisma.investorWithdrawal.findFirst({where:{status:"PENDING",treasuryId:null},orderBy:[{updatedAt:"asc"},{createdAt:"asc"}]});
  if(!candidate)return "empty";
  const claim=await prisma.$transaction(async tx=>{
@@ -20,13 +20,13 @@ export async function processPendingWithdrawal(){
   if(!current||current.status!=="PENDING"||current.treasuryId)return false;
   if(current.grossUsdcMicros!==current.amountUsdcMicros+current.feeUsdcMicros||current.feeUsdcMicros<WITHDRAWAL_FEE_USDC_MICROS)throw new Error("Withdrawal totals mismatch");
   const balance=await tx.user.findUniqueOrThrow({where:{id:current.userId}});
-  const pending=await tx.investorWithdrawal.aggregate({where:{userId:current.userId,status:{in:["PENDING","PROCESSING","REVIEW","SUBMITTING"]},id:{not:current.id}},_sum:{grossUsdcMicros:true}});
-  const allocations=await tx.positionAllocation.aggregate({where:{userId:current.userId,status:{in:["PENDING","ALLOCATING","REVIEW"]}},_sum:{amountUsdcMicros:true}});
+  const pending=await tx.investorWithdrawal.aggregate({where:{userId:current.userId,status:{in:["PENDING","SUBMITTING","PROCESSING"]},id:{not:current.id}},_sum:{grossUsdcMicros:true}});
+  const allocations=await tx.positionAllocation.aggregate({where:{userId:current.userId,status:{in:["PENDING","SUBMITTING","PROCESSING"]}},_sum:{amountUsdcMicros:true}});
   if(balance.unallocated-current.grossUsdcMicros-(pending._sum.grossUsdcMicros??0n)-(allocations._sum.amountUsdcMicros??0n)<0n)throw new Error("User funds are not available");
   const locked=await tx.investorWithdrawal.updateMany({where:{id:current.id,status:"PENDING",treasuryId:null},data:{status:"SUBMITTING"}});
   if(locked.count!==1)return false;
   const transfer=await tx.treasuryTransfer.create({data:{
-   direction:"WITHDRAWAL",status:"REVIEW",assetId,asset:"USDC",amountUsdcMicros:current.amountUsdcMicros,
+   direction:"WITHDRAWAL",status:"PENDING",assetId,asset:"USDC",amountUsdcMicros:current.amountUsdcMicros,
    feeUsdcMicros:current.feeUsdcMicros,destinationWalletAddress:current.destinationAddress,
    network:"solana",masterWalletAddress:master.walletAddress,masterWalletId:walletId,
    reference:withdrawalReference(current.id)
@@ -51,7 +51,7 @@ export async function processPendingWithdrawal(){
   providerSubmissionStarted=true;
   const receipt=await submitBlockradarPayout({id:candidate.id,userId:candidate.userId,address:candidate.destinationAddress,amount:candidate.amountUsdcMicros},{key,walletId,assetId});
   await prisma.$transaction(async tx=>{
-   await tx.treasuryTransfer.updateMany({where:{reference:withdrawalReference(candidate.id),status:"REVIEW"},data:{status:"PROCESSING",originExternalId:receipt.id,destinationExternalId:receipt.hash}});
+   await tx.treasuryTransfer.updateMany({where:{reference:withdrawalReference(candidate.id),status:"PENDING"},data:{status:"PROCESSING",originExternalId:receipt.id,destinationExternalId:receipt.hash}});
    await tx.investorWithdrawal.updateMany({where:{id:candidate.id,status:"SUBMITTING"},data:{status:"PROCESSING",providerTransactionId:receipt.id,transactionHash:receipt.hash}});
   });
   return "submitted";
@@ -65,15 +65,15 @@ export async function processPendingWithdrawal(){
       status:"PENDING",treasuryId:null,
       failureCode:null
     }});
-    await tx.treasuryTransfer.deleteMany({where:{reference:withdrawalReference(candidate.id),status:"REVIEW",originExternalId:null}});
+    await tx.treasuryTransfer.deleteMany({where:{reference:withdrawalReference(candidate.id),status:"PENDING",originExternalId:null}});
    },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
    return "preflight_retry";
   }
   await prisma.investorWithdrawal.updateMany({where:{id:candidate.id,status:"SUBMITTING"},data:{
-    status:"REVIEW",failureCode:"PAYOUT_RECONCILIATION_REQUIRED"
+    status:"PROCESSING",failureCode:"PAYOUT_RESPONSE_UNKNOWN"
   }});
   // A timeout/invalid response can occur after Blockradar accepted the payout.
   // Do not re-send until provider transaction is positively reconciled.
-  return "review_required";
+  return "awaiting_webhook";
  }
 }
