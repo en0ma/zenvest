@@ -1,4 +1,4 @@
-import { type Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { journeyLog } from "./journey-log.ts";
 import { prisma } from "./db.ts";
 import { withdrawalSplit } from "./treasury-accounting.ts";
