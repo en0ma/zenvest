@@ -40,7 +40,7 @@ export async function processPendingAllocations(){
    orderBy:[{createdAt:"asc"},{id:"asc"}],take:100,
   });
   if(!rows.length)return null;
-  const locked=await tx.positionAllocation.updateMany({where:{id:{in:rows.map(r=>r.id)},status:"PENDING",treasuryId:null},data:{status:"SUBMITTING",providerReference:reference}});
+  const locked=await tx.positionAllocation.updateMany({where:{id:{in:rows.map(r=>r.id)},status:"PENDING",treasuryId:null},data:{status:"SUBMITTING"}});
   if(locked.count!==rows.length)throw new Error("Concurrent allocation claim");
   const amount=rows.reduce((n,r)=>n+r.amountUsdcMicros,0n);
   if(amount<=0n)throw new Error("Invalid allocation batch");
@@ -49,7 +49,7 @@ export async function processPendingAllocations(){
    feeUsdcMicros:0n,destinationWalletAddress:address,masterWalletAddress:master.walletAddress,
    masterWalletId:config.walletId,network:"solana",reference,
   }});
-  await tx.positionAllocation.updateMany({where:{id:{in:rows.map(r=>r.id)},status:"SUBMITTING",providerReference:reference},data:{treasuryId:transfer.id}});
+  await tx.positionAllocation.updateMany({where:{id:{in:rows.map(r=>r.id)},status:"SUBMITTING"},data:{treasuryId:transfer.id}});
   return {amount,transferId:transfer.id};
  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
  if(!batch)return "already_claimed";
@@ -73,7 +73,7 @@ export async function processPendingAllocations(){
   if(!submissionStarted){
    await prisma.$transaction(async tx=>{
     const changed=await tx.treasuryTransfer.deleteMany({where:{id:batch.transferId,status:"PENDING",originExternalId:null}});
-    if(changed.count)await tx.positionAllocation.updateMany({where:{treasuryId:batch.transferId,status:"SUBMITTING"},data:{status:"PENDING",treasuryId:null,providerReference:null}});
+    if(changed.count)await tx.positionAllocation.updateMany({where:{treasuryId:batch.transferId,status:"SUBMITTING"},data:{status:"PENDING",treasuryId:null}});
    },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
    return "preflight_retry";
   }
