@@ -36,7 +36,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
   const result = await prisma.$transaction(async tx => {
     // Conditional transition makes duplicate webhooks harmless.
     const updated = await tx.investorWithdrawal.updateMany({
-      where:{id,status:{in:["PROCESSING","SUBMITTING"]}},
+      where:{id,status:{in:["PROCESSING","SUBMITTING","REVIEW"]}},
       data:{status:targetStatus,providerTransactionId:transactionId,
         transactionHash:typeof data.hash === "string" ? data.hash : item.transactionHash,
         ...(targetStatus === "COMPLETED" ? {completedAt:new Date()} : {failureCode:event})},
