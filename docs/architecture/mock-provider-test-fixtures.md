@@ -63,8 +63,8 @@ The authoritative prelaunch DB is defined by `prisma/schema.prisma`; historical 
 - Fees were accepted and stored at investor submission time; the worker does not call the network fee estimation endpoint again.
 - Master USDC custody threshold remains `DEPOSIT + DEALLOCATE` treasury balance.
 
-## Ambiguous payout review schedule
-- Both withdrawal and allocation reservations count `PENDING`, `SUBMITTING`, `PROCESSING`, and `REVIEW`.
-- `withdrawals.attempts` defaults to zero and `withdrawals.next_retry` is nullable. On an ambiguous Blockradar submission, the worker records `REVIEW`, increments attempts, and schedules the next review for `now + attempts * 15 minutes`: 15, 30, 45, and 60 minutes.
-- The fifth review increments attempts to 5 and clears `next_retry` to stop background polling. **It does not mark FAILED** because an HTTP timeout cannot prove the original transfer failed; a late Blockradar success webhook must still settle it. A verified failure or cancellation webhook can safely mark a transaction `FAILED`/`CANCELLED` and release its hold.
-- No second `POST /withdraw` is sent for an ambiguous attempt, since Blockradar has no verified idempotent submission guarantee. These scheduled passes are reconciliation reminders, not duplicate money transfers. Provider transaction lookup and automatic clearing of exhausted records remain unimplemented.
+## Two-hour withdrawal REVIEW expiry (2026-10-22)
+- No withdrawal `attempts` or `next_retry` fields. No timed payout re-submission.
+- When a Blockradar submission has an uncertain outcome, the withdrawal enters `REVIEW` and its full gross amount remains reserved. Valid signed withdrawal webhooks still move REVIEW to COMPLETED, FAILED, or CANCELLED.
+- The withdrawal CRON checks one expired REVIEW record per invocation: if `created_at <= now - 2 hours`, transactionally change REVIEW to FAILED with `REVIEW_TIMEOUT` and the matching pending/processing treasury transfer to FAILED. The terminal state releases the pending investor reservation; the worker moves to other queued withdrawals on later invocations.
+- **Custody caveat:** Two-hour timeout is a user-requested policy, not a provider-confirmed cancellation. If Blockradar accepted an ambiguous payout and confirms it only after expiry, the late success webhook will not settle an already FAILED withdrawal. An operator must reconcile such exceptions before users spend the released balance. No automatic duplicate payout is issued.
