@@ -4,9 +4,10 @@ import {submitBlockradarPayout,withdrawalReference} from "../src/lib/blockradar-
 const id="c1234567890abc",userId="ci-user",address="11111111111111111111111111111111";
 const config={key:"mock",walletId:"master",assetId:"usdc-asset"};
 function receipt(patch:Record<string,unknown>={}){
- return new Response(JSON.stringify({statusCode:200,data:{id:"provider-id",status:"PENDING",amount:"7.968750",recipientAddress:address,reference:withdrawalReference(id),...patch}}),{status:200});
+ return new Response(JSON.stringify({statusCode:200,data:{id:"provider-id",status:"PENDING",amount:"7.968750",recipientAddress:address,reference:withdrawalReference(id),metadata:{userId},...patch}}),{status:200});
 }
-test("payout uses master wallet Blockradar endpoint, exact micro amount and stable reference",async()=>{
+test("payout uses withdrawal ID as reference, user ID metadata and exact USDC amount",async()=>{
+ assert.equal(withdrawalReference(id),id);
  let calls=0;
  const mock:typeof fetch=async(url,init)=>{
   calls++;assert.equal(String(url),"https://api.blockradar.co/v1/wallets/master/withdraw");
