@@ -62,3 +62,9 @@ The authoritative prelaunch DB is defined by `prisma/schema.prisma`; historical 
 - When the provider call is made but its outcome cannot be determined, retain PROCESSING without resending. This prevents duplicate payments despite no explicit provider idempotent-submission guarantee. A late signed webhook may still complete it. This does not create a separate review status.
 - Fees were accepted and stored at investor submission time; the worker does not call the network fee estimation endpoint again.
 - Master USDC custody threshold remains `DEPOSIT + DEALLOCATE` treasury balance.
+
+## Ambiguous payout review schedule
+- Both withdrawal and allocation reservations count `PENDING`, `SUBMITTING`, `PROCESSING`, and `REVIEW`.
+- `withdrawals.attempts` defaults to zero and `withdrawals.next_retry` is nullable. On an ambiguous Blockradar submission, the worker records `REVIEW`, increments attempts, and schedules the next review for `now + attempts * 15 minutes`: 15, 30, 45, and 60 minutes.
+- The fifth review increments attempts to 5 and clears `next_retry` to stop background polling. **It does not mark FAILED** because an HTTP timeout cannot prove the original transfer failed; a late Blockradar success webhook must still settle it. A verified failure or cancellation webhook can safely mark a transaction `FAILED`/`CANCELLED` and release its hold.
+- No second `POST /withdraw` is sent for an ambiguous attempt, since Blockradar has no verified idempotent submission guarantee. These scheduled passes are reconciliation reminders, not duplicate money transfers. Provider transaction lookup and automatic clearing of exhausted records remain unimplemented.
