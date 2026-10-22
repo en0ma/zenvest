@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     if (!event.data || typeof event.data !== "object") return NextResponse.json({error:"Missing withdrawal data"},{status:400});
     // Settle already submitted transfers even if new withdrawal requests are paused.
     try {
-      const outcome = await handleWithdrawalWebhook(event.event,event.data,masterWalletId);
+      const outcome = await handleWithdrawalWebhook(event.event,event.data,masterWalletId,payload as Record<string,unknown>);
       log("withdrawal_"+outcome,200);
       return NextResponse.json({message:"success"},{status:200,headers:{"Cache-Control":"no-store"}});
     } catch(error) {
