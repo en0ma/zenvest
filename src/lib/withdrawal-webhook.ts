@@ -6,7 +6,7 @@ import {WITHDRAWAL_FEE_USDC_MICROS} from "@/lib/withdrawal-fee";
 import {withdrawalWebhookTarget} from "@/lib/transfer-lifecycle";
 
 // Called only after the Blockradar HMAC signature has been verified.
-export async function handleWithdrawalWebhook(event: string, data: Record<string,unknown>, masterWalletId: string) {
+export async function handleWithdrawalWebhook(event: string, data: Record<string,unknown>, masterWalletId: string, rawPayload?: Record<string,unknown>) {
   if (!["withdraw.success","withdraw.failed","withdraw.cancelled"].includes(event)) return "ignored";
   const reference = data.reference;
   if (typeof reference !== "string" || !/^c[a-z0-9]{10,40}$/.test(reference)) return "unrelated";
@@ -34,6 +34,18 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
   const targetStatus=withdrawalWebhookTarget(event,data.status);
   if (!targetStatus || (event==="withdraw.success" && (data.confirmed===false || typeof data.hash!=="string"))) return "unconfirmed";
   const result = await prisma.$transaction(async tx => {
+    // Record a signed, verified success that arrives after a FAILED withdrawal.
+    // The conditional settlement below cannot debit a FAILED withdrawal.
+    const saveLateSuccess=async()=>{
+      const row=await tx.investorWithdrawal.findUnique({where:{id},select:{status:true}});
+      if(event!=="withdraw.success" || row?.status!=="FAILED")return false;
+      await tx.webhookDeadLater.createMany({data:[{
+        kind:"withdrawal",userId:item.userId,reference:id,providerTransactionId:transactionId,
+        payload:JSON.parse(JSON.stringify(rawPayload??{event,data})) as Prisma.InputJsonValue,
+      }],skipDuplicates:true});
+      return true;
+    };
+    if(await saveLateSuccess())return "dead_letter";
     // Conditional transition makes duplicate webhooks harmless.
     const updated = await tx.investorWithdrawal.updateMany({
       where:{id,status:{in:["PROCESSING","SUBMITTING","REVIEW"]}},
@@ -41,7 +53,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
         transactionHash:typeof data.hash === "string" ? data.hash : item.transactionHash,
         ...(targetStatus === "COMPLETED" ? {completedAt:new Date()} : {failureCode:event})},
     });
-    if (updated.count !== 1) return false;
+    if (updated.count !== 1) return await saveLateSuccess() ? "dead_letter" : "duplicate";
     if (!item.treasuryId) throw new Error("Missing treasury transaction for payout");
     {
       const changedTreasury=await tx.treasuryTransfer.updateMany({
@@ -95,8 +107,8 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
           description:"Verified Solana USDC payout"},
       });
     }
-    return true;
+    return "settled";
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
-  journeyLog("info","withdrawal_settlement",result?event:"duplicate",{userId:item.userId,withdrawalId:id,providerTransactionId:transactionId});
-  return result ? "settled" : "duplicate";
+  journeyLog("info","withdrawal_settlement",result==="settled"?event:result,{userId:item.userId,withdrawalId:id,providerTransactionId:transactionId});
+  return result;
 }
