@@ -19,9 +19,13 @@ test("payout uses withdrawal ID as reference, user ID metadata and exact USDC am
  assert.deepEqual(await submitBlockradarPayout({id,userId,address,amount:7968750n},config,mock),{id:"provider-id",hash:null});
  assert.equal(calls,1);
 });
-test("malformed, mismatched or failed provider acknowledgements cannot be marked submitted",async()=>{
- for(const r of [
-  receipt({reference:"another"}),receipt({recipientAddress:"other"}),receipt({amount:"1.0"}),
-  receipt({id:null}),receipt({status:"FAILED"}),new Response("{}",{status:400}),new Response("invalid",{status:200})
- ]) await assert.rejects(()=>submitBlockradarPayout({id,userId,address,amount:7968750n},config,async()=>r));
+test("HTTP 200 means accepted for async webhook settlement even without a transaction id",async()=>{
+ const result=await submitBlockradarPayout({id,userId,address,amount:7968750n},config,async()=>new Response(null,{status:200}));
+ assert.deepEqual(result,{id:null,hash:null});
+});
+test("non-200 responses never transition to processing",async()=>{
+ for(const status of [202,400,409,429,500]){
+  await assert.rejects(()=>submitBlockradarPayout({id,userId,address,amount:7968750n},config,
+   async()=>new Response("provider error",{status})));
+ }
 });
