@@ -57,8 +57,8 @@ export async function POST(request: Request) {
     const item = await prisma.$transaction(async tx => {
       const balance=await tx.user.findUniqueOrThrow({where:{id:user.id}});
       const [withdrawalHolds,allocationHolds]=await Promise.all([
-        tx.investorWithdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING"]}},_sum:{grossUsdcMicros:true}}),
-        tx.positionAllocation.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING"]}},_sum:{amountUsdcMicros:true}}),
+        tx.investorWithdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
+        tx.positionAllocation.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
       ]);
       const holds=(withdrawalHolds._sum.grossUsdcMicros??0n)+(allocationHolds._sum.amountUsdcMicros??0n);
       if(balance.unallocated-holds<amount)return null;
