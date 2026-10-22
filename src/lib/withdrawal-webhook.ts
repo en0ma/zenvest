@@ -1,9 +1,9 @@
-import { Prisma } from "@prisma/client";
-import { journeyLog } from "@/lib/journey-log";
-import { prisma } from "@/lib/db";
-import { withdrawalSplit } from "@/lib/treasury-accounting";
-import {WITHDRAWAL_FEE_USDC_MICROS} from "@/lib/withdrawal-fee";
-import {withdrawalWebhookTarget} from "@/lib/transfer-lifecycle";
+import { type Prisma } from "@prisma/client";
+import { journeyLog } from "./journey-log.ts";
+import { prisma } from "./db.ts";
+import { withdrawalSplit } from "./treasury-accounting.ts";
+import {WITHDRAWAL_FEE_USDC_MICROS} from "./withdrawal-fee.ts";
+import {withdrawalWebhookTarget} from "./transfer-lifecycle.ts";
 
 // Called only after the Blockradar HMAC signature has been verified.
 export async function handleWithdrawalWebhook(event: string, data: Record<string,unknown>, masterWalletId: string, rawPayload?: Record<string,unknown>) {
