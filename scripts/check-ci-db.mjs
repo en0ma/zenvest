@@ -12,6 +12,11 @@ try {
  const buckets=await prisma.treasury.findMany({orderBy:{kind:"asc"}});
  assert.equal(buckets.length,7);
  assert.deepEqual(buckets.map(x=>x.kind).sort(),["ALLOCATE","DEALLOCATE","DEPOSIT","DEPOSIT_FEE","K_BANK","M_BANK","WITHDRAWAL_FEE"].sort());
+ // Verify the real PostgreSQL enum values after migration.
+ for(const name of ['WithdrawalStatus','PositionTransferStatus']){
+  const rows=await prisma.$queryRawUnsafe('SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid WHERE t.typname=$1',name);
+  assert.deepEqual(rows.map(r=>r.enumlabel).sort(),['PENDING','SUBMITTING','PROCESSING','COMPLETED','FAILED','CANCELLED'].sort());
+ }
  const schemaTables=await prisma.$queryRawUnsafe(`SELECT tablename FROM pg_tables WHERE schemaname='public'`);
  const tableNames=new Set(schemaTables.map(x=>x.tablename));
  for(const name of ["users","deposits","user_wallets","withdrawals","positions","strategy_trades","strategies","treasuries","treasury_transactions"])assert.ok(tableNames.has(name),name);
