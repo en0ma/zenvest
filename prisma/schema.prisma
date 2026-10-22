@@ -79,6 +79,7 @@ model Strategy {
   marketType MarketType @default(PREDICTION) @map("market_type")
   marketId String? @map("market_id") @db.VarChar(200)
   marketName String? @map("market_name") @db.VarChar(200)
+  kalshiWalletAddress String? @map("kalshi_wallet_address") @db.VarChar(128)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   positions InvestorPosition[]
