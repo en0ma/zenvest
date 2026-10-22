@@ -4,7 +4,8 @@ import {submitBlockradarPayout,withdrawalReference} from "../src/lib/blockradar-
 const id="c1234567890abc",userId="ci-user",address="11111111111111111111111111111111";
 const config={key:"mock",walletId:"master",assetId:"usdc-asset"};
 // Response fields follow the documented Master Wallet withdrawal 200 response.
-// https://docs.blockradar.co/en/api-reference/withdraw/master-wallet\nfunction receipt(patch:Record<string,unknown>={}){
+// https://docs.blockradar.co/en/api-reference/withdraw/master-wallet
+function receipt(patch:Record<string,unknown>={}){
  return new Response(JSON.stringify({statusCode:200,message:"Withdrawal request initiated successfully",data:{id:"provider-id",status:"PENDING",type:"WITHDRAW",amount:"7.968750",recipientAddress:address,reference:withdrawalReference(id),metadata:{userId},wallet:{id:"master"},asset:{symbol:"USDC",decimals:6},...patch}}),{status:200});
 }
 test("payout uses withdrawal ID as reference, user ID metadata and exact USDC amount",async()=>{
