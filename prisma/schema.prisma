@@ -188,14 +188,12 @@ model BlockchainDeposit {
 }
 
 enum WithdrawalStatus {
-  PROCESSING
-  SUCCESS
-  REQUESTED
-  SUBMITTING
   PENDING
+  SUBMITTING
+  PROCESSING
   COMPLETED
   FAILED
-  REVIEW
+  CANCELLED
 }
 
 model InvestorWithdrawal {
@@ -208,7 +206,7 @@ model InvestorWithdrawal {
   feeUsdcMicros BigInt @default(2000000) @map("fee_usdc_micros")
   destinationAddress String @map("destination_address") @db.VarChar(128)
   idempotencyKey String @map("idempotency_key") @db.VarChar(64)
-  status WithdrawalStatus @default(REQUESTED)
+  status WithdrawalStatus @default(PENDING)
   providerTransactionId String? @unique @map("provider_transaction_id") @db.VarChar(180)
   transactionHash String? @map("transaction_hash") @db.VarChar(180)
   failureCode String? @map("failure_code") @db.VarChar(100)
@@ -266,12 +264,11 @@ enum PositionStatus {
 
 enum PositionTransferStatus {
   PENDING
-  ALLOCATING
-  DEALLOCATING
-  ALLOCATED
-  DEALLOCATED
+  SUBMITTING
+  PROCESSING
+  COMPLETED
   FAILED
-  REVIEW
+  CANCELLED
 }
 
 model InvestorPosition {
