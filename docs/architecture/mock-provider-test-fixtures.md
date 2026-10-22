@@ -55,10 +55,10 @@ The authoritative prelaunch DB is defined by `prisma/schema.prisma`; historical 
 - `tests/blockradar-payout.test.ts`, `tests/blockradar-master-balance.test.ts` and `tests/withdrawal-network-fee.test.ts` mock Blockradar acknowledgement, custody and gas fee payloads. Live provider sandbox reconciliation and end-to-end payout-webhook PostgreSQL concurrency tests remain release readiness tasks.
 - The master-wallet balance response is currently interpreted as `data.balance` denominated in USDC units after an `assetId` filter. If Blockradar exposes a different response structure for the project's Solana wallet, the worker fails closed to `REVIEW` until a captured sandbox fixture validates the mapping. No production funds have been transferred by these tests.
 
-## Withdrawal acceptance and webhook settlement (2026-10-22)
-- Blockradar `POST /v1/wallets/{walletId}/withdraw` accepts `reference` (withdrawal ID) and `metadata: {userId}`. A valid HTTP 200 response acknowledges initiation only: `PENDING -> SUBMITTING -> PROCESSING`. Verified `withdraw.success` completes accounting; `withdraw.failed` and `withdraw.cancelled` mark FAILED and release reservation.
-- Network-fee estimate is computed once during user submission and persisted. The worker never re-quotes.
-- Available USDC subtracts pending/submitting/processing/review withdrawal gross amounts and pending/allocating/review position allocations from user unallocated funds.
-- Master-wallet USDC balance must be at least `DEPOSIT + DEALLOCATE` treasury buckets. `DEALLOCATE` was added to Prisma and CI fixtures.
-- `attempts` was removed. Pre-provider failures return to PENDING without a counter. After an ambiguous provider timeout/response, withdrawal remains REVIEW; the Blockradar documentation describes references for tracking but does not explicitly guarantee idempotent re-submission with a reused reference. Do not blindly retry such payments or double-send funds.
-- Blockradar reference: https://docs.blockradar.co/en/use-cases/withdraw-stablecoins
+## Withdrawal lifecycle (2026-10-22)
+- Investor withdrawals and position allocations share six lifecycle statuses: `PENDING -> SUBMITTING -> PROCESSING -> COMPLETED / FAILED / CANCELLED`. There is no `REVIEW` state. Kalshi allocation/deallocation transfer executors remain monitor-only until the transfer integration exists.
+- Available unallocated balance reserves gross withdrawals and allocation requests in `PENDING`, `SUBMITTING`, or `PROCESSING`; final states release the hold. Settlement debits user balance exactly once on verified successful withdrawal.
+- Provider withdrawal payload uses `reference: withdrawal.id` and `metadata: {userId}`. On a matching Blockradar HTTP 200 accepted response, the worker stores the provider transaction ID and moves to PROCESSING; final state arrives via signed webhook.
+- When the provider call is made but its outcome cannot be determined, retain PROCESSING without resending. This prevents duplicate payments despite no explicit provider idempotent-submission guarantee. A late signed webhook may still complete it. This does not create a separate review status.
+- Fees were accepted and stored at investor submission time; the worker does not call the network fee estimation endpoint again.
+- Master USDC custody threshold remains `DEPOSIT + DEALLOCATE` treasury balance.
