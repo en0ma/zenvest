@@ -191,6 +191,7 @@ enum WithdrawalStatus {
   PENDING
   SUBMITTING
   PROCESSING
+  REVIEW
   COMPLETED
   FAILED
   CANCELLED
@@ -207,6 +208,8 @@ model InvestorWithdrawal {
   destinationAddress String @map("destination_address") @db.VarChar(128)
   idempotencyKey String @map("idempotency_key") @db.VarChar(64)
   status WithdrawalStatus @default(PENDING)
+  attempts Int @default(0)
+  nextRetry DateTime? @map("next_retry")
   providerTransactionId String? @unique @map("provider_transaction_id") @db.VarChar(180)
   transactionHash String? @map("transaction_hash") @db.VarChar(180)
   failureCode String? @map("failure_code") @db.VarChar(100)
@@ -218,6 +221,7 @@ model InvestorWithdrawal {
   @@unique([userId, idempotencyKey])
   @@index([userId, createdAt])
   @@index([status, createdAt])
+  @@index([status, nextRetry])
   @@index([treasuryId])
   @@map("withdrawals")
 }
