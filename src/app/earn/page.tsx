@@ -13,9 +13,9 @@ export default async function EarnPage(){
   prisma.positionAllocation.findMany({where:{userId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}],take:100}),
   prisma.positionDeallocation.findMany({where:{userId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}],take:100}),
   prisma.strategy.findMany({where:{isActive:true,isPublic:true},orderBy:{name:"asc"}}),
-  prisma.investorWithdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","PROCESSING","PROCESSING"]}},_sum:{grossUsdcMicros:true}}),
+  prisma.investorWithdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING"]}},_sum:{grossUsdcMicros:true}}),
  ]);
- const u=account.unallocated,w=withdrawalReservations._sum.grossUsdcMicros??0n,a=allocations.filter(x=>["PENDING","PROCESSING","PROCESSING"].includes(x.status)).reduce((total,x)=>total+x.amountUsdcMicros,0n);
+ const u=account.unallocated,w=withdrawalReservations._sum.grossUsdcMicros??0n,a=allocations.filter(x=>["PENDING","SUBMITTING","PROCESSING"].includes(x.status)).reduce((total,x)=>total+x.amountUsdcMicros,0n);
  const allocated=positions.reduce((total,x)=>total+x.principalUsdcMicros,0n);
  const available=u>w+a?u-w-a:0n;
  return <Shell><div className="mx-auto max-w-6xl space-y-7">
@@ -25,7 +25,7 @@ export default async function EarnPage(){
     <div key={m.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5"><p className="text-xs text-[#64748B]">{m.label}</p><p className="mt-3 text-xl font-semibold tabular-nums text-[#11263E]">{formatUsdc(m.value)}</p></div>)}
   </section>
   <p className="text-xs text-[#64748B]">Reserved: {formatUsdc(w)} withdrawing + {formatUsdc(a)} allocating. Portfolio = allocated + unallocated; available = max(0, unallocated − reservations).</p>
-  <EarnActions strategies={strategies.map(x=>({id:x.id,name:x.name,description:x.description,min:x.minAllocationUsdcMicros.toString(),max:x.maxAllocationUsdcMicros.toString(),capacity:x.availableCapacityUsdcMicros.toString()}))} available={available.toString()} positions={positions.map(x=>({id:x.id,principal:x.principalUsdcMicros.toString(),status:x.status,created:date(x.createdAt)??"—",pending:deallocations.some(o=>o.positionId===x.id&&["PENDING","PROCESSING","PROCESSING"].includes(o.status))}))}
+  <EarnActions strategies={strategies.map(x=>({id:x.id,name:x.name,description:x.description,min:x.minAllocationUsdcMicros.toString(),max:x.maxAllocationUsdcMicros.toString(),capacity:x.availableCapacityUsdcMicros.toString()}))} available={available.toString()} positions={positions.map(x=>({id:x.id,principal:x.principalUsdcMicros.toString(),status:x.status,created:date(x.createdAt)??"—",pending:deallocations.some(o=>o.positionId===x.id&&["PENDING","SUBMITTING","PROCESSING"].includes(o.status))}))}
    operations={[...allocations.map(x=>({id:x.id,positionId:x.positionId,type:"ALLOCATE",amount:x.amountUsdcMicros.toString(),status:x.status,created:date(x.createdAt)??"—",completed:date(x.completedAt)})),...deallocations.map(x=>({id:x.id,positionId:x.positionId,type:"DEALLOCATE",amount:x.amountUsdcMicros.toString(),status:x.status,created:date(x.createdAt)??"—",completed:date(x.completedAt)}))].sort((a,b)=>b.created.localeCompare(a.created))}/>
  </div></Shell>;
 }
