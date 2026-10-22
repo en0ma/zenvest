@@ -3,6 +3,7 @@ import { journeyLog } from "@/lib/journey-log";
 import { prisma } from "@/lib/db";
 import { withdrawalSplit } from "@/lib/treasury-accounting";
 import {WITHDRAWAL_FEE_USDC_MICROS} from "@/lib/withdrawal-fee";
+import {withdrawalWebhookTarget} from "@/lib/transfer-lifecycle";
 
 // Called only after the Blockradar HMAC signature has been verified.
 export async function handleWithdrawalWebhook(event: string, data: Record<string,unknown>, masterWalletId: string) {
@@ -30,10 +31,9 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
     (item.providerTransactionId && item.providerTransactionId !== transactionId)) return "mismatch";
 
   // Blockradar documents withdraw.success as chain-confirmed; its example payload omits confirmed.
-  if (event === "withdraw.success" && (data.status !== "SUCCESS" || data.confirmed === false || typeof data.hash !== "string")) return "unconfirmed";
-  if (event !== "withdraw.success" && data.status !== "FAILED" && data.status !== "CANCELLED") return "unconfirmed";
+  const targetStatus=withdrawalWebhookTarget(event,data.status);
+  if (!targetStatus || (event==="withdraw.success" && (data.confirmed===false || typeof data.hash!=="string"))) return "unconfirmed";
   const result = await prisma.$transaction(async tx => {
-    const targetStatus = event === "withdraw.success" ? "COMPLETED" : event === "withdraw.cancelled" ? "CANCELLED" : "FAILED";
     // Conditional transition makes duplicate webhooks harmless.
     const updated = await tx.investorWithdrawal.updateMany({
       where:{id,status:{in:["PROCESSING","SUBMITTING"]}},
