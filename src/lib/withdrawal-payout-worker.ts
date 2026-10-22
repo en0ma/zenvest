@@ -5,7 +5,7 @@ import {submitBlockradarPayout,withdrawalReference} from "./blockradar-payout";
 import {readBlockradarUsdcBalance} from "./blockradar-master-balance";
 import {WITHDRAWAL_FEE_USDC_MICROS} from "./withdrawal-fee";
 import {masterCustodyCoversTreasury} from "./withdrawal-worker-rules";
-import {scheduleWithdrawalRetry,MAX_WITHDRAWAL_ATTEMPTS} from "./withdrawal-retry";
+import {reviewExpiryCutoff} from "./withdrawal-review-timeout";
 
 export async function processPendingWithdrawal(){
  const {key,walletId}=blockradarConfig();
@@ -13,13 +13,28 @@ export async function processPendingWithdrawal(){
  if(!assetId)throw new Error("Missing Blockradar asset ID");
  const master=await prisma.treasury.findUnique({where:{kind:"DEPOSIT"}});
  if(!master||master.walletId!==walletId||master.source!=="MASTER_WALLET"||master.asset!=="USDC")throw new Error("Missing master deposit treasury");
- // Revisit due REVIEW records first without resending a transfer.
- const due=await prisma.investorWithdrawal.findFirst({where:{status:"REVIEW",nextRetry:{lte:new Date()},attempts:{lt:MAX_WITHDRAWAL_ATTEMPTS}},orderBy:{nextRetry:"asc"}});
- if(due){
-  const schedule=scheduleWithdrawalRetry(due.attempts,new Date());
-  const changed=await prisma.investorWithdrawal.updateMany({where:{id:due.id,status:"REVIEW",attempts:due.attempts,nextRetry:{lte:new Date()}},data:{attempts:schedule.attempts,nextRetry:schedule.nextRetry}});
-  // No blind resubmission: the provider might have paid on the first call.
-  return changed.count===1?(schedule.nextRetry?"reconciliation_scheduled":"reconciliation_exhausted"):"already_claimed";
+ // Expire REVIEW records two hours after their original creation time.
+ // Conditional updates and the matching treasury mutation remain atomic.
+ const expired=await prisma.investorWithdrawal.findFirst({
+  where:{status:"REVIEW",createdAt:{lte:reviewExpiryCutoff(new Date())},treasuryId:{not:null}},
+  orderBy:{createdAt:"asc"},
+ });
+ if(expired){
+  const expiredNow=await prisma.$transaction(async tx=>{
+   const changed=await tx.investorWithdrawal.updateMany({
+    where:{id:expired.id,status:"REVIEW",createdAt:{lte:reviewExpiryCutoff(new Date())}},
+    data:{status:"FAILED",failureCode:"REVIEW_TIMEOUT"},
+   });
+   if(changed.count!==1)return false;
+   if(!expired.treasuryId)throw new Error("Missing withdrawal treasury transfer");
+   const treasury=await tx.treasuryTransfer.updateMany({
+    where:{id:expired.treasuryId,direction:"WITHDRAWAL",status:{in:["PENDING","PROCESSING"]}},
+    data:{status:"FAILED"},
+   });
+   if(treasury.count!==1)throw new Error("Withdrawal treasury transfer transition failed");
+   return true;
+  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
+  return expiredNow?"review_expired":"already_settled";
  }
  const candidate=await prisma.investorWithdrawal.findFirst({where:{status:"PENDING",treasuryId:null},orderBy:[{updatedAt:"asc"},{createdAt:"asc"}]});
  if(!candidate)return "empty";
@@ -77,12 +92,11 @@ export async function processPendingWithdrawal(){
    },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
    return "preflight_retry";
   }
-  const retry=scheduleWithdrawalRetry(0,new Date());
   await prisma.investorWithdrawal.updateMany({where:{id:candidate.id,status:"SUBMITTING"},data:{
-    status:"REVIEW",failureCode:"PAYOUT_RESPONSE_UNKNOWN",attempts:retry.attempts,nextRetry:retry.nextRetry
+    status:"REVIEW",failureCode:"PAYOUT_RESPONSE_UNKNOWN"
   }});
-  // A timeout can hide an accepted payout. REVIEW retains the balance hold and
-  // allows scheduled reconciliation; it never resubmits a potentially paid transfer.
-  return "review_scheduled";
+  // REVIEW retains the balance hold until webhook settlement or the two-hour
+  // policy deadline; the worker never resubmits a potentially paid transfer.
+  return "review_pending";
  }
 }
