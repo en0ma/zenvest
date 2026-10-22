@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {ACTIVE_TRANSFER_STATUSES,withdrawalWebhookTarget,availableUnallocatedAfterReservations} from "../src/lib/transfer-lifecycle.ts";
 test("only pending, submitting, processing reserve funds",()=>{
- assert.deepEqual([...ACTIVE_TRANSFER_STATUSES],["PENDING","SUBMITTING","PROCESSING"]);
+ assert.deepEqual([...ACTIVE_TRANSFER_STATUSES],["PENDING","SUBMITTING","PROCESSING","REVIEW"]);
  for(const final of ["COMPLETED","FAILED","CANCELLED"]){
   assert.equal(ACTIVE_TRANSFER_STATUSES.some(x=>x===final),false);
  }
