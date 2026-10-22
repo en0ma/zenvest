@@ -72,7 +72,7 @@ try {
 
  // Conditional transition is an idempotency gate under PostgreSQL transactions.
  const settlement=async()=>prisma.$transaction(async tx=>{
-  const claim=await tx.investorWithdrawal.updateMany({where:{id:withdrawal.id,status:"PROCESSING"},data:{status:"SUCCESS"}});
+  const claim=await tx.investorWithdrawal.updateMany({where:{id:withdrawal.id,status:"PROCESSING"},data:{status:"COMPLETED"}});
   if(claim.count===0)return false;
   const record=await tx.treasuryTransfer.updateMany({where:{id:payout.id,status:"PROCESSING"},data:{status:"COMPLETE"}});
   if(record.count!==1)throw new Error("missing matched payout ledger");
