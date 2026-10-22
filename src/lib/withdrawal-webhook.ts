@@ -33,22 +33,22 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
   if (event === "withdraw.success" && (data.status !== "SUCCESS" || data.confirmed === false || typeof data.hash !== "string")) return "unconfirmed";
   if (event !== "withdraw.success" && data.status !== "FAILED" && data.status !== "CANCELLED") return "unconfirmed";
   const result = await prisma.$transaction(async tx => {
-    const targetStatus = event === "withdraw.success" ? "SUCCESS" : "FAILED";
+    const targetStatus = event === "withdraw.success" ? "COMPLETED" : event === "withdraw.cancelled" ? "CANCELLED" : "FAILED";
     // Conditional transition makes duplicate webhooks harmless.
     const updated = await tx.investorWithdrawal.updateMany({
-      where:{id,status:{in:["PROCESSING","REVIEW","SUBMITTING"]}},
+      where:{id,status:{in:["PROCESSING","SUBMITTING"]}},
       data:{status:targetStatus,providerTransactionId:transactionId,
         transactionHash:typeof data.hash === "string" ? data.hash : item.transactionHash,
-        ...(targetStatus === "SUCCESS" ? {completedAt:new Date()} : {failureCode:event})},
+        ...(targetStatus === "COMPLETED" ? {completedAt:new Date()} : {failureCode:event})},
     });
     if (updated.count !== 1) return false;
     if (!item.treasuryId) throw new Error("Missing treasury transaction for payout");
     {
       const changedTreasury=await tx.treasuryTransfer.updateMany({
-        where:{id:item.treasuryId,direction:"WITHDRAWAL",status:{in:["PROCESSING","REVIEW"]},
+        where:{id:item.treasuryId,direction:"WITHDRAWAL",status:{in:["PENDING","PROCESSING"]},
           masterWalletId,amountUsdcMicros:item.amountUsdcMicros,
           destinationWalletAddress:item.destinationAddress},
-        data:{status:targetStatus==="SUCCESS"?"COMPLETE":"FAILED",
+        data:{status:targetStatus==="COMPLETED"?"COMPLETE":"FAILED",
           originExternalId:transactionId,
           destinationExternalId:typeof data.hash==="string"?data.hash:null,
           ...(targetStatus==="SUCCESS"?{completedAt:new Date()}:{})},
