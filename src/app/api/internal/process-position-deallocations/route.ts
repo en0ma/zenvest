@@ -13,6 +13,6 @@ function authorized(request:Request){
 // Never mark an operation in-flight without initiating a verified transfer.
 export async function GET(request:Request){
  if(!authorized(request))return NextResponse.json({error:"Unauthorized"},{status:401});
- const pending=await prisma.positionDeallocation.aggregate({where:{status:"PENDING"},_count:{_all:true},_sum:{amountUsdcMicros:true}});
+ const pending=await prisma.positionAllocation.aggregate({where:{kind:"DEALLOCATE",status:"PENDING"},_count:{_all:true},_sum:{amountUsdcMicros:true}});
  return NextResponse.json({status:"awaiting_verified_transfer_integration",direction:"kalshi_to_master",requests:pending._count._all,amountUsdcMicros:(pending._sum.amountUsdcMicros??0n).toString()});
 }
