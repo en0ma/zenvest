@@ -1,6 +1,6 @@
 import {formatMicros} from "./withdrawal-network-fee.ts";
 export type Payout={id:string;userId:string;address:string;amount:bigint};
-export function withdrawalReference(id:string){return id;}
+export function withdrawalReference(id:string){return `withdrawal:${id}`;}
 export async function submitBlockradarPayout(input:Payout,config:{key:string;walletId:string;assetId:string},send:typeof fetch=fetch){
  const reference=withdrawalReference(input.id);
  const response=await send(`https://api.blockradar.co/v1/wallets/${encodeURIComponent(config.walletId)}/withdraw`,{
