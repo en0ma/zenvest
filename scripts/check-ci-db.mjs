@@ -204,6 +204,7 @@ try {
   wallet:{id:masterWalletId},asset:{address:mint,symbol:"USDC",decimals:6},
   hash:"ci-batch-hash",confirmed:true,metadata:{strategyId:strategy.id,kind:"allocation"},
  }};
+ const beforeStrategyCapacity=(await prisma.strategy.findUniqueOrThrow({where:{id:strategy.id}})).availableCapacityUsdcMicros;
  const beforeAllocation=(await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated;
  const beforeAllocationBucket=(await prisma.treasury.findUniqueOrThrow({where:{kind:"ALLOCATE"}})).amount;
  assert.equal(await handleAllocationWebhook(allocationPayload.event,allocationPayload.data,masterWalletId),"settled");
@@ -214,6 +215,7 @@ try {
   assert.equal(pos.principalUsdcMicros,allocation.amountUsdcMicros);
  }
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,beforeAllocation-7_000_000n);
+ assert.equal((await prisma.strategy.findUniqueOrThrow({where:{id:strategy.id}})).availableCapacityUsdcMicros,beforeStrategyCapacity-7_000_000n);
  assert.equal((await prisma.treasury.findUniqueOrThrow({where:{kind:"ALLOCATE"}})).amount,beforeAllocationBucket+7_000_000n);
  assert.equal((await prisma.treasuryTransfer.findUniqueOrThrow({where:{id:batchTransfer.id}})).status,"COMPLETE");
  assert.equal(await handleAllocationWebhook(allocationPayload.event,allocationPayload.data,masterWalletId),"duplicate");
