@@ -73,3 +73,11 @@ The authoritative prelaunch DB is defined by `prisma/schema.prisma`; historical 
 - After HMAC verification and normal withdrawal identity/asset/destination/amount validation, a `withdraw.success` for an already-`FAILED` withdrawal **does not** change the withdrawal, treasury transfer, or user balances.
 - Instead, persist the **full signed webhook envelope** in `webhook_dead_later.payload` (JSONB) with `kind=withdrawal`, `user_id`, `reference` (withdrawal ID), `provider_transaction_id`, and receipt time. Identical late successes are deduplicated by kind + reference + provider transaction ID.
 - Record creation occurs inside a transaction; a concurrent timeout/settlement race is checked after the conditional status transition. A late payout still requires manual custody reconciliation.
+
+## Strategy allocation payouts (2026-10-22)
+- `Strategy.kalshiWalletAddress` stores the Solana USDC deposit destination for that strategy. Null destinations cannot be submitted.
+- On each authorized allocation cron run, choose one strategy with pending allocations, claim all its pending operations in one SERIALIZABLE transaction, and create **one** `TreasuryTransfer(direction=ALLOCATE)` carrying their exact sum. Allocations share its `treasuryId` (not their unique `providerReference` field).
+- Blockradar receives exactly one master-wallet `POST /withdraw` with the aggregate amount, strategy destination, `reference=allocation:<uuid>`, and `metadata={strategyId,kind:"allocation"}`. HTTP 200 means asynchronous acceptance.
+- The signed `withdraw.success` callback matches that treasury reference, provider wallet, USDC mint, aggregate amount, destination and transaction type. Settlement changes every claimed allocation to COMPLETED, increases each position principal, debits each investor's unallocated balance and moves the aggregate from DEPOSIT/DEALLOCATE to ALLOCATE custody accounting atomically. Duplicate callbacks do not double debit.
+- Failed and cancelled callbacks mark claimed allocation rows terminal without adjusting principal. An unknown post-submission response enters REVIEW; no second money transfer is automatically sent. Review expiry mirrors the existing two-hour withdrawal policy.
+- Unit tests mock Blockradar acceptance and errors, while disposable PostgreSQL tests exercise successful multi-position and failed batch webhook settlement.
