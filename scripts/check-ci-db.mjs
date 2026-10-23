@@ -158,7 +158,7 @@ try {
  async function makeWithdrawal(id,status){
   const w=await prisma.investorWithdrawal.create({data:{
    id,userId:user.id,amountUsdcMicros:3_000_000n,grossUsdcMicros:5_000_000n,
-   feeUsdcMicros:2_000_000n,destinationAddress:recipient,idempotencyKey:id,status,
+   feeUsdcMicros:2_000_000n,destinationAddress:recipient,status,
   }});
   assert.equal(w.treasuryId,null,"unsettled withdrawals must not create a ledger record");
   assert.equal(await prisma.treasuryTransfer.count({where:{reference:`withdrawal:${id}`}}),0);
