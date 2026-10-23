@@ -8,8 +8,8 @@ const config={key:"mock",walletId:"master",assetId:"usdc-asset"};
 function receipt(patch:Record<string,unknown>={}){
  return new Response(JSON.stringify({statusCode:200,message:"Withdrawal request initiated successfully",data:{id:"provider-id",status:"PENDING",type:"WITHDRAW",amount:"7.968750",recipientAddress:address,reference:withdrawalReference(id),metadata:{userId},wallet:{id:"master"},asset:{symbol:"USDC",decimals:6},...patch}}),{status:200});
 }
-test("payout uses withdrawal ID as reference, user ID metadata and exact USDC amount",async()=>{
- assert.equal(withdrawalReference(id),id);
+test("payout uses prefixed withdrawal ID as reference, user ID metadata and exact USDC amount",async()=>{
+ assert.equal(withdrawalReference(id),`withdrawal:${id}`);
  let calls=0;
  const mock:typeof fetch=async(url,init)=>{
   calls++;assert.equal(String(url),"https://api.blockradar.co/v1/wallets/master/withdraw");
