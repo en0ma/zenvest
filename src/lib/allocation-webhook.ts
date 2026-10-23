@@ -1,71 +1,76 @@
 import {Prisma} from "@prisma/client";
 import {prisma} from "./db.ts";
 import {withdrawalWebhookTarget} from "./transfer-lifecycle.ts";
-import {journeyLog} from "./journey-log.ts";
 
-// Called only after the HMAC check in the Blockradar webhook route.
+// Invoked exclusively after the Blockradar route validates its raw-body HMAC.
+// The Kalshi destination confirmation is a separate authenticated event.
 export async function handleAllocationWebhook(event:string,data:Record<string,unknown>,masterWalletId:string){
  if(!["withdraw.success","withdraw.failed","withdraw.cancelled"].includes(event))return "ignored";
  const reference=data.reference;
- if(typeof reference!=="string"||!/^allocation:[0-9a-f-]{36}$/.test(reference))return "unrelated";
- const transfer=await prisma.treasuryTransfer.findUnique({where:{reference},include:{allocations:{include:{position:true}}}});
- if(!transfer||transfer.direction!=="ALLOCATE"||transfer.masterWalletId!==masterWalletId||transfer.allocations.length===0)return "unrelated";
+ if(typeof reference!=="string"||!/^strategy_withdrawal:c[a-z0-9]{10,40}$/.test(reference))return "unrelated";
+ const eventId=reference.slice("strategy_withdrawal:".length);
+ const batch=await prisma.strategyEvent.findUnique({where:{id:eventId},include:{strategy:true,positionEvents:true,treasuryTransaction:true}});
+ if(!batch||batch.kind!=="ALLOCATE"||!batch.positionEvents.length)return "unrelated";
  const asset=data.asset&&typeof data.asset==="object"?data.asset as Record<string,unknown>:{};
  const wallet=data.wallet&&typeof data.wallet==="object"?data.wallet as Record<string,unknown>:{};
  const mint=process.env.BLOCKRADAR_SOLANA_USDC_MINT;
- const id=data.id;
- const amountStr=data.amount;
- const amount=typeof amountStr==="string"&&/^\d+(\.\d{1,6})?$/.test(amountStr)?
-  BigInt(amountStr.split(".")[0])*1000000n+BigInt((amountStr.split(".")[1]??"").padEnd(6,"0")):null;
- if(!mint||typeof id!=="string"||!id||wallet.id!==masterWalletId||data.type!=="WITHDRAW"||
-  !["devnet","testnet"].includes(String(data.network))||asset.symbol!=="USDC"||asset.decimals!==6||
+ const transactionId=data.id;
+ const raw=data.amount;
+ const amount=typeof raw==="string"&&/^\d+(\.\d{1,6})?$/.test(raw)?
+  BigInt(raw.split(".")[0])*1000000n+BigInt((raw.split(".")[1]??"").padEnd(6,"0")):null;
+ const destination=batch.strategy.kalshiWalletAddress;
+ if(!mint||!destination||typeof transactionId!=="string"||!transactionId||
+  wallet.id!==masterWalletId||data.type!=="WITHDRAW"||
+  !["devnet","testnet"].includes(String(data.network))||
+  asset.symbol!=="USDC"||asset.decimals!==6||
   (asset.address!==mint&&data.tokenAddress!==mint)||
-  data.recipientAddress!==transfer.destinationWalletAddress||
-  amount!==transfer.amountUsdcMicros||
-  (transfer.originExternalId&&transfer.originExternalId!==id))return "mismatch";
+  data.recipientAddress!==destination||amount!==batch.amountUsdcMicros||
+  batch.positionEvents.some(x=>x.kind!=="ALLOCATE"||x.strategyId!==batch.strategyId)||
+  batch.positionEvents.reduce((n,x)=>n+x.amountUsdcMicros,0n)!==batch.amountUsdcMicros||
+  (batch.treasuryTransaction?.originExternalId&&batch.treasuryTransaction.originExternalId!==transactionId))
+  return "mismatch";
  const status=withdrawalWebhookTarget(event,data.status);
  if(!status||(status==="COMPLETED"&&(data.confirmed===false||typeof data.hash!=="string")))return "unconfirmed";
- // An authenticated outbound Blockradar withdrawal is NOT evidence of a
- // credit to Kalshi. Preserve transfer identity and the investor reservation.
- // A separate authenticated Kalshi receipt integration must settle principal.
- if(status==="COMPLETED"){
-  const outcome=await prisma.$transaction(async tx=>{
-   const current=await tx.treasuryTransfer.findUnique({where:{id:transfer.id}});
-   if(!current||current.status==="FAILED"||current.status==="COMPLETE")return "requires_reconciliation";
-   if(current.originExternalId&&current.originExternalId!==id)return "mismatch";
-   const updated=await tx.treasuryTransfer.updateMany({
-    where:{id:transfer.id,direction:"ALLOCATE",status:{in:["PENDING","PROCESSING","REVIEW"]},
-     OR:[{originExternalId:null},{originExternalId:id}]},
-    data:{status:"PROCESSING",originExternalId:id,destinationExternalId:data.hash as string},
-   });
-   if(updated.count!==1)return "duplicate";
-   await tx.positionAllocation.updateMany({
-    where:{treasuryId:transfer.id,kind:"ALLOCATE",status:{in:["SUBMITTING","PROCESSING","REVIEW"]}},
-    data:{status:"CONFIRMING"},
-   });
-   return "awaiting_kalshi_receipt";
-  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
-  journeyLog("info","withdrawal_settlement",`allocation_${outcome}`,{providerTransactionId:id});
-  return outcome;
+ if(status!=="COMPLETED"){
+  // The three-valued strategy-event status enum deliberately cannot express
+  // terminal failure. Keep the hold pending explicit exception reconciliation.
+  return "requires_reconciliation";
  }
- // Once an authenticated outbound success has advanced the batch to
- // CONFIRMING, a conflicting failure event cannot release reserved funds.
- if(transfer.allocations.some(a=>a.status==="CONFIRMING"))return "requires_reconciliation";
- const result=await prisma.$transaction(async tx=>{
-  const confirming=await tx.positionAllocation.count({where:{treasuryId:transfer.id,kind:"ALLOCATE",status:"CONFIRMING"}});
-  if(confirming>0)return "requires_reconciliation";
-  const changed=await tx.treasuryTransfer.updateMany({
-   where:{id:transfer.id,direction:"ALLOCATE",status:{in:["PENDING","PROCESSING","REVIEW"]}},
-   data:{status:"FAILED",originExternalId:id,destinationExternalId:typeof data.hash==="string"?data.hash:null},
+ return prisma.$transaction(async tx=>{
+  const current=await tx.strategyEvent.findUnique({where:{id:eventId}});
+  if(!current)return "unrelated";
+  if(current.sourceConfirmed)return "duplicate";
+  const changed=await tx.strategyEvent.updateMany({
+   where:{id:eventId,kind:"ALLOCATE",status:"PROCESSING",sourceConfirmed:false,treasuryTransactionId:null},
+   data:{sourceConfirmed:true,status:"CONFIRMING"},
   });
   if(changed.count!==1)return "duplicate";
-  const count=await tx.positionAllocation.updateMany({
-   where:{treasuryId:transfer.id,status:{in:["SUBMITTING","PROCESSING","REVIEW"]}},
-   data:{status:"FAILED"},
+  const rows=await tx.positionAllocation.findMany({where:{strategyEventId:eventId,kind:"ALLOCATE"}});
+  if(rows.length!==batch.positionEvents.length||
+   rows.reduce((n,x)=>n+x.amountUsdcMicros,0n)!==batch.amountUsdcMicros)
+   throw new Error("Strategy batch changed during source settlement");
+  const marked=await tx.positionAllocation.updateMany({
+   where:{strategyEventId:eventId,kind:"ALLOCATE",status:{in:["SUBMITTING","PROCESSING","REVIEW"]}},
+   data:{status:"CONFIRMING"},
   });
-  if(count.count!==transfer.allocations.length)throw new Error("Allocation batch changed during failure transition");
-  return "settled";
+  if(marked.count!==rows.length)throw new Error("Strategy batch statuses changed");
+  const master=await tx.treasury.findUnique({where:{kind:"DEPOSIT"}});
+  if(!master||master.walletId!==masterWalletId||master.amount<batch.amountUsdcMicros)
+   throw new Error("Insufficient master deposit treasury");
+  const reduced=await tx.treasury.updateMany({
+   where:{kind:"DEPOSIT",walletId:masterWalletId,amount:{gte:batch.amountUsdcMicros}},
+   data:{amount:{decrement:batch.amountUsdcMicros}},
+  });
+  if(reduced.count!==1)throw new Error("Source treasury race");
+  const transfer=await tx.treasuryTransfer.create({data:{
+   direction:"ALLOCATE",status:"PROCESSING",asset:"USDC",
+   assetId:process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID,
+   amountUsdcMicros:batch.amountUsdcMicros,feeUsdcMicros:0n,
+   destinationWalletAddress:destination,masterWalletAddress:master.walletAddress,
+   masterWalletId,network:"solana",originExternalId:transactionId,
+   reference,
+  }});
+  await tx.strategyEvent.update({where:{id:eventId},data:{treasuryTransactionId:transfer.id}});
+  return "awaiting_kalshi_receipt";
  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
- journeyLog("info","withdrawal_settlement",`allocation_${result}`,{providerTransactionId:id});
- return result;
 }
