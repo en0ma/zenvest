@@ -43,7 +43,7 @@ try {
  const reduction=await prisma.positionAllocation.create({data:{
   userId:user.id,positionId:position.id,strategyId:position.strategyId,
   kind:"DEALLOCATE",amountUsdcMicros:1_000_000n,
-  requestKey:"ci-unified-deallocation",status:"PENDING",
+  request:{create:{requestKey:"ci-unified-deallocation"}},status:"PENDING",
  }});
  assert.equal(reduction.kind,"DEALLOCATE");
  assert.equal(reduction.strategyEventId,null);
@@ -51,7 +51,7 @@ try {
  await assert.rejects(()=>prisma.positionAllocation.create({data:{
   userId:user.id,positionId:position.id,strategyId:position.strategyId,
   kind:"DEALLOCATE",amountUsdcMicros:1_000_000n,
-  requestKey:"ci-unified-deallocation",
+  request:{create:{requestKey:"ci-unified-deallocation"}},
  }}),e=>e.code==="P2002","repeat deallocation request must not duplicate");
  // Real PostgreSQL uniqueness and ownership constraints.
  const strategy=await prisma.strategy.findUniqueOrThrow({where:{id:"ci_test_strategy"}});
@@ -68,7 +68,7 @@ try {
  assert.equal(trade.profit.toString(),"0.12345678");
  assert.equal(trade.platformProfitShare.toString(),"0.03086419");
  await assert.rejects(()=>prisma.positionAllocation.create({data:{
-  userId:user.id,positionId:"missing_position",strategyId:"ci_test_strategy",amountUsdcMicros:1n,requestKey:"ci-missing-position"
+  userId:user.id,positionId:"missing_position",strategyId:"ci_test_strategy",amountUsdcMicros:1n,request:{create:{requestKey:"ci-missing-position"}}
  }}),e=>e.code==="P2003","allocation must reference an existing position");
 
  const withdrawal=await prisma.investorWithdrawal.create({data:{
@@ -220,7 +220,7 @@ try {
   const operation=await prisma.positionAllocation.create({data:{
    userId:user.id,positionId:pos.id,strategyId:strategy.id,kind:"ALLOCATE",
    strategyEventId:evt.id,status:"PROCESSING",amountUsdcMicros:n,
-   requestKey:"ci-batch-"+i,
+   request:{create:{requestKey:"ci-batch-"+i}},
   }});
   children.push({pos,operation});
  }
