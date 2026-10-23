@@ -103,7 +103,7 @@ try {
   destinationWalletAddress:"CI_DESTINATION_WALLET",masterWalletAddress:"CI_MASTER",
   masterWalletId:"CI_TEST_WALLET",reference:"ci-payout-1"
  }}),e=>e.code==="P2002","treasury references must be globally unique");
- await prisma.investorWithdrawal.update({where:{id:withdrawal.id},data:{treasuryId:payout.id,status:"PROCESSING"}});
+ await prisma.investorWithdrawal.update({where:{id:withdrawal.id},data:{treasuryTransactionId:payout.id,status:"PROCESSING"}});
  
  // Test atomic rollback on an invalid balance movement. No partial user debit.
  const beforeUser=await prisma.user.findUniqueOrThrow({where:{id:user.id}});
@@ -162,7 +162,7 @@ try {
    id,userId:user.id,amountUsdcMicros:3_000_000n,grossUsdcMicros:5_000_000n,
    feeUsdcMicros:2_000_000n,destinationAddress:recipient,status,
   }});
-  assert.equal(w.treasuryId,null,"unsettled withdrawals must not create a ledger record");
+  assert.equal(w.treasuryTransactionId,null,"unsettled withdrawals must not create a ledger record");
   assert.equal(await prisma.treasuryTransfer.count({where:{reference:`withdrawal:${id}`}}),0);
   return {w};
  }
