@@ -33,10 +33,10 @@ try {
  assert.equal(staged.treasuryTransactionId,null);
  await assert.rejects(()=>prisma.strategyEvent.create({data:{
   kind:"ALLOCATE",amountUsdcMicros:0n,strategyId:"ci_test_strategy",
- }}),e=>e.code==="P2004","strategy event amount must be positive");
- await assert.rejects(()=>prisma.strategyEvent.update({where:{id:staged.id},data:{status:"COMPLETED"}}),e=>e.code==="P2004","completed requires verified source and destination");
+ }}),e=>/strategy_events_amount_positive/.test(String(e)),"strategy event amount must be positive");
+ await assert.rejects(()=>prisma.strategyEvent.update({where:{id:staged.id},data:{status:"COMPLETED"}}),e=>/strategy_events_completed_requires_both/.test(String(e)),"completed requires verified source and destination");
  await prisma.strategyEvent.update({where:{id:staged.id},data:{sourceConfirmed:true,status:"CONFIRMING"}});
- await assert.rejects(()=>prisma.strategyEvent.update({where:{id:staged.id},data:{status:"COMPLETED"}}),e=>e.code==="P2004","source-only confirmation must not complete");
+ await assert.rejects(()=>prisma.strategyEvent.update({where:{id:staged.id},data:{status:"COMPLETED"}}),e=>/strategy_events_completed_requires_both/.test(String(e)),"source-only confirmation must not complete");
  await prisma.strategyEvent.update({where:{id:staged.id},data:{destinationConfirmed:true,status:"COMPLETED"}});
  assert.equal((await prisma.strategyEvent.findUniqueOrThrow({where:{id:staged.id}})).status,"COMPLETED");
  // Real PostgreSQL uniqueness and ownership constraints.
