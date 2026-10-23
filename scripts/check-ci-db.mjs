@@ -137,7 +137,7 @@ try {
    direction:"WITHDRAWAL",status:status==="FAILED"?"FAILED":"PROCESSING",asset:"USDC",
    amountUsdcMicros:3_000_000n,feeUsdcMicros:2_000_000n,
    destinationWalletAddress:recipient,masterWalletAddress:"CI_MASTER",masterWalletId,
-   reference:id,
+   reference:`withdrawal:${id}`,
   }});
   const w=await prisma.investorWithdrawal.create({data:{
    id,userId:user.id,amountUsdcMicros:3_000_000n,grossUsdcMicros:5_000_000n,
@@ -149,7 +149,7 @@ try {
  function mockWithdrawWebhook(id,transactionId,kind="success",patch={}){
   const status=kind==="success"?"SUCCESS":kind==="failed"?"FAILED":"CANCELLED";
   return {event:"withdraw."+kind,data:{
-   id:transactionId,reference:id,amount:"3.000000",recipientAddress:recipient,
+   id:transactionId,reference:`withdrawal:${id}`,amount:"3.000000",recipientAddress:recipient,
    wallet:{id:masterWalletId},type:"WITHDRAW",status,network:"testnet",
    asset:{address:mint,symbol:"USDC",decimals:6},hash:"ci_chain_hash_"+transactionId,
    confirmed:kind==="success",metadata:{userId:user.id},
