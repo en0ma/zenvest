@@ -53,6 +53,25 @@ try {
   kind:"DEALLOCATE",amountUsdcMicros:1_000_000n,
   request:{create:{requestKey:"ci-unified-deallocation"}},
  }}),e=>e.code==="P2002","repeat deallocation request must not duplicate");
+ // Webhook intake commits one durable message per source-scoped key.
+ const enqueued=await prisma.webhookQueue.create({data:{
+  source:"BLOCKRADAR",eventType:"deposit.swept.success",
+  idempotencyKey:"ci-deposit-sweep-1",payload:{event:"deposit.swept.success",data:{id:"ci-event"}},
+ }});
+ assert.equal(enqueued.status,"PENDING");
+ assert.equal(enqueued.attempts,0);
+ await assert.rejects(()=>prisma.webhookQueue.create({data:{
+  source:"BLOCKRADAR",eventType:"deposit.swept.success",idempotencyKey:"ci-deposit-sweep-1",
+  payload:{event:"deposit.swept.success"},
+ }}),e=>e.code==="P2002","same provider event must enqueue once");
+ await prisma.webhookQueue.create({data:{
+  source:"KALSHI",eventType:"funding.credit",idempotencyKey:"ci-deposit-sweep-1",
+  payload:{fixture:true},
+ }});
+ assert.equal(await prisma.webhookQueue.count({where:{idempotencyKey:"ci-deposit-sweep-1"}}),2,
+  "idempotency must be scoped to authenticated source");
+ await prisma.webhookQueue.update({where:{id:enqueued.id},data:{status:"PROCESSED",processedAt:new Date()}});
+ assert.equal((await prisma.webhookQueue.findUniqueOrThrow({where:{id:enqueued.id}})).status,"PROCESSED");
  // Real PostgreSQL uniqueness and ownership constraints.
  const strategy=await prisma.strategy.findUniqueOrThrow({where:{id:"ci_test_strategy"}});
  assert.equal(strategy.platformProfitPercentage.toString(),"0");
