@@ -25,61 +25,40 @@ export async function handleAllocationWebhook(event:string,data:Record<string,un
   (transfer.originExternalId&&transfer.originExternalId!==id))return "mismatch";
  const status=withdrawalWebhookTarget(event,data.status);
  if(!status||(status==="COMPLETED"&&(data.confirmed===false||typeof data.hash!=="string")))return "unconfirmed";
+ // An authenticated outbound Blockradar withdrawal is NOT evidence of a
+ // credit to Kalshi. Preserve transfer identity and the investor reservation.
+ // A separate authenticated Kalshi receipt integration must settle principal.
+ if(status==="COMPLETED"){
+  const outcome=await prisma.$transaction(async tx=>{
+   const current=await tx.treasuryTransfer.findUnique({where:{id:transfer.id}});
+   if(!current||current.status==="FAILED"||current.status==="COMPLETE")return "requires_reconciliation";
+   if(current.originExternalId&&current.originExternalId!==id)return "mismatch";
+   const updated=await tx.treasuryTransfer.updateMany({
+    where:{id:transfer.id,direction:"ALLOCATE",status:{in:["PENDING","PROCESSING","REVIEW"]},
+     OR:[{originExternalId:null},{originExternalId:id}]},
+    data:{status:"PROCESSING",originExternalId:id,destinationExternalId:data.hash as string},
+   });
+   if(updated.count!==1)return "duplicate";
+   await tx.positionAllocation.updateMany({
+    where:{treasuryId:transfer.id,status:{in:["SUBMITTING","REVIEW"]}},
+    data:{status:"PROCESSING"},
+   });
+   return "awaiting_kalshi_receipt";
+  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
+  journeyLog("info","withdrawal_settlement",`allocation_${outcome}`,{providerTransactionId:id});
+  return outcome;
+ }
  const result=await prisma.$transaction(async tx=>{
   const changed=await tx.treasuryTransfer.updateMany({
    where:{id:transfer.id,direction:"ALLOCATE",status:{in:["PENDING","PROCESSING","REVIEW"]}},
-   data:{status:status==="COMPLETED"?"COMPLETE":"FAILED",originExternalId:id,
-    destinationExternalId:typeof data.hash==="string"?data.hash:null,
-    ...(status==="COMPLETED"?{completedAt:new Date()}:{}),
-   },
+   data:{status:"FAILED",originExternalId:id,destinationExternalId:typeof data.hash==="string"?data.hash:null},
   });
   if(changed.count!==1)return "duplicate";
-  const rows=await tx.positionAllocation.findMany({where:{treasuryId:transfer.id,status:{in:["SUBMITTING","PROCESSING","REVIEW"]}}});
-  if(rows.length!==transfer.allocations.length||
-   rows.reduce((n,r)=>n+r.amountUsdcMicros,0n)!==transfer.amountUsdcMicros)throw new Error("Allocation batch mismatched");
-  const completed=await tx.positionAllocation.updateMany({
+  const count=await tx.positionAllocation.updateMany({
    where:{treasuryId:transfer.id,status:{in:["SUBMITTING","PROCESSING","REVIEW"]}},
-   data:{status,completedAt:status==="COMPLETED"?new Date():null},
+   data:{status:"FAILED"},
   });
-  if(completed.count!==rows.length)throw new Error("Allocation rows changed");
-  if(status==="COMPLETED"){
-   const strategyId=transfer.allocations[0].position.strategyId;
-   if(transfer.allocations.some(a=>a.position.strategyId!==strategyId))throw new Error("Batch mixes strategies");
-   const capacity=await tx.strategy.updateMany({
-    where:{id:strategyId,availableCapacityUsdcMicros:{gte:transfer.amountUsdcMicros}},
-    data:{availableCapacityUsdcMicros:{decrement:transfer.amountUsdcMicros}},
-   });
-   if(capacity.count!==1)throw new Error("Insufficient remaining strategy capacity");
-   // Exactly the principal sent is removed from each investor and added to their
-   // strategy position; no fee retained for a strategy allocation.
-   for(const row of rows){
-    const debited=await tx.user.updateMany({where:{id:row.userId,unallocated:{gte:row.amountUsdcMicros}},
-     data:{unallocated:{decrement:row.amountUsdcMicros}}});
-    if(debited.count!==1)throw new Error("Insufficient investor balance");
-    await tx.investorPosition.update({where:{id:row.positionId},
-      data:{principalUsdcMicros:{increment:row.amountUsdcMicros},status:"ACTIVE"}});
-    await tx.investorActivity.create({data:{
-     userId:row.userId,type:"ALLOCATION",amountKobo:0n,
-     amountUsdcMicros:row.amountUsdcMicros,reference:`allocation:${row.id}:completed`,
-     description:"Verified strategy wallet USDC allocation",
-    }});
-   }
-   const deposit=await tx.treasury.findUnique({where:{kind:"DEPOSIT"}});
-   const deallocate=await tx.treasury.findUnique({where:{kind:"DEALLOCATE"}});
-   if(!deposit||deposit.amount<0n||(deallocate&&deallocate.amount<0n))throw new Error("Missing master treasury funds");
-   const fromDeposit=deposit.amount>=transfer.amountUsdcMicros?transfer.amountUsdcMicros:deposit.amount;
-   const fromDeallocate=transfer.amountUsdcMicros-fromDeposit;
-   if(fromDeallocate>(deallocate?.amount??0n))throw new Error("Insufficient custody balance");
-   if(fromDeposit>0n){
-    const changed=await tx.treasury.updateMany({where:{kind:"DEPOSIT",amount:{gte:fromDeposit}},data:{amount:{decrement:fromDeposit}}});
-    if(changed.count!==1)throw new Error("Deposit bucket moved");
-   }
-   if(fromDeallocate>0n){
-    const changed=await tx.treasury.updateMany({where:{kind:"DEALLOCATE",amount:{gte:fromDeallocate}},data:{amount:{decrement:fromDeallocate}}});
-    if(changed.count!==1)throw new Error("Deallocate bucket moved");
-   }
-   await tx.treasury.update({where:{kind:"ALLOCATE"},data:{amount:{increment:transfer.amountUsdcMicros}}});
-  }
+  if(count.count!==transfer.allocations.length)throw new Error("Allocation batch changed during failure transition");
   return "settled";
  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
  journeyLog("info","withdrawal_settlement",`allocation_${result}`,{providerTransactionId:id});
