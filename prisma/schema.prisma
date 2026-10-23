@@ -209,7 +209,6 @@ model InvestorWithdrawal {
   asset String @default("USDC") @db.VarChar(16)
   feeUsdcMicros BigInt @default(2000000) @map("fee_usdc_micros")
   destinationAddress String @map("destination_address") @db.VarChar(128)
-  idempotencyKey String @map("idempotency_key") @db.VarChar(64)
   status WithdrawalStatus @default(PENDING)
   providerTransactionId String? @unique @map("provider_transaction_id") @db.VarChar(180)
   transactionHash String? @map("transaction_hash") @db.VarChar(180)
@@ -219,7 +218,6 @@ model InvestorWithdrawal {
   completedAt DateTime? @map("completed_at")
   treasuryId String? @map("treasury_id")
   treasury TreasuryTransfer? @relation(fields:[treasuryId],references:[id],onDelete:Restrict)
-  @@unique([userId, idempotencyKey])
   @@index([userId, createdAt])
   @@index([status, createdAt])
   @@index([treasuryId])
@@ -294,15 +292,6 @@ model InvestorPosition {
   @@map("positions")
 }
 
-// Preserve POST idempotency outside the requested unified event payload.
-model PositionEventRequest {
-  requestKey String @id @map("request_key") @db.VarChar(180)
-  positionEventId String @unique @map("position_event_id")
-  positionEvent PositionAllocation @relation(fields:[positionEventId],references:[id],onDelete:Restrict)
-  createdAt DateTime @default(now()) @map("created_at")
-  @@map("position_event_requests")
-}
-
 model PositionAllocation {
   id String @id @default(cuid())
   kind StrategyEventKind @default(ALLOCATE)
@@ -316,7 +305,6 @@ model PositionAllocation {
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
   status PositionTransferStatus @default(PENDING)
-  request PositionEventRequest?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   @@index([userId, createdAt])
