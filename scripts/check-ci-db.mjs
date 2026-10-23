@@ -25,6 +25,13 @@ try {
  assert.equal(nonWebhookKeys.length,0,"only webhook_queue may have an idempotency_key column");
  await assert.rejects(()=>prisma.treasury.create({data:{kind:"DEPOSIT",source:"MASTER_WALLET",amount:1n,walletAddress:"ci",walletId:"ci"}}),e=>e.code==="P2002");
 
+ // The deposit and withdrawal ledger links use the same explicit FK naming.
+ const depositColumns=await prisma.$queryRawUnsafe(`SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='deposits' AND column_name='treasury_transaction_id'`);
+ const withdrawalColumns=await prisma.$queryRawUnsafe(`SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='withdrawals' AND column_name='treasury_transaction_id'`);
+ const obsoleteWithdrawalColumns=await prisma.$queryRawUnsafe(`SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='withdrawals' AND column_name='treasury_id'`);
+ assert.equal(depositColumns.length,1);
+ assert.equal(withdrawalColumns.length,1);
+ assert.equal(obsoleteWithdrawalColumns.length,0);
  // Additive strategy-event foundation: no transfer ledger exists before custody evidence.
  const staged=await prisma.strategyEvent.create({data:{
   kind:"ALLOCATE",amountUsdcMicros:7_000_000n,strategyId:"ci_test_strategy",
