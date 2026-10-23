@@ -227,7 +227,6 @@ try {
   const operation=await prisma.positionAllocation.create({data:{
    userId:user.id,positionId:pos.id,strategyId:strategy.id,kind:"ALLOCATE",
    strategyEventId:evt.id,status:"PROCESSING",amountUsdcMicros:n,
-   ,
   }});
   children.push({pos,operation});
  }
