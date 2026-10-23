@@ -28,7 +28,6 @@ model User {
   webhookDeadLater WebhookDeadLater[]
   positions InvestorPosition[]
   positionAllocations PositionAllocation[]
-  positionDeallocations PositionDeallocation[]
   activity InvestorActivity[]
   tokens       ActionToken[]
   createdAt    DateTime @default(now()) @map("created_at")
@@ -291,7 +290,6 @@ model InvestorPosition {
   updatedAt DateTime @updatedAt @map("updated_at")
   closedAt DateTime? @map("closed_at")
   allocations PositionAllocation[]
-  deallocations PositionDeallocation[]
   @@index([userId, status, createdAt])
   @@map("positions")
 }
@@ -321,29 +319,6 @@ model PositionAllocation {
   @@index([strategyId,kind,strategyEventId,status])
   @@index([status, createdAt])
   @@map("position_events")
-}
-
-model PositionDeallocation {
-  id String @id @default(cuid())
-  positionId String @map("position_id")
-  position InvestorPosition @relation(fields: [positionId], references: [id], onDelete: Restrict)
-  userId String @map("user_id")
-  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
-  amountUsdcMicros BigInt @map("amount_usdc_micros")
-  settledUsdcMicros BigInt? @map("settled_usdc_micros")
-  treasuryId String? @map("treasury_id")
-  treasury TreasuryTransfer? @relation(fields:[treasuryId],references:[id],onDelete:Restrict)
-  status PositionTransferStatus @default(PENDING)
-  requestKey String @unique @map("request_key") @db.VarChar(180)
-  providerReference String? @unique @map("provider_reference") @db.VarChar(180)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  completedAt DateTime? @map("completed_at")
-  @@index([userId, createdAt])
-  @@index([positionId, status])
-  @@index([treasuryId])
-  @@index([status, createdAt])
-  @@map("position_deallocations")
 }
 
 // One pooled capital movement per strategy, before any treasury settlement.
@@ -410,7 +385,6 @@ model TreasuryTransfer {
   updatedAt DateTime @updatedAt @map("updated_at")
   completedAt DateTime? @map("completed_at")
   allocations PositionAllocation[]
-  deallocations PositionDeallocation[]
   strategyEvent StrategyEvent?
   withdrawals InvestorWithdrawal[]
   @@index([direction,status,createdAt])
