@@ -26,11 +26,11 @@ export async function POST(request: Request) {
     return NextResponse.json({error:"Invalid request identifier"},{status:400});
   const reference = `position-open:${user.id}:${body.requestId}`;
   try {
-    const existing = await prisma.positionAllocation.findUnique({where:{requestKey:reference}});
+    const existing = await prisma.positionEventRequest.findUnique({where:{requestKey:reference},include:{positionEvent:true}});
     if (existing) {
-      const position=await prisma.investorPosition.findUnique({where:{id:existing.positionId},select:{strategyId:true}});
-      return existing.amountUsdcMicros===amount && position?.strategyId===strategyId
-      ? NextResponse.json({positionId:existing.positionId,operationId:existing.id,status:existing.status})
+      const position=await prisma.investorPosition.findUnique({where:{id:existing.positionEvent.positionId},select:{strategyId:true}});
+      return existing.positionEvent.amountUsdcMicros===amount && position?.strategyId===strategyId
+      ? NextResponse.json({positionId:existing.positionEvent.positionId,operationId:existing.positionEvent.id,status:existing.positionEvent.status})
       : NextResponse.json({error:"Request identifier reused"},{status:409});
     }
     const result = await prisma.$transaction(async tx=>{
@@ -55,17 +55,18 @@ export async function POST(request: Request) {
       const position=await tx.investorPosition.create({data:{userId:user.id,strategyId}});
       const op=await tx.positionAllocation.create({data:{
         userId:user.id,positionId:position.id,strategyId,
-        status:"PENDING",amountUsdcMicros:amount,requestKey:reference,
+        status:"PENDING",amountUsdcMicros:amount,
       }});
+      await tx.positionEventRequest.create({data:{requestKey:reference,positionEventId:op.id}});
       return {positionId:position.id,operationId:op.id,status:op.status};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
     return result ? NextResponse.json(result,{status:201}) : NextResponse.json({error:"Unavailable strategy or Kalshi wallet address, invalid allocation limits, insufficient strategy capacity or insufficient unallocated USDC"},{status:409});
   }catch(error){
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code==="P2002") {
-      const existing=await prisma.positionAllocation.findUnique({where:{requestKey:reference}});
-      const position=existing&&await prisma.investorPosition.findUnique({where:{id:existing.positionId},select:{strategyId:true}});
-      if(existing && existing.amountUsdcMicros===amount && position?.strategyId===strategyId)
-        return NextResponse.json({positionId:existing.positionId,operationId:existing.id,status:existing.status});
+      const existing=await prisma.positionEventRequest.findUnique({where:{requestKey:reference},include:{positionEvent:true}});
+      const position=existing&&await prisma.investorPosition.findUnique({where:{id:existing.positionEvent.positionId},select:{strategyId:true}});
+      if(existing && existing.positionEvent.amountUsdcMicros===amount && position?.strategyId===strategyId)
+        return NextResponse.json({positionId:existing.positionEvent.positionId,operationId:existing.positionEvent.id,status:existing.positionEvent.status});
     }
     if(error instanceof Prisma.PrismaClientKnownRequestError && error.code==="P2034")return NextResponse.json({error:"Concurrent request; retry"},{status:409});
     return NextResponse.json({error:"Unable to request allocation"},{status:503});
