@@ -26,7 +26,7 @@ export async function processPendingAllocations(){
   return changed?"review_expired":"already_settled";
  }
  const first=await prisma.positionAllocation.findFirst({
-  where:{status:"PENDING",treasuryId:null,position:{strategy:{kalshiWalletAddress:{not:null}}}},
+  where:{kind:"ALLOCATE",status:"PENDING",treasuryId:null,position:{strategy:{kalshiWalletAddress:{not:null}}}},
   orderBy:[{createdAt:"asc"},{id:"asc"}],include:{position:{include:{strategy:true}}},
  });
  if(!first)return "empty";
@@ -36,7 +36,7 @@ export async function processPendingAllocations(){
  const reference="allocation:"+randomUUID();
  const batch=await prisma.$transaction(async tx=>{
   const rows=await tx.positionAllocation.findMany({
-   where:{status:"PENDING",treasuryId:null,position:{strategyId:strategy.id}},
+   where:{kind:"ALLOCATE",status:"PENDING",treasuryId:null,position:{strategyId:strategy.id}},
    orderBy:[{createdAt:"asc"},{id:"asc"}],
   });
   if(!rows.length)return null;
