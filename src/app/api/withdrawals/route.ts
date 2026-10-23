@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       const balance=await tx.user.findUniqueOrThrow({where:{id:user.id}});
       const [withdrawalHolds,allocationHolds]=await Promise.all([
         tx.investorWithdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
-        tx.positionAllocation.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
+        tx.positionAllocation.aggregate({where:{userId:user.id,kind:"ALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
       ]);
       const holds=(withdrawalHolds._sum.grossUsdcMicros??0n)+(allocationHolds._sum.amountUsdcMicros??0n);
       if(balance.unallocated-holds<amount)return null;
