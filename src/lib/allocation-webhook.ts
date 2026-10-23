@@ -43,6 +43,13 @@ export async function handleAllocationWebhook(event:string,data:Record<string,un
   });
   if(completed.count!==rows.length)throw new Error("Allocation rows changed");
   if(status==="COMPLETED"){
+   const strategyId=transfer.allocations[0].position.strategyId;
+   if(transfer.allocations.some(a=>a.position.strategyId!==strategyId))throw new Error("Batch mixes strategies");
+   const capacity=await tx.strategy.updateMany({
+    where:{id:strategyId,availableCapacityUsdcMicros:{gte:transfer.amountUsdcMicros}},
+    data:{availableCapacityUsdcMicros:{decrement:transfer.amountUsdcMicros}},
+   });
+   if(capacity.count!==1)throw new Error("Insufficient remaining strategy capacity");
    // Exactly the principal sent is removed from each investor and added to their
    // strategy position; no fee retained for a strategy allocation.
    for(const row of rows){
