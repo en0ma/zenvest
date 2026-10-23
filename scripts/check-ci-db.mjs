@@ -180,7 +180,7 @@ try {
  // Blockradar-style asynchronous withdrawal callback against PostgreSQL.
  const {handleAllocationWebhook}=await import("../src/lib/allocation-webhook.ts");
  const strategyWallet="11111111111111111111111111111111";
- await prisma.strategy.update({where:{id:strategy.id},data:{kalshiWalletAddress:strategyWallet}});
+ await prisma.strategy.update({where:{id:strategy.id},data:{kalshiWalletAddress:strategyWallet,availableCapacityUsdcMicros:100_000_000n}});
  const allocatedRows=[];
  const allocationReference="allocation:123e4567-e89b-12d3-a456-426614174000";
  const batchTransfer=await prisma.treasuryTransfer.create({data:{
