@@ -23,6 +23,10 @@
     {
       "path": "/api/internal/blockradar-sweep-assets",
       "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/internal/process-webhook-queue",
+      "schedule": "* * * * *"
     }
   ]
 }
