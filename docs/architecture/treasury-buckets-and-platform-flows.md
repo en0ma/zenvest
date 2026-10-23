@@ -9,7 +9,22 @@ The `treasury_transactions` direction enum has seven values:
 - **PLATFORM_M_BANK**: platform share transferred from Kalshi into master custody. Admin may request at most `K_BANK - SUM(pending/processing/review PLATFORM_M_BANK amounts)`; after verified funds arrive, decrement K_BANK and increment M_BANK exactly once. Do not subtract pending requests from K_BANK itself before settlement.
 - **PLATFORM_PULL**: future admin-initiated movement of platform-held funds out of master custody.
 
-The `treasuries` table is designed for exactly one balance row per `kind`: WITHDRAWAL_FEE, DEPOSIT_FEE, DEPOSIT, ALLOCATE, M_BANK, K_BANK (six kinds, notwithstanding the earlier 'five rows' description). `kind` is UNIQUE. Amounts are USDC micros, updated atomically with the respective settlement record.
+The `treasuries` table is designed for exactly one balance row per `kind`: WITHDRAWAL_FEE, DEPOSIT_FEE, DEPOSIT, DEALLOCATE, ALLOCATE, M_BANK, K_BANK (seven kinds). `kind` is UNIQUE. Amounts are USDC micros, updated atomically with the respective settlement record.
+
+## Authoritative investor capital reservation rules (confirmed 2026-10-23)
+
+The system calculates **available unallocated USDC** as:
+
+`max(0, users.unallocated - SUM(active allocation amounts) - SUM(active withdrawal gross amounts))`
+
+- **Position allocations reserve their full amount** while `PositionAllocation.status` is `PENDING`, `SUBMITTING`, `PROCESSING`, `CONFIRMING`, or `REVIEW`.
+- **Investor withdrawals reserve their gross amount (net payout + fee)** while `InvestorWithdrawal.status` is `PENDING`, `SUBMITTING`, `PROCESSING`, or `REVIEW`. Withdrawals do **not** use `CONFIRMING`.
+- `FAILED` and `CANCELLED` cease reserving funds. `COMPLETED` ceases reserving funds only as the corresponding verified settlement has atomically posted the actual financial debit; completed operations must never make the same principal spendable twice.
+- Allocation `PROCESSING -> CONFIRMING` occurs only after a signed, field-matched Blockradar `withdraw.success`. It proves the outbound transfer, **not** Kalshi's receipt. `CONFIRMING -> COMPLETED` requires separately authenticated, matched Kalshi funding confirmation. Until then, do not debit the user's unallocated principal, increase the investor position, consume strategy capacity, or post the final ALLOCATE treasury movement.
+- An ambiguous outbound response enters `REVIEW` with its reservation retained. A two-hour REVIEW timeout is policy, not evidence of provider cancellation: reconciliation of late confirmations is required.
+- Calculate reservations consistently in request eligibility, strategy-capacity checks, wallet/Earn available balance presentation, and concurrent worker handling; use BigInt USDC micros, serializable transactions, conditional transitions and durable idempotency references.
+
+**Implementation boundary (2026-10-23):** The `CONFIRMING` state and reservation accounting have been added; the independently authenticated Kalshi final-receipt handler is not yet implemented. Cross-worker master custody reservation/concurrency and late-confirmation reconciliation still require an audit and tests. Do not present outbound Blockradar success as fully settled capital.
 
 Bucket meaning:
 - DEPOSIT: investor unallocated funds held in master wallet.
@@ -18,7 +33,7 @@ Bucket meaning:
 - K_BANK: platform profits at Kalshi, not yet withdrawn.
 - M_BANK: platform profits confirmed at master wallet.
 
-**Integration status:** Platform profit settlement, PLATFROM_M_BANK submissions/confirmations, PLATFORM_PULL, allocation and deallocation settlement APIs are NOT implemented. The position workers still monitor only. The investor withdrawal payout cron is intentionally disabled until a new, race-safe treasury reservation and custody reconciliation path is implemented.
+**Integration status (2026-10-23):** Allocation batching and outbound Blockradar submission exist, with signed Blockradar callbacks advancing allocations to CONFIRMING. Independent Kalshi receipt finalization and deallocation transport are not implemented. Platform profit settlement, PLATFORM_M_BANK submission/confirmation, and PLATFORM_PULL are not implemented. The investor withdrawal worker exists; cross-worker custody reservation and reconciliation remain release blockers.
 
 **Critical implementation conditions:** use authenticated origin/destination webhooks, provider IDs, unique transaction references, strict matching on asset, amount, wallet, and direction. All final balance and request status changes must be a single idempotent database transaction. No synthetic Kalshi events or providers.
 
