@@ -22,17 +22,7 @@ export async function POST(request: Request) {
   const strategyId=body.strategyId;
   if(typeof strategyId!=="string" || !strategyId || strategyId.length>64)return NextResponse.json({error:"Select a strategy"},{status:400});
   if (!amount) return NextResponse.json({error:"Invalid allocation amount"},{status:400});
-  if (typeof body.requestId !== "string" || !/^[0-9a-f-]{36}$/i.test(body.requestId))
-    return NextResponse.json({error:"Invalid request identifier"},{status:400});
-  const reference = `position-open:${user.id}:${body.requestId}`;
   try {
-    const existing = await prisma.positionEventRequest.findUnique({where:{requestKey:reference},include:{positionEvent:true}});
-    if (existing) {
-      const position=await prisma.investorPosition.findUnique({where:{id:existing.positionEvent.positionId},select:{strategyId:true}});
-      return existing.positionEvent.amountUsdcMicros===amount && position?.strategyId===strategyId
-      ? NextResponse.json({positionId:existing.positionEvent.positionId,operationId:existing.positionEvent.id,status:existing.positionEvent.status})
-      : NextResponse.json({error:"Request identifier reused"},{status:409});
-    }
     const result = await prisma.$transaction(async tx=>{
       const strategy=await tx.strategy.findFirst({where:{id:strategyId,isActive:true,isPublic:true}});
       if(!strategy||!strategy.kalshiWalletAddress||!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(strategy.kalshiWalletAddress))return null;
@@ -57,17 +47,10 @@ export async function POST(request: Request) {
         userId:user.id,positionId:position.id,strategyId,
         status:"PENDING",amountUsdcMicros:amount,
       }});
-      await tx.positionEventRequest.create({data:{requestKey:reference,positionEventId:op.id}});
       return {positionId:position.id,operationId:op.id,status:op.status};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
     return result ? NextResponse.json(result,{status:201}) : NextResponse.json({error:"Unavailable strategy or Kalshi wallet address, invalid allocation limits, insufficient strategy capacity or insufficient unallocated USDC"},{status:409});
   }catch(error){
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code==="P2002") {
-      const existing=await prisma.positionEventRequest.findUnique({where:{requestKey:reference},include:{positionEvent:true}});
-      const position=existing&&await prisma.investorPosition.findUnique({where:{id:existing.positionEvent.positionId},select:{strategyId:true}});
-      if(existing && existing.positionEvent.amountUsdcMicros===amount && position?.strategyId===strategyId)
-        return NextResponse.json({positionId:existing.positionEvent.positionId,operationId:existing.positionEvent.id,status:existing.positionEvent.status});
-    }
     if(error instanceof Prisma.PrismaClientKnownRequestError && error.code==="P2034")return NextResponse.json({error:"Concurrent request; retry"},{status:409});
     return NextResponse.json({error:"Unable to request allocation"},{status:503});
   }
