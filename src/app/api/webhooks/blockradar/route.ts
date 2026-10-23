@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     if (!event.data || typeof event.data !== "object") return NextResponse.json({error:"Missing withdrawal data"},{status:400});
     // Settle allocations and withdrawals even if incoming requests are disabled.
     try {
-      if(typeof event.data.reference==="string" && event.data.reference.startsWith("allocation:")){
+      if(typeof event.data.reference==="string" && event.data.reference.startsWith("strategy_withdrawal:")){
        const outcome=await handleAllocationWebhook(event.event,event.data,masterWalletId);
        log("allocation_"+outcome,200);
        return NextResponse.json({message:"success"},{status:200,headers:{"Cache-Control":"no-store"}});
