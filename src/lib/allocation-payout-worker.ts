@@ -72,8 +72,11 @@ export async function processPendingAllocations(){
  }catch(error){
   if(!submissionStarted){
    await prisma.$transaction(async tx=>{
-    const changed=await tx.treasuryTransfer.deleteMany({where:{id:batch.transferId,status:"PENDING",originExternalId:null}});
-    if(changed.count)await tx.positionAllocation.updateMany({where:{treasuryId:batch.transferId,status:"SUBMITTING"},data:{status:"PENDING",treasuryId:null}});
+    const changed=await tx.treasuryTransfer.findFirst({where:{id:batch.transferId,status:"PENDING",originExternalId:null}});
+    if(changed){
+     await tx.positionAllocation.updateMany({where:{treasuryId:batch.transferId,status:"SUBMITTING"},data:{status:"PENDING",treasuryId:null}});
+     await tx.treasuryTransfer.delete({where:{id:batch.transferId}});
+    }
    },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
    return "preflight_retry";
   }
