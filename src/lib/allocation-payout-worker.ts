@@ -37,7 +37,7 @@ export async function processPendingAllocations(){
  const batch=await prisma.$transaction(async tx=>{
   const rows=await tx.positionAllocation.findMany({
    where:{status:"PENDING",treasuryId:null,position:{strategyId:strategy.id}},
-   orderBy:[{createdAt:"asc"},{id:"asc"}],take:100,
+   orderBy:[{createdAt:"asc"},{id:"asc"}],
   });
   if(!rows.length)return null;
   const locked=await tx.positionAllocation.updateMany({where:{id:{in:rows.map(r=>r.id)},status:"PENDING",treasuryId:null},data:{status:"SUBMITTING"}});
