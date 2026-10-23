@@ -207,19 +207,26 @@ try {
  const beforeStrategyCapacity=(await prisma.strategy.findUniqueOrThrow({where:{id:strategy.id}})).availableCapacityUsdcMicros;
  const beforeAllocation=(await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated;
  const beforeAllocationBucket=(await prisma.treasury.findUniqueOrThrow({where:{kind:"ALLOCATE"}})).amount;
- assert.equal(await handleAllocationWebhook(allocationPayload.event,allocationPayload.data,masterWalletId),"settled");
+ // Blockradar success is outbound-only: even an authenticated callback must
+ // never debit investor principal or mark a strategy funded without Kalshi receipt.
+ assert.equal(await handleAllocationWebhook(allocationPayload.event,allocationPayload.data,masterWalletId),"awaiting_kalshi_receipt");
  for(const {allocation,allocationPosition} of allocatedRows){
-  assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:allocation.id}})).status,"COMPLETED");
+  assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:allocation.id}})).status,"PROCESSING");
   const pos=await prisma.investorPosition.findUniqueOrThrow({where:{id:allocationPosition.id}});
-  assert.equal(pos.status,"ACTIVE");
-  assert.equal(pos.principalUsdcMicros,allocation.amountUsdcMicros);
+  assert.equal(pos.principalUsdcMicros,0n);
  }
- assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,beforeAllocation-7_000_000n);
- assert.equal((await prisma.strategy.findUniqueOrThrow({where:{id:strategy.id}})).availableCapacityUsdcMicros,beforeStrategyCapacity-7_000_000n);
- assert.equal((await prisma.treasury.findUniqueOrThrow({where:{kind:"ALLOCATE"}})).amount,beforeAllocationBucket+7_000_000n);
- assert.equal((await prisma.treasuryTransfer.findUniqueOrThrow({where:{id:batchTransfer.id}})).status,"COMPLETE");
- assert.equal(await handleAllocationWebhook(allocationPayload.event,allocationPayload.data,masterWalletId),"duplicate");
- assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,beforeAllocation-7_000_000n);
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,beforeAllocation);
+ assert.equal((await prisma.strategy.findUniqueOrThrow({where:{id:strategy.id}})).availableCapacityUsdcMicros,beforeStrategyCapacity);
+ assert.equal((await prisma.treasury.findUniqueOrThrow({where:{kind:"ALLOCATE"}})).amount,beforeAllocationBucket);
+ const outboundOnly=await prisma.treasuryTransfer.findUniqueOrThrow({where:{id:batchTransfer.id}});
+ assert.equal(outboundOnly.status,"PROCESSING");
+ assert.equal(outboundOnly.originExternalId,"ci-batch-provider");
+ assert.equal(outboundOnly.destinationExternalId,"ci-batch-hash");
+ assert.equal(await handleAllocationWebhook(allocationPayload.event,allocationPayload.data,masterWalletId),"awaiting_kalshi_receipt");
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,beforeAllocation);
+ const mismatchedOutbound={...allocationPayload.data,id:"ci-other-provider"};
+ assert.equal(await handleAllocationWebhook(allocationPayload.event,mismatchedOutbound,masterWalletId),"mismatch");
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,beforeAllocation);
 
  // Provider failure releases the held allocations without changing principal
  // or custody, and duplicate failure callbacks are idempotent.
@@ -242,7 +249,7 @@ try {
  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:failedPosition.id}})).principalUsdcMicros,0n);
  assert.equal((await prisma.treasuryTransfer.findUniqueOrThrow({where:{id:failedTransfer.id}})).status,"FAILED");
  assert.equal(await handleAllocationWebhook(failedPayload.event,failedPayload.data,masterWalletId),"duplicate");
- console.log("Strategy allocation multi-position success, duplicate, and failure callbacks against PostgreSQL passed");
+ console.log("Strategy allocation outbound-only, duplicate, mismatch and failure callback PostgreSQL checks passed");
  console.log("CI PostgreSQL transaction rollback, uniqueness and idempotent settlement assertions passed");
  console.log("CI PostgreSQL migration, fixtures and uniqueness assertions passed");
 }finally{await prisma.$disconnect();}
