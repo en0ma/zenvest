@@ -70,7 +70,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
         reference:withdrawalReference(id),originExternalId:transactionId,
         destinationExternalId:item.destinationAddress,completedAt:new Date(),
       }});
-      await tx.investorWithdrawal.update({where:{id},data:{treasuryId:transfer.id}});
+      await tx.investorWithdrawal.update({where:{id},data:{treasuryTransactionId:transfer.id}});
     }
 
     // Only verified payout success consumes the user balance; failed payouts release
