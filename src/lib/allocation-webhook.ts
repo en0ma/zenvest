@@ -40,8 +40,8 @@ export async function handleAllocationWebhook(event:string,data:Record<string,un
    });
    if(updated.count!==1)return "duplicate";
    await tx.positionAllocation.updateMany({
-    where:{treasuryId:transfer.id,status:{in:["SUBMITTING","REVIEW"]}},
-    data:{status:"PROCESSING"},
+    where:{treasuryId:transfer.id,status:{in:["SUBMITTING","PROCESSING","REVIEW"]}},
+    data:{status:"CONFIRMING"},
    });
    return "awaiting_kalshi_receipt";
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
