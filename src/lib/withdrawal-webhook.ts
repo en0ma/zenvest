@@ -12,10 +12,10 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
   const reference = data.reference;
   if (typeof reference !== "string" || !/^withdrawal:c[a-z0-9]{10,40}$/.test(reference)) return "unrelated";
   const id = reference.slice("withdrawal:".length);
-  const item = await prisma.investorWithdrawal.findUnique({where:{id},include:{treasury:true}});
+  const item = await prisma.investorWithdrawal.findUnique({where:{id},include:{treasuryTransaction:true}});
   if (!item) return "unknown_withdrawal";
   if(item.feeUsdcMicros<WITHDRAWAL_FEE_USDC_MICROS || item.grossUsdcMicros!==item.amountUsdcMicros+item.feeUsdcMicros)return "withdrawal_mismatch";
-  if(item.treasury && (item.treasury.reference!==withdrawalReference(id)||item.treasury.direction!=="WITHDRAWAL"||item.treasury.amountUsdcMicros!==item.amountUsdcMicros))return "treasury_mismatch";
+  if(item.treasuryTransaction && (item.treasuryTransaction.reference!==withdrawalReference(id)||item.treasuryTransaction.direction!=="WITHDRAWAL"||item.treasuryTransaction.amountUsdcMicros!==item.amountUsdcMicros))return "treasury_mismatch";
   const asset = data.asset && typeof data.asset === "object" ? data.asset as Record<string,unknown> : {};
   const wallet = data.wallet && typeof data.wallet === "object" ? data.wallet as Record<string,unknown> : {};
   const amount = (item.amountUsdcMicros / 1000000n).toString() + "." + (item.amountUsdcMicros % 1000000n).toString().padStart(6,"0");
