@@ -18,14 +18,7 @@ export async function POST(request:Request){
  const amount=micros(body.amount);
  if(typeof positionId!=="string"||!/^c[a-z0-9]{10,40}$/.test(positionId)||!amount)
   return NextResponse.json({error:"Invalid position or reduction amount"},{status:400});
- if(typeof body.requestId!=="string"||!/^[0-9a-f-]{36}$/i.test(body.requestId))
-  return NextResponse.json({error:"Invalid request identifier"},{status:400});
- const reference=`position-reduce:${user.id}:${body.requestId}`;
  try {
-  const existing=await prisma.positionEventRequest.findUnique({where:{requestKey:reference},include:{positionEvent:true}});
-  if(existing)return existing.positionEvent.positionId===positionId&&existing.positionEvent.amountUsdcMicros===amount
-   ?NextResponse.json({operationId:existing.positionEvent.id,status:existing.positionEvent.status})
-   :NextResponse.json({error:"Request identifier reused"},{status:409});
   const outcome=await prisma.$transaction(async tx=>{
    const pos=await tx.investorPosition.findFirst({where:{id:positionId,userId:user.id,status:"ACTIVE"}});
    if(!pos)return "INVALID";
@@ -36,7 +29,6 @@ export async function POST(request:Request){
    const op=await tx.positionAllocation.create({data:{
     userId:user.id,positionId:pos.id,strategyId:pos.strategyId,kind:"DEALLOCATE",status:"PENDING",amountUsdcMicros:amount,
    }});
-   await tx.positionEventRequest.create({data:{requestKey:reference,positionEventId:op.id}});
    return op.id;
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
   if(outcome==="INVALID")return NextResponse.json({error:"Position is not active"},{status:409});
@@ -44,11 +36,6 @@ export async function POST(request:Request){
   if(outcome==="EXCEEDS")return NextResponse.json({error:"Amount exceeds position principal"},{status:409});
   return NextResponse.json({operationId:outcome,status:"PENDING"},{status:201});
  }catch(error){
-  if(error instanceof Prisma.PrismaClientKnownRequestError&&error.code==="P2002"){
-   const existing=await prisma.positionEventRequest.findUnique({where:{requestKey:reference},include:{positionEvent:true}});
-   if(existing&&existing.positionEvent.positionId===positionId&&existing.positionEvent.amountUsdcMicros===amount)
-    return NextResponse.json({operationId:existing.positionEvent.id,status:existing.positionEvent.status});
-  }
   return NextResponse.json({error:"Unable to request deallocation"},{status:503});
  }
 }
