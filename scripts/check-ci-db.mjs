@@ -20,7 +20,9 @@ try {
  const schemaTables=await prisma.$queryRawUnsafe(`SELECT tablename FROM pg_tables WHERE schemaname='public'`);
  const tableNames=new Set(schemaTables.map(x=>x.tablename));
  for(const name of ["users","deposits","user_wallets","withdrawals","positions","position_events","strategy_events","strategy_trades","strategies","treasuries","treasury_transactions","webhook_dead_later"])assert.ok(tableNames.has(name),name);
- for(const obsolete of ["investor_portfolios","master_wallet_balances","bot_status","active_bot_trade","withdrawal_deallocations","position_allocations","position_deallocations"])assert.ok(!tableNames.has(obsolete),obsolete);
+ for(const obsolete of ["investor_portfolios","master_wallet_balances","bot_status","active_bot_trade","withdrawal_deallocations","position_allocations","position_deallocations","position_event_requests"])assert.ok(!tableNames.has(obsolete),obsolete);
+ const nonWebhookKeys=await prisma.$queryRawUnsafe(`SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public' AND column_name='idempotency_key' AND table_name <> 'webhook_queue'`);
+ assert.equal(nonWebhookKeys.length,0,"only webhook_queue may have an idempotency_key column");
  await assert.rejects(()=>prisma.treasury.create({data:{kind:"DEPOSIT",source:"MASTER_WALLET",amount:1n,walletAddress:"ci",walletId:"ci"}}),e=>e.code==="P2002");
 
  // Additive strategy-event foundation: no transfer ledger exists before custody evidence.
