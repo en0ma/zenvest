@@ -48,7 +48,12 @@ export async function handleAllocationWebhook(event:string,data:Record<string,un
   journeyLog("info","withdrawal_settlement",`allocation_${outcome}`,{providerTransactionId:id});
   return outcome;
  }
+ // Once an authenticated outbound success has advanced the batch to
+ // CONFIRMING, a conflicting failure event cannot release reserved funds.
+ if(transfer.allocations.some(a=>a.status==="CONFIRMING"))return "requires_reconciliation";
  const result=await prisma.$transaction(async tx=>{
+  const confirming=await tx.positionAllocation.count({where:{treasuryId:transfer.id,status:"CONFIRMING"}});
+  if(confirming>0)return "requires_reconciliation";
   const changed=await tx.treasuryTransfer.updateMany({
    where:{id:transfer.id,direction:"ALLOCATE",status:{in:["PENDING","PROCESSING","REVIEW"]}},
    data:{status:"FAILED",originExternalId:id,destinationExternalId:typeof data.hash==="string"?data.hash:null},
