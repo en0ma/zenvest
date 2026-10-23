@@ -15,7 +15,7 @@ try {
  // Verify the real PostgreSQL enum values after migration.
  for(const name of ['WithdrawalStatus','PositionTransferStatus']){
   const rows=await prisma.$queryRawUnsafe('SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid WHERE t.typname=$1',name);
-  assert.deepEqual(rows.map(r=>r.enumlabel).sort(),['PENDING','SUBMITTING','PROCESSING','REVIEW','COMPLETED','FAILED','CANCELLED'].sort());
+  assert.deepEqual(rows.map(r=>r.enumlabel).sort(),[...['PENDING','SUBMITTING','PROCESSING','REVIEW','COMPLETED','FAILED','CANCELLED'],...(name==='PositionTransferStatus'?['CONFIRMING']:[])].sort());
  }
  const schemaTables=await prisma.$queryRawUnsafe(`SELECT tablename FROM pg_tables WHERE schemaname='public'`);
  const tableNames=new Set(schemaTables.map(x=>x.tablename));
@@ -211,7 +211,7 @@ try {
  // never debit investor principal or mark a strategy funded without Kalshi receipt.
  assert.equal(await handleAllocationWebhook(allocationPayload.event,allocationPayload.data,masterWalletId),"awaiting_kalshi_receipt");
  for(const {allocation,allocationPosition} of allocatedRows){
-  assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:allocation.id}})).status,"PROCESSING");
+  assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:allocation.id}})).status,"CONFIRMING");
   const pos=await prisma.investorPosition.findUniqueOrThrow({where:{id:allocationPosition.id}});
   assert.equal(pos.principalUsdcMicros,0n);
  }
