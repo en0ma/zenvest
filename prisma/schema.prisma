@@ -185,6 +185,8 @@ model BlockchainDeposit {
   status BlockchainDepositStatus @default(CONFIRMING)
   sweepHash String? @map("sweep_hash") @db.VarChar(180)
   creditedAt DateTime? @map("credited_at")
+  treasuryTransactionId String? @unique @map("treasury_transaction_id")
+  treasuryTransaction TreasuryTransfer? @relation("DepositTreasuryTransaction",fields:[treasuryTransactionId],references:[id],onDelete:Restrict)
   createdAt DateTime @default(now()) @map("created_at")
   @@index([walletId, createdAt])
   @@map("deposits")
@@ -216,11 +218,11 @@ model InvestorWithdrawal {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   completedAt DateTime? @map("completed_at")
-  treasuryId String? @map("treasury_id")
-  treasury TreasuryTransfer? @relation(fields:[treasuryId],references:[id],onDelete:Restrict)
+  treasuryTransactionId String? @map("treasury_transaction_id")
+  treasuryTransaction TreasuryTransfer? @relation(fields:[treasuryTransactionId],references:[id],onDelete:Restrict)
   @@index([userId, createdAt])
   @@index([status, createdAt])
-  @@index([treasuryId])
+  @@index([treasuryTransactionId])
   @@map("withdrawals")
 }
 
@@ -378,6 +380,7 @@ model TreasuryTransfer {
   completedAt DateTime? @map("completed_at")
   strategyEvent StrategyEvent?
   withdrawals InvestorWithdrawal[]
+  deposit BlockchainDeposit? @relation("DepositTreasuryTransaction")
   @@index([direction,status,createdAt])
   @@index([originExternalId])
   @@index([destinationExternalId])
