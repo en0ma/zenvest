@@ -115,7 +115,7 @@ export async function processVerifiedBlockradarQueueItem(request: Request) {
       if(changed.count!==1) return "duplicate";
       // Record custody movement atomically with the confirmed investor deposit.
       // The conditional CONFIRMING -> CONFIRMED transition is the idempotency gate.
-      await tx.treasuryTransfer.create({data:{
+      const treasuryTransaction=await tx.treasuryTransfer.create({data:{
         direction:"DEPOSIT",status:"COMPLETE",
         assetId:mint,asset:"USDC",amountUsdcMicros:amount,feeUsdcMicros:0n,
         destinationWalletAddress:master.address as string,
@@ -124,6 +124,7 @@ export async function processVerifiedBlockradarQueueItem(request: Request) {
         destinationExternalId:master.address as string,
         reference:id,completedAt:new Date(),
       }});
+      await tx.blockchainDeposit.update({where:{id:prior.id},data:{treasuryTransactionId:treasuryTransaction.id}});
 
       await tx.user.update({where:{id:wallet.userId},data:{unallocated:{increment:amount}}});
       await tx.treasury.upsert({where:{kind:"DEPOSIT"},create:{walletAddress:master.address as string,walletId:masterWalletId,asset:"USDC",network:"solana",source:"MASTER_WALLET",kind:"DEPOSIT",amount},update:{amount:{increment:amount}}});
