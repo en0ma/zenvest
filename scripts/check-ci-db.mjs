@@ -20,7 +20,7 @@ try {
  const schemaTables=await prisma.$queryRawUnsafe(`SELECT tablename FROM pg_tables WHERE schemaname='public'`);
  const tableNames=new Set(schemaTables.map(x=>x.tablename));
  for(const name of ["users","deposits","user_wallets","withdrawals","positions","position_events","strategy_events","strategy_trades","strategies","treasuries","treasury_transactions","webhook_dead_later"])assert.ok(tableNames.has(name),name);
- for(const obsolete of ["investor_portfolios","master_wallet_balances","bot_status","active_bot_trade","withdrawal_deallocations","position_allocations"])assert.ok(!tableNames.has(obsolete),obsolete);
+ for(const obsolete of ["investor_portfolios","master_wallet_balances","bot_status","active_bot_trade","withdrawal_deallocations","position_allocations","position_deallocations"])assert.ok(!tableNames.has(obsolete),obsolete);
  await assert.rejects(()=>prisma.treasury.create({data:{kind:"DEPOSIT",source:"MASTER_WALLET",amount:1n,walletAddress:"ci",walletId:"ci"}}),e=>e.code==="P2002");
 
  // Additive strategy-event foundation: no transfer ledger exists before custody evidence.
@@ -39,6 +39,20 @@ try {
  await assert.rejects(()=>prisma.strategyEvent.update({where:{id:staged.id},data:{status:"COMPLETED"}}),e=>/strategy_events_completed_requires_both/.test(String(e)),"source-only confirmation must not complete");
  await prisma.strategyEvent.update({where:{id:staged.id},data:{destinationConfirmed:true,status:"COMPLETED"}});
  assert.equal((await prisma.strategyEvent.findUniqueOrThrow({where:{id:staged.id}})).status,"COMPLETED");
+ // All deallocation requests now persist to the same position_events table.
+ const reduction=await prisma.positionAllocation.create({data:{
+  userId:user.id,positionId:position.id,strategyId:position.strategyId,
+  kind:"DEALLOCATE",amountUsdcMicros:1_000_000n,
+  requestKey:"ci-unified-deallocation",status:"PENDING",
+ }});
+ assert.equal(reduction.kind,"DEALLOCATE");
+ assert.equal(reduction.strategyEventId,null);
+ assert.equal(await prisma.positionAllocation.count({where:{kind:"DEALLOCATE",userId:user.id}}),1);
+ await assert.rejects(()=>prisma.positionAllocation.create({data:{
+  userId:user.id,positionId:position.id,strategyId:position.strategyId,
+  kind:"DEALLOCATE",amountUsdcMicros:1_000_000n,
+  requestKey:"ci-unified-deallocation",
+ }}),e=>e.code==="P2002","repeat deallocation request must not duplicate");
  // Real PostgreSQL uniqueness and ownership constraints.
  const strategy=await prisma.strategy.findUniqueOrThrow({where:{id:"ci_test_strategy"}});
  assert.equal(strategy.platformProfitPercentage.toString(),"0");
