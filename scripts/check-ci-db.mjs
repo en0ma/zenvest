@@ -19,8 +19,8 @@ try {
  }
  const schemaTables=await prisma.$queryRawUnsafe(`SELECT tablename FROM pg_tables WHERE schemaname='public'`);
  const tableNames=new Set(schemaTables.map(x=>x.tablename));
- for(const name of ["users","deposits","user_wallets","withdrawals","positions","strategy_trades","strategies","treasuries","treasury_transactions","webhook_dead_later"])assert.ok(tableNames.has(name),name);
- for(const obsolete of ["investor_portfolios","master_wallet_balances","bot_status","active_bot_trade","withdrawal_deallocations"])assert.ok(!tableNames.has(obsolete),obsolete);
+ for(const name of ["users","deposits","user_wallets","withdrawals","positions","position_events","strategy_events","strategy_trades","strategies","treasuries","treasury_transactions","webhook_dead_later"])assert.ok(tableNames.has(name),name);
+ for(const obsolete of ["investor_portfolios","master_wallet_balances","bot_status","active_bot_trade","withdrawal_deallocations","position_allocations"])assert.ok(!tableNames.has(obsolete),obsolete);
  await assert.rejects(()=>prisma.treasury.create({data:{kind:"DEPOSIT",source:"MASTER_WALLET",amount:1n,walletAddress:"ci",walletId:"ci"}}),e=>e.code==="P2002");
 
  // Additive strategy-event foundation: no transfer ledger exists before custody evidence.
@@ -54,7 +54,7 @@ try {
  assert.equal(trade.profit.toString(),"0.12345678");
  assert.equal(trade.platformProfitShare.toString(),"0.03086419");
  await assert.rejects(()=>prisma.positionAllocation.create({data:{
-  userId:user.id,positionId:"missing_position",amountUsdcMicros:1n,requestKey:"ci-missing-position"
+  userId:user.id,positionId:"missing_position",strategyId:"ci_test_strategy",amountUsdcMicros:1n,requestKey:"ci-missing-position"
  }}),e=>e.code==="P2003","allocation must reference an existing position");
 
  const withdrawal=await prisma.investorWithdrawal.create({data:{
@@ -208,7 +208,7 @@ try {
  for(const [i,amount] of [3_000_000n,4_000_000n].entries()){
   const allocationPosition=await prisma.investorPosition.create({data:{userId:user.id,strategyId:strategy.id}});
   const allocation=await prisma.positionAllocation.create({data:{
-   userId:user.id,positionId:allocationPosition.id,
+   userId:user.id,positionId:allocationPosition.id,strategyId:strategy.id,
    status:"PROCESSING",amountUsdcMicros:amount,
    requestKey:"ci-batch-allocation-"+i,treasuryId:batchTransfer.id,
   }});
@@ -253,7 +253,7 @@ try {
  }});
  const failedPosition=await prisma.investorPosition.create({data:{userId:user.id,strategyId:strategy.id}});
  const failedAllocation=await prisma.positionAllocation.create({data:{
-  userId:user.id,positionId:failedPosition.id,status:"REVIEW",treasuryId:failedTransfer.id,
+  userId:user.id,positionId:failedPosition.id,strategyId:strategy.id,status:"REVIEW",treasuryId:failedTransfer.id,
   amountUsdcMicros:1_000_000n,requestKey:"ci-failed-allocation",
  }});
  const failedPayload={event:"withdraw.failed",data:{
