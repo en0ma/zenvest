@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     }
     const result = await prisma.$transaction(async tx=>{
       const strategy=await tx.strategy.findFirst({where:{id:strategyId,isActive:true,isPublic:true}});
-      if(!strategy)return null;
+      if(!strategy||!strategy.kalshiWalletAddress||!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(strategy.kalshiWalletAddress))return null;
       // Count outstanding requests against the strategy's advertised capacity.
       // Serializable isolation protects the concurrent capacity predicate.
       const outstanding=await tx.positionAllocation.aggregate({
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       }});
       return {positionId:position.id,operationId:op.id,status:op.status};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
-    return result ? NextResponse.json(result,{status:201}) : NextResponse.json({error:"Unavailable strategy, invalid allocation limits, insufficient strategy capacity or insufficient unallocated USDC"},{status:409});
+    return result ? NextResponse.json(result,{status:201}) : NextResponse.json({error:"Unavailable strategy or Kalshi wallet address, invalid allocation limits, insufficient strategy capacity or insufficient unallocated USDC"},{status:409});
   }catch(error){
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code==="P2002") {
       const existing=await prisma.positionAllocation.findUnique({where:{requestKey:reference}});
