@@ -40,7 +40,7 @@ export async function handleAllocationWebhook(event:string,data:Record<string,un
    });
    if(updated.count!==1)return "duplicate";
    await tx.positionAllocation.updateMany({
-    where:{treasuryId:transfer.id,status:{in:["SUBMITTING","PROCESSING","REVIEW"]}},
+    where:{treasuryId:transfer.id,kind:"ALLOCATE",status:{in:["SUBMITTING","PROCESSING","REVIEW"]}},
     data:{status:"CONFIRMING"},
    });
    return "awaiting_kalshi_receipt";
@@ -52,7 +52,7 @@ export async function handleAllocationWebhook(event:string,data:Record<string,un
  // CONFIRMING, a conflicting failure event cannot release reserved funds.
  if(transfer.allocations.some(a=>a.status==="CONFIRMING"))return "requires_reconciliation";
  const result=await prisma.$transaction(async tx=>{
-  const confirming=await tx.positionAllocation.count({where:{treasuryId:transfer.id,status:"CONFIRMING"}});
+  const confirming=await tx.positionAllocation.count({where:{treasuryId:transfer.id,kind:"ALLOCATE",status:"CONFIRMING"}});
   if(confirming>0)return "requires_reconciliation";
   const changed=await tx.treasuryTransfer.updateMany({
    where:{id:transfer.id,direction:"ALLOCATE",status:{in:["PENDING","PROCESSING","REVIEW"]}},
