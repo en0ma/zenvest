@@ -36,6 +36,7 @@ export async function POST(request:Request){
    const op=await tx.positionAllocation.create({data:{
     userId:user.id,positionId:pos.id,strategyId:pos.strategyId,kind:"DEALLOCATE",status:"PENDING",amountUsdcMicros:amount,
    }});
+   await tx.positionEventRequest.create({data:{requestKey:reference,positionEventId:op.id}});
    return op.id;
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
   if(outcome==="INVALID")return NextResponse.json({error:"Position is not active"},{status:409});
