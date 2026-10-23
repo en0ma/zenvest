@@ -22,7 +22,7 @@ export async function POST(request:Request){
   return NextResponse.json({error:"Invalid request identifier"},{status:400});
  const reference=`position-reduce:${user.id}:${body.requestId}`;
  try {
-  const existing=await prisma.positionDeallocation.findUnique({where:{requestKey:reference}});
+  const existing=await prisma.positionAllocation.findUnique({where:{requestKey:reference}});
   if(existing)return existing.positionId===positionId&&existing.amountUsdcMicros===amount
    ?NextResponse.json({operationId:existing.id,status:existing.status})
    :NextResponse.json({error:"Request identifier reused"},{status:409});
@@ -30,11 +30,11 @@ export async function POST(request:Request){
    const pos=await tx.investorPosition.findFirst({where:{id:positionId,userId:user.id,status:"ACTIVE"}});
    if(!pos)return "INVALID";
    // One unsettled reduction per position keeps principal ownership unambiguous.
-   const other=await tx.positionDeallocation.count({where:{positionId,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}}});
+   const other=await tx.positionAllocation.count({where:{positionId,kind:"DEALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}}});
    if(other)return "BUSY";
    if(amount>pos.principalUsdcMicros)return "EXCEEDS";
-   const op=await tx.positionDeallocation.create({data:{
-    userId:user.id,positionId:pos.id,status:"PENDING",amountUsdcMicros:amount,requestKey:reference,
+   const op=await tx.positionAllocation.create({data:{
+    userId:user.id,positionId:pos.id,strategyId:pos.strategyId,kind:"DEALLOCATE",status:"PENDING",amountUsdcMicros:amount,requestKey:reference,
    }});
    return op.id;
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
@@ -44,7 +44,7 @@ export async function POST(request:Request){
   return NextResponse.json({operationId:outcome,status:"PENDING"},{status:201});
  }catch(error){
   if(error instanceof Prisma.PrismaClientKnownRequestError&&error.code==="P2002"){
-   const existing=await prisma.positionDeallocation.findUnique({where:{requestKey:reference}});
+   const existing=await prisma.positionAllocation.findUnique({where:{requestKey:reference}});
    if(existing&&existing.positionId===positionId&&existing.amountUsdcMicros===amount)
     return NextResponse.json({operationId:existing.id,status:existing.status});
   }
