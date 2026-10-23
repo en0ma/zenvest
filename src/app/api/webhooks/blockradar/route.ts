@@ -120,9 +120,9 @@ export async function POST(request: Request) {
         assetId:mint,asset:"USDC",amountUsdcMicros:amount,feeUsdcMicros:0n,
         destinationWalletAddress:master.address as string,
         network:"solana",masterWalletAddress:master.address as string,
-        masterWalletId,originExternalId:id,
-        destinationExternalId:sweepHash as string,
-        reference:`blockradar-deposit:${id}`,completedAt:new Date(),
+        masterWalletId,originExternalId:recipient,
+        destinationExternalId:master.address as string,
+        reference:id,completedAt:new Date(),
       }});
 
       await tx.user.update({where:{id:wallet.userId},data:{unallocated:{increment:amount}}});
