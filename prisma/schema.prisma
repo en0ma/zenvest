@@ -83,6 +83,7 @@ model Strategy {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   positions InvestorPosition[]
+  strategyEvents StrategyEvent[]
   trades StrategyTrade[]
   @@index([isActive,isPublic])
   @@map("strategies")
@@ -338,6 +339,33 @@ model PositionDeallocation {
   @@map("position_deallocations")
 }
 
+// One pooled capital movement per strategy, before any treasury settlement.
+enum StrategyEventKind {
+  ALLOCATE
+  DEALLOCATE
+}
+enum StrategyEventStatus {
+  PROCESSING
+  CONFIRMING
+  COMPLETED
+}
+model StrategyEvent {
+  id String @id @default(cuid())
+  kind StrategyEventKind
+  amountUsdcMicros BigInt @map("amount_usdc_micros")
+  strategyId String @map("strategy_id") @db.VarChar(64)
+  strategy Strategy @relation(fields:[strategyId],references:[id],onDelete:Restrict)
+  status StrategyEventStatus @default(PROCESSING)
+  treasuryTransactionId String? @unique @map("treasury_transaction_id")
+  treasuryTransaction TreasuryTransfer? @relation(fields:[treasuryTransactionId],references:[id],onDelete:Restrict)
+  sourceConfirmed Boolean @default(false) @map("source_confirmed")
+  destinationConfirmed Boolean @default(false) @map("destination_confirmed")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@index([strategyId,kind,status,createdAt])
+  @@map("strategy_events")
+}
+
 enum TreasuryDirection {
   DEPOSIT
   ALLOCATE
@@ -375,6 +403,7 @@ model TreasuryTransfer {
   completedAt DateTime? @map("completed_at")
   allocations PositionAllocation[]
   deallocations PositionDeallocation[]
+  strategyEvent StrategyEvent?
   withdrawals InvestorWithdrawal[]
   @@index([direction,status,createdAt])
   @@index([originExternalId])
