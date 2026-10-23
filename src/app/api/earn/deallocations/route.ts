@@ -22,9 +22,9 @@ export async function POST(request:Request){
   return NextResponse.json({error:"Invalid request identifier"},{status:400});
  const reference=`position-reduce:${user.id}:${body.requestId}`;
  try {
-  const existing=await prisma.positionAllocation.findUnique({where:{requestKey:reference}});
-  if(existing)return existing.positionId===positionId&&existing.amountUsdcMicros===amount
-   ?NextResponse.json({operationId:existing.id,status:existing.status})
+  const existing=await prisma.positionEventRequest.findUnique({where:{requestKey:reference},include:{positionEvent:true}});
+  if(existing)return existing.positionEvent.positionId===positionId&&existing.positionEvent.amountUsdcMicros===amount
+   ?NextResponse.json({operationId:existing.positionEvent.id,status:existing.positionEvent.status})
    :NextResponse.json({error:"Request identifier reused"},{status:409});
   const outcome=await prisma.$transaction(async tx=>{
    const pos=await tx.investorPosition.findFirst({where:{id:positionId,userId:user.id,status:"ACTIVE"}});
@@ -34,7 +34,7 @@ export async function POST(request:Request){
    if(other)return "BUSY";
    if(amount>pos.principalUsdcMicros)return "EXCEEDS";
    const op=await tx.positionAllocation.create({data:{
-    userId:user.id,positionId:pos.id,strategyId:pos.strategyId,kind:"DEALLOCATE",status:"PENDING",amountUsdcMicros:amount,requestKey:reference,
+    userId:user.id,positionId:pos.id,strategyId:pos.strategyId,kind:"DEALLOCATE",status:"PENDING",amountUsdcMicros:amount,
    }});
    return op.id;
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
@@ -44,9 +44,9 @@ export async function POST(request:Request){
   return NextResponse.json({operationId:outcome,status:"PENDING"},{status:201});
  }catch(error){
   if(error instanceof Prisma.PrismaClientKnownRequestError&&error.code==="P2002"){
-   const existing=await prisma.positionAllocation.findUnique({where:{requestKey:reference}});
-   if(existing&&existing.positionId===positionId&&existing.amountUsdcMicros===amount)
-    return NextResponse.json({operationId:existing.id,status:existing.status});
+   const existing=await prisma.positionEventRequest.findUnique({where:{requestKey:reference},include:{positionEvent:true}});
+   if(existing&&existing.positionEvent.positionId===positionId&&existing.positionEvent.amountUsdcMicros===amount)
+    return NextResponse.json({operationId:existing.positionEvent.id,status:existing.positionEvent.status});
   }
   return NextResponse.json({error:"Unable to request deallocation"},{status:503});
  }
