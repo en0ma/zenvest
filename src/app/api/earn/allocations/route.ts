@@ -54,7 +54,7 @@ export async function POST(request: Request) {
         availableUser,active:strategy.isActive,isPublic:strategy.isPublic}))return null;
       const position=await tx.investorPosition.create({data:{userId:user.id,strategyId}});
       const op=await tx.positionAllocation.create({data:{
-        userId:user.id,positionId:position.id,
+        userId:user.id,positionId:position.id,strategyId,
         status:"PENDING",amountUsdcMicros:amount,requestKey:reference,
       }});
       return {positionId:position.id,operationId:op.id,status:op.status};
