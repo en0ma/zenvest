@@ -14,8 +14,8 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
   const id = reference.slice("withdrawal:".length);
   const item = await prisma.investorWithdrawal.findUnique({where:{id},include:{treasury:true}});
   if (!item) return "unknown_withdrawal";
-  if(!item.treasury || item.treasury.reference!==withdrawalReference(id) || item.treasury.direction!=="WITHDRAWAL" || item.treasury.feeUsdcMicros!==item.feeUsdcMicros || item.feeUsdcMicros<WITHDRAWAL_FEE_USDC_MICROS || item.treasury.amountUsdcMicros!==item.amountUsdcMicros)return "treasury_mismatch";
-  const treasury=item.treasury;
+  if(item.feeUsdcMicros<WITHDRAWAL_FEE_USDC_MICROS || item.grossUsdcMicros!==item.amountUsdcMicros+item.feeUsdcMicros)return "withdrawal_mismatch";
+  if(item.treasury && (item.treasury.reference!==withdrawalReference(id)||item.treasury.direction!=="WITHDRAWAL"||item.treasury.amountUsdcMicros!==item.amountUsdcMicros))return "treasury_mismatch";
   const asset = data.asset && typeof data.asset === "object" ? data.asset as Record<string,unknown> : {};
   const wallet = data.wallet && typeof data.wallet === "object" ? data.wallet as Record<string,unknown> : {};
   const amount = (item.amountUsdcMicros / 1000000n).toString() + "." + (item.amountUsdcMicros % 1000000n).toString().padStart(6,"0");
@@ -55,18 +55,22 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
         ...(targetStatus === "COMPLETED" ? {completedAt:new Date()} : {failureCode:event})},
     });
     if (updated.count !== 1) return await saveLateSuccess() ? "dead_letter" : "duplicate";
-    if (!item.treasuryId) throw new Error("Missing treasury transaction for payout");
-    {
-      const changedTreasury=await tx.treasuryTransfer.updateMany({
-        where:{id:item.treasuryId,direction:"WITHDRAWAL",status:{in:["PENDING","PROCESSING"]},
-          masterWalletId,amountUsdcMicros:item.amountUsdcMicros,
-          destinationWalletAddress:item.destinationAddress},
-        data:{status:targetStatus==="COMPLETED"?"COMPLETE":"FAILED",
-          originExternalId:transactionId,
-          destinationExternalId:item.destinationAddress,
-          ...(targetStatus==="COMPLETED"?{completedAt:new Date()}:{})},
-      });
-      if(changedTreasury.count!==1)throw new Error("Treasury settlement mismatch");
+    // No ledger entry is minted on a failed/cancelled provider callback.
+    // Authenticated SUCCESS alone may create a COMPLETE treasury transaction.
+    if(targetStatus==="COMPLETED"){
+      const existing=await tx.treasuryTransfer.findUnique({where:{reference:withdrawalReference(id)}});
+      if(existing)throw new Error("Unexpected prior withdrawal ledger entry");
+      const depositMaster=await tx.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}});
+      if(depositMaster.walletId!==masterWalletId)throw new Error("Master wallet mismatch");
+      const transfer=await tx.treasuryTransfer.create({data:{
+        direction:"WITHDRAWAL",status:"COMPLETE",assetId:process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID,
+        asset:"USDC",amountUsdcMicros:item.amountUsdcMicros,feeUsdcMicros:item.feeUsdcMicros,
+        destinationWalletAddress:item.destinationAddress,network:"solana",
+        masterWalletAddress:depositMaster.walletAddress,masterWalletId,
+        reference:withdrawalReference(id),originExternalId:transactionId,
+        destinationExternalId:item.destinationAddress,completedAt:new Date(),
+      }});
+      await tx.investorWithdrawal.update({where:{id},data:{treasuryId:transfer.id}});
     }
 
     // Only verified payout success consumes the user balance; failed payouts release
@@ -79,7 +83,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
       if(changedUser.count!==1)throw new Error("Insufficient unallocated funds at payout settlement");
       // Exactly one row per kind. A withdrawal decreases user-held master funds;
       // only the retained 2 USDC increases the fee bucket; network costs are not platform revenue.
-      const {gross:spent}=withdrawalSplit(item.grossUsdcMicros,item.amountUsdcMicros,treasury.feeUsdcMicros);
+      const {gross:spent}=withdrawalSplit(item.grossUsdcMicros,item.amountUsdcMicros,item.feeUsdcMicros);
       // Spend from master-held DEPOSIT then DEALLOCATE capital. The sum must
       // cover the gross debit and the whole split settles atomically.
       const deposit=await tx.treasury.findUnique({where:{kind:"DEPOSIT"}});
@@ -98,8 +102,8 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
         if(updated.count!==1)throw new Error("Deallocate bucket changed");
       }
       await tx.treasury.upsert({where:{kind:"WITHDRAWAL_FEE"},create:{
-        walletAddress:treasury.masterWalletAddress,walletId:masterWalletId,
-        asset:treasury.asset,network:treasury.network,source:"MASTER_WALLET",
+        walletAddress:(await tx.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).walletAddress,walletId:masterWalletId,
+        asset:item.asset,network:"solana",source:"MASTER_WALLET",
         kind:"WITHDRAWAL_FEE",amount:WITHDRAWAL_FEE_USDC_MICROS,
       },update:{amount:{increment:WITHDRAWAL_FEE_USDC_MICROS}}});
       await tx.investorActivity.create({
