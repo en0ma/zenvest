@@ -23,6 +23,22 @@ try {
  for(const obsolete of ["investor_portfolios","master_wallet_balances","bot_status","active_bot_trade","withdrawal_deallocations"])assert.ok(!tableNames.has(obsolete),obsolete);
  await assert.rejects(()=>prisma.treasury.create({data:{kind:"DEPOSIT",source:"MASTER_WALLET",amount:1n,walletAddress:"ci",walletId:"ci"}}),e=>e.code==="P2002");
 
+ // Additive strategy-event foundation: no transfer ledger exists before custody evidence.
+ const staged=await prisma.strategyEvent.create({data:{
+  kind:"ALLOCATE",amountUsdcMicros:7_000_000n,strategyId:"ci_test_strategy",
+ }});
+ assert.equal(staged.status,"PROCESSING");
+ assert.equal(staged.sourceConfirmed,false);
+ assert.equal(staged.destinationConfirmed,false);
+ assert.equal(staged.treasuryTransactionId,null);
+ await assert.rejects(()=>prisma.strategyEvent.create({data:{
+  kind:"ALLOCATE",amountUsdcMicros:0n,strategyId:"ci_test_strategy",
+ }}),e=>e.code==="P2004","strategy event amount must be positive");
+ await assert.rejects(()=>prisma.strategyEvent.update({where:{id:staged.id},data:{status:"COMPLETED"}}),e=>e.code==="P2004","completed requires verified source and destination");
+ await prisma.strategyEvent.update({where:{id:staged.id},data:{sourceConfirmed:true,status:"CONFIRMING"}});
+ await assert.rejects(()=>prisma.strategyEvent.update({where:{id:staged.id},data:{status:"COMPLETED"}}),e=>e.code==="P2004","source-only confirmation must not complete");
+ await prisma.strategyEvent.update({where:{id:staged.id},data:{destinationConfirmed:true,status:"COMPLETED"}});
+ assert.equal((await prisma.strategyEvent.findUniqueOrThrow({where:{id:staged.id}})).status,"COMPLETED");
  // Real PostgreSQL uniqueness and ownership constraints.
  const strategy=await prisma.strategy.findUniqueOrThrow({where:{id:"ci_test_strategy"}});
  assert.equal(strategy.platformProfitPercentage.toString(),"0");
