@@ -252,6 +252,28 @@ try {
  }
  assert.equal(await handleAllocationWebhook("withdraw.failed",{...data,status:"FAILED"},masterWalletId),"requires_reconciliation");
  assert.equal(await handleAllocationWebhook("withdraw.success",{...data,id:"wrong-provider"},masterWalletId),"mismatch");
+ // The domain service accepts only evidence independently verified by a
+ // future Kalshi adapter. No provider transport is mocked as authenticated.
+ const {settleVerifiedStrategyFunding}=await import("../src/lib/strategy-funding-settlement.ts");
+ const verified={strategyEventId:evt.id,kalshiTransactionId:"ci-kalshi-credit-1",
+  strategyWalletAddress:strategyWallet,amountUsdcMicros:7_000_000n,
+  asset:"USDC",network:"solana"};
+ assert.equal(await settleVerifiedStrategyFunding({...verified,amountUsdcMicros:8_000_000n}),"mismatch");
+ assert.equal((await prisma.strategyEvent.findUniqueOrThrow({where:{id:evt.id}})).destinationConfirmed,false);
+ assert.equal(await settleVerifiedStrategyFunding(verified),"settled");
+ assert.equal(await settleVerifiedStrategyFunding(verified),"duplicate");
+ assert.equal(await settleVerifiedStrategyFunding({...verified,kalshiTransactionId:"different"}),"mismatch");
+ const finalized=await prisma.strategyEvent.findUniqueOrThrow({where:{id:evt.id}});
+ assert.equal(finalized.sourceConfirmed,true);
+ assert.equal(finalized.destinationConfirmed,true);
+ assert.equal(finalized.status,"COMPLETED");
+ assert.equal((await prisma.treasury.findUniqueOrThrow({where:{kind:"ALLOCATE"}})).amount,allocatedBeforeSource+7_000_000n);
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,balanceBeforeSource-7_000_000n);
+ assert.equal((await prisma.treasuryTransfer.findUniqueOrThrow({where:{id:source.treasuryTransactionId}})).destinationExternalId,verified.kalshiTransactionId);
+ for(const {pos,operation} of children){
+  assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:operation.id}})).status,"COMPLETED");
+  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:pos.id}})).principalUsdcMicros,operation.amountUsdcMicros);
+ }
  console.log("Strategy source-only confirmation, duplicate, mismatch, and financial conservation passed");
  console.log("CI PostgreSQL transaction rollback, uniqueness and idempotent settlement assertions passed");
  console.log("CI PostgreSQL migration, fixtures and uniqueness assertions passed");
