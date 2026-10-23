@@ -10,11 +10,11 @@ export default async function EarnPage(){
  const account=await prisma.user.findUniqueOrThrow({where:{id:user.id},select:{unallocated:true}});
  const [positions,allocations,deallocations,strategies,withdrawalReservations,allocationReservations]=await Promise.all([
   prisma.investorPosition.findMany({where:{userId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}]}),
-  prisma.positionAllocation.findMany({where:{userId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}],take:100}),
-  prisma.positionDeallocation.findMany({where:{userId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}],take:100}),
+  prisma.positionAllocation.findMany({where:{userId:user.id,kind:"ALLOCATE"},orderBy:[{createdAt:"desc"},{id:"desc"}],take:100}),
+  prisma.positionAllocation.findMany({where:{userId:user.id,kind:"DEALLOCATE"},orderBy:[{createdAt:"desc"},{id:"desc"}],take:100}),
   prisma.strategy.findMany({where:{isActive:true,isPublic:true},orderBy:{name:"asc"}}),
   prisma.investorWithdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
-  prisma.positionAllocation.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
+  prisma.positionAllocation.aggregate({where:{userId:user.id,kind:"ALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
  ]);
  const u=account.unallocated,w=withdrawalReservations._sum.grossUsdcMicros??0n,a=allocationReservations._sum.amountUsdcMicros??0n;
  const allocated=positions.reduce((total,x)=>total+x.principalUsdcMicros,0n);
