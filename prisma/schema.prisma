@@ -84,6 +84,7 @@ model Strategy {
   updatedAt DateTime @updatedAt @map("updated_at")
   positions InvestorPosition[]
   strategyEvents StrategyEvent[]
+  positionEvents PositionAllocation[]
   trades StrategyTrade[]
   @@index([isActive,isPublic])
   @@map("strategies")
@@ -297,6 +298,11 @@ model InvestorPosition {
 
 model PositionAllocation {
   id String @id @default(cuid())
+  kind StrategyEventKind @default(ALLOCATE)
+  strategyId String @map("strategy_id") @db.VarChar(64)
+  strategy Strategy @relation(fields:[strategyId],references:[id],onDelete:Restrict)
+  strategyEventId String? @map("strategy_event_id")
+  strategyEvent StrategyEvent? @relation(fields:[strategyEventId],references:[id],onDelete:Restrict)
   positionId String @map("position_id")
   position InvestorPosition @relation(fields: [positionId], references: [id], onDelete: Restrict)
   userId String @map("user_id")
@@ -312,8 +318,9 @@ model PositionAllocation {
   completedAt DateTime? @map("completed_at")
   @@index([userId, createdAt])
   @@index([treasuryId])
+  @@index([strategyId,kind,strategyEventId,status])
   @@index([status, createdAt])
-  @@map("position_allocations")
+  @@map("position_events")
 }
 
 model PositionDeallocation {
@@ -358,6 +365,7 @@ model StrategyEvent {
   status StrategyEventStatus @default(PROCESSING)
   treasuryTransactionId String? @unique @map("treasury_transaction_id")
   treasuryTransaction TreasuryTransfer? @relation(fields:[treasuryTransactionId],references:[id],onDelete:Restrict)
+  positionEvents PositionAllocation[]
   sourceConfirmed Boolean @default(false) @map("source_confirmed")
   destinationConfirmed Boolean @default(false) @map("destination_confirmed")
   createdAt DateTime @default(now()) @map("created_at")
