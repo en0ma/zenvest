@@ -206,80 +206,53 @@ try {
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,balanceBeforeLate);
  console.log("Actual Blockradar-style webhook handler PostgreSQL success, duplicate, mismatch, failure, late-success archive checks passed");
 
- // Exercise actual multi-investor-position strategy batch settlement with
- // Blockradar-style asynchronous withdrawal callback against PostgreSQL.
+ // Source-only allocation settlement: never credit a position or ALLOCATE bucket
+ // until independently verified Kalshi destination receipt is implemented.
  const {handleAllocationWebhook}=await import("../src/lib/allocation-webhook.ts");
  const strategyWallet="11111111111111111111111111111111";
  await prisma.strategy.update({where:{id:strategy.id},data:{kalshiWalletAddress:strategyWallet,availableCapacityUsdcMicros:100_000_000n}});
- const allocatedRows=[];
- const allocationReference="allocation:123e4567-e89b-12d3-a456-426614174000";
- const batchTransfer=await prisma.treasuryTransfer.create({data:{
-  direction:"ALLOCATE",status:"PROCESSING",asset:"USDC",assetId:"ci-asset",
-  amountUsdcMicros:7_000_000n,feeUsdcMicros:0n,
-  destinationWalletAddress:strategyWallet,masterWalletAddress:"CI_MASTER",
-  masterWalletId,reference:allocationReference,
+ const evt=await prisma.strategyEvent.create({data:{
+  kind:"ALLOCATE",strategyId:strategy.id,amountUsdcMicros:7_000_000n,
  }});
- for(const [i,amount] of [3_000_000n,4_000_000n].entries()){
-  const allocationPosition=await prisma.investorPosition.create({data:{userId:user.id,strategyId:strategy.id}});
-  const allocation=await prisma.positionAllocation.create({data:{
-   userId:user.id,positionId:allocationPosition.id,strategyId:strategy.id,
-   status:"PROCESSING",amountUsdcMicros:amount,
-   requestKey:"ci-batch-allocation-"+i,treasuryId:batchTransfer.id,
+ const children=[];
+ for(const [i,n] of [3_000_000n,4_000_000n].entries()){
+  const pos=await prisma.investorPosition.create({data:{userId:user.id,strategyId:strategy.id}});
+  const operation=await prisma.positionAllocation.create({data:{
+   userId:user.id,positionId:pos.id,strategyId:strategy.id,kind:"ALLOCATE",
+   strategyEventId:evt.id,status:"PROCESSING",amountUsdcMicros:n,
+   requestKey:"ci-batch-"+i,
   }});
-  allocatedRows.push({allocation,allocationPosition});
+  children.push({pos,operation});
  }
- const allocationPayload={event:"withdraw.success",data:{
-  reference:allocationReference,id:"ci-batch-provider",status:"SUCCESS",type:"WITHDRAW",
-  amount:"7.000000",recipientAddress:strategyWallet,network:"testnet",
-  wallet:{id:masterWalletId},asset:{address:mint,symbol:"USDC",decimals:6},
-  hash:"ci-batch-hash",confirmed:true,metadata:{strategyId:strategy.id,kind:"allocation"},
- }};
- const beforeStrategyCapacity=(await prisma.strategy.findUniqueOrThrow({where:{id:strategy.id}})).availableCapacityUsdcMicros;
- const beforeAllocation=(await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated;
- const beforeAllocationBucket=(await prisma.treasury.findUniqueOrThrow({where:{kind:"ALLOCATE"}})).amount;
- // Blockradar success is outbound-only: even an authenticated callback must
- // never debit investor principal or mark a strategy funded without Kalshi receipt.
- assert.equal(await handleAllocationWebhook(allocationPayload.event,allocationPayload.data,masterWalletId),"awaiting_kalshi_receipt");
- for(const {allocation,allocationPosition} of allocatedRows){
-  assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:allocation.id}})).status,"CONFIRMING");
-  const pos=await prisma.investorPosition.findUniqueOrThrow({where:{id:allocationPosition.id}});
-  assert.equal(pos.principalUsdcMicros,0n);
+ const reference="strategy_withdrawal:"+evt.id;
+ const data={id:"ci-blockradar-source",reference,status:"SUCCESS",type:"WITHDRAW",amount:"7.000000",
+  recipientAddress:strategyWallet,network:"testnet",wallet:{id:masterWalletId},
+  asset:{address:mint,symbol:"USDC",decimals:6},hash:"ci-source-hash",confirmed:true};
+ const balanceBeforeSource=(await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated;
+ const depositBeforeSource=(await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).amount;
+ const allocatedBeforeSource=(await prisma.treasury.findUniqueOrThrow({where:{kind:"ALLOCATE"}})).amount;
+ assert.equal(await handleAllocationWebhook("withdraw.success",data,masterWalletId),"awaiting_kalshi_receipt");
+ assert.equal(await handleAllocationWebhook("withdraw.success",data,masterWalletId),"duplicate");
+ const source=(await prisma.strategyEvent.findUniqueOrThrow({where:{id:evt.id}}));
+ assert.equal(source.sourceConfirmed,true);
+ assert.equal(source.destinationConfirmed,false);
+ assert.equal(source.status,"CONFIRMING");
+ assert.ok(source.treasuryTransactionId);
+ const transfer=await prisma.treasuryTransfer.findUniqueOrThrow({where:{id:source.treasuryTransactionId}});
+ assert.equal(transfer.reference,reference);
+ assert.equal(transfer.originExternalId,data.id);
+ assert.equal(transfer.destinationExternalId,null);
+ assert.equal(transfer.status,"PROCESSING");
+ assert.equal((await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).amount,depositBeforeSource-7_000_000n);
+ assert.equal((await prisma.treasury.findUniqueOrThrow({where:{kind:"ALLOCATE"}})).amount,allocatedBeforeSource);
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,balanceBeforeSource);
+ for(const {pos,operation} of children){
+  assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:operation.id}})).status,"CONFIRMING");
+  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:pos.id}})).principalUsdcMicros,0n);
  }
- assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,beforeAllocation);
- assert.equal((await prisma.strategy.findUniqueOrThrow({where:{id:strategy.id}})).availableCapacityUsdcMicros,beforeStrategyCapacity);
- assert.equal((await prisma.treasury.findUniqueOrThrow({where:{kind:"ALLOCATE"}})).amount,beforeAllocationBucket);
- const outboundOnly=await prisma.treasuryTransfer.findUniqueOrThrow({where:{id:batchTransfer.id}});
- assert.equal(outboundOnly.status,"PROCESSING");
- assert.equal(outboundOnly.originExternalId,"ci-batch-provider");
- assert.equal(outboundOnly.destinationExternalId,"ci-batch-hash");
- assert.equal(await handleAllocationWebhook(allocationPayload.event,allocationPayload.data,masterWalletId),"awaiting_kalshi_receipt");
- assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,beforeAllocation);
- const mismatchedOutbound={...allocationPayload.data,id:"ci-other-provider"};
- assert.equal(await handleAllocationWebhook(allocationPayload.event,mismatchedOutbound,masterWalletId),"mismatch");
- assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,beforeAllocation);
-
- // Provider failure releases the held allocations without changing principal
- // or custody, and duplicate failure callbacks are idempotent.
- const failedRef="allocation:123e4567-e89b-12d3-a456-426614174001";
- const failedTransfer=await prisma.treasuryTransfer.create({data:{
-  direction:"ALLOCATE",status:"REVIEW",asset:"USDC",amountUsdcMicros:1_000_000n,
-  destinationWalletAddress:strategyWallet,masterWalletAddress:"CI_MASTER",masterWalletId,reference:failedRef,
- }});
- const failedPosition=await prisma.investorPosition.create({data:{userId:user.id,strategyId:strategy.id}});
- const failedAllocation=await prisma.positionAllocation.create({data:{
-  userId:user.id,positionId:failedPosition.id,strategyId:strategy.id,status:"REVIEW",treasuryId:failedTransfer.id,
-  amountUsdcMicros:1_000_000n,requestKey:"ci-failed-allocation",
- }});
- const failedPayload={event:"withdraw.failed",data:{
-  ...allocationPayload.data,reference:failedRef,id:"ci-batch-provider-failure",
-  status:"FAILED",amount:"1.000000",confirmed:false,
- }};
- assert.equal(await handleAllocationWebhook(failedPayload.event,failedPayload.data,masterWalletId),"settled");
- assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:failedAllocation.id}})).status,"FAILED");
- assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:failedPosition.id}})).principalUsdcMicros,0n);
- assert.equal((await prisma.treasuryTransfer.findUniqueOrThrow({where:{id:failedTransfer.id}})).status,"FAILED");
- assert.equal(await handleAllocationWebhook(failedPayload.event,failedPayload.data,masterWalletId),"duplicate");
- console.log("Strategy allocation outbound-only, duplicate, mismatch and failure callback PostgreSQL checks passed");
+ assert.equal(await handleAllocationWebhook("withdraw.failed",{...data,status:"FAILED"},masterWalletId),"requires_reconciliation");
+ assert.equal(await handleAllocationWebhook("withdraw.success",{...data,id:"wrong-provider"},masterWalletId),"mismatch");
+ console.log("Strategy source-only confirmation, duplicate, mismatch, and financial conservation passed");
  console.log("CI PostgreSQL transaction rollback, uniqueness and idempotent settlement assertions passed");
  console.log("CI PostgreSQL migration, fixtures and uniqueness assertions passed");
 }finally{await prisma.$disconnect();}
