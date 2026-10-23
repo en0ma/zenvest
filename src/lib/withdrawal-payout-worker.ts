@@ -1,7 +1,7 @@
 import {Prisma} from "@prisma/client";
 import {prisma} from "./db";
 import {blockradarConfig} from "./blockradar";
-import {submitBlockradarPayout,withdrawalReference} from "./blockradar-payout";
+import {submitBlockradarPayout} from "./blockradar-payout";
 import {readBlockradarUsdcBalance} from "./blockradar-master-balance";
 import {WITHDRAWAL_FEE_USDC_MICROS} from "./withdrawal-fee";
 import {masterCustodyCoversTreasury} from "./withdrawal-worker-rules";
@@ -16,7 +16,7 @@ export async function processPendingWithdrawal(){
  // Expire REVIEW records two hours after their original creation time.
  // Conditional updates and the matching treasury mutation remain atomic.
  const expired=await prisma.investorWithdrawal.findFirst({
-  where:{status:"REVIEW",createdAt:{lte:reviewExpiryCutoff(new Date())},treasuryId:{not:null}},
+  where:{status:"REVIEW",createdAt:{lte:reviewExpiryCutoff(new Date())}},
   orderBy:{createdAt:"asc"},
  });
  if(expired){
@@ -26,12 +26,6 @@ export async function processPendingWithdrawal(){
     data:{status:"FAILED",failureCode:"REVIEW_TIMEOUT"},
    });
    if(changed.count!==1)return false;
-   if(!expired.treasuryId)throw new Error("Missing withdrawal treasury transfer");
-   const treasury=await tx.treasuryTransfer.updateMany({
-    where:{id:expired.treasuryId,direction:"WITHDRAWAL",status:{in:["PENDING","PROCESSING"]}},
-    data:{status:"FAILED"},
-   });
-   if(treasury.count!==1)throw new Error("Withdrawal treasury transfer transition failed");
    return true;
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
   return expiredNow?"review_expired":"already_settled";
@@ -48,13 +42,6 @@ export async function processPendingWithdrawal(){
   if(balance.unallocated-current.grossUsdcMicros-(pending._sum.grossUsdcMicros??0n)-(allocations._sum.amountUsdcMicros??0n)<0n)throw new Error("User funds are not available");
   const locked=await tx.investorWithdrawal.updateMany({where:{id:current.id,status:"PENDING",treasuryId:null},data:{status:"SUBMITTING"}});
   if(locked.count!==1)return false;
-  const transfer=await tx.treasuryTransfer.create({data:{
-   direction:"WITHDRAWAL",status:"PENDING",assetId,asset:"USDC",amountUsdcMicros:current.amountUsdcMicros,
-   feeUsdcMicros:current.feeUsdcMicros,destinationWalletAddress:current.destinationAddress,
-   network:"solana",masterWalletAddress:master.walletAddress,masterWalletId:walletId,
-   reference:withdrawalReference(current.id)
-  }});
-  await tx.investorWithdrawal.update({where:{id:current.id},data:{treasuryId:transfer.id}});
   return true;
  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
  if(!claim)return "already_claimed";
@@ -74,7 +61,6 @@ export async function processPendingWithdrawal(){
   providerSubmissionStarted=true;
   const receipt=await submitBlockradarPayout({id:candidate.id,userId:candidate.userId,address:candidate.destinationAddress,amount:candidate.amountUsdcMicros},{key,walletId,assetId});
   await prisma.$transaction(async tx=>{
-   await tx.treasuryTransfer.updateMany({where:{reference:withdrawalReference(candidate.id),status:"PENDING"},data:{status:"PROCESSING",originExternalId:receipt.id,destinationExternalId:receipt.hash}});
    await tx.investorWithdrawal.updateMany({where:{id:candidate.id,status:"SUBMITTING"},data:{status:"PROCESSING",providerTransactionId:receipt.id,transactionHash:receipt.hash}});
   });
   return "submitted";
@@ -85,10 +71,9 @@ export async function processPendingWithdrawal(){
     const current=await tx.investorWithdrawal.findUnique({where:{id:candidate.id}});
     if(!current||current.status!=="SUBMITTING")return;
     await tx.investorWithdrawal.update({where:{id:current.id},data:{
-      status:"PENDING",treasuryId:null,
+      status:"PENDING",
       failureCode:null
     }});
-    await tx.treasuryTransfer.deleteMany({where:{reference:withdrawalReference(candidate.id),status:"PENDING",originExternalId:null}});
    },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
    return "preflight_retry";
   }
