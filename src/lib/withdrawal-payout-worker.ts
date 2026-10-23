@@ -30,17 +30,17 @@ export async function processPendingWithdrawal(){
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
   return expiredNow?"review_expired":"already_settled";
  }
- const candidate=await prisma.investorWithdrawal.findFirst({where:{status:"PENDING",treasuryId:null},orderBy:[{updatedAt:"asc"},{createdAt:"asc"}]});
+ const candidate=await prisma.investorWithdrawal.findFirst({where:{status:"PENDING",treasuryTransactionId:null},orderBy:[{updatedAt:"asc"},{createdAt:"asc"}]});
  if(!candidate)return "empty";
  const claim=await prisma.$transaction(async tx=>{
   const current=await tx.investorWithdrawal.findUnique({where:{id:candidate.id}});
-  if(!current||current.status!=="PENDING"||current.treasuryId)return false;
+  if(!current||current.status!=="PENDING"||current.treasuryTransactionId)return false;
   if(current.grossUsdcMicros!==current.amountUsdcMicros+current.feeUsdcMicros||current.feeUsdcMicros<WITHDRAWAL_FEE_USDC_MICROS)throw new Error("Withdrawal totals mismatch");
   const balance=await tx.user.findUniqueOrThrow({where:{id:current.userId}});
   const pending=await tx.investorWithdrawal.aggregate({where:{userId:current.userId,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]},id:{not:current.id}},_sum:{grossUsdcMicros:true}});
   const allocations=await tx.positionAllocation.aggregate({where:{userId:current.userId,kind:"ALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}},_sum:{amountUsdcMicros:true}});
   if(balance.unallocated-current.grossUsdcMicros-(pending._sum.grossUsdcMicros??0n)-(allocations._sum.amountUsdcMicros??0n)<0n)throw new Error("User funds are not available");
-  const locked=await tx.investorWithdrawal.updateMany({where:{id:current.id,status:"PENDING",treasuryId:null},data:{status:"SUBMITTING"}});
+  const locked=await tx.investorWithdrawal.updateMany({where:{id:current.id,status:"PENDING",treasuryTransactionId:null},data:{status:"SUBMITTING"}});
   if(locked.count!==1)return false;
   return true;
  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
