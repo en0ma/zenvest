@@ -191,6 +191,7 @@ try {
  assert.equal((await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:review.w.id}})).status,"COMPLETED");
  const completedRecord=await prisma.treasuryTransfer.findUniqueOrThrow({where:{reference:`withdrawal:${review.w.id}`}});
  assert.equal(completedRecord.status,"COMPLETE");
+ assert.equal((await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:review.w.id}})).treasuryTransactionId,completedRecord.id);
  assert.equal(completedRecord.originExternalId,"ci_review_success");
  assert.equal(completedRecord.destinationExternalId,recipient);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,balanceBefore-5_000_000n);
