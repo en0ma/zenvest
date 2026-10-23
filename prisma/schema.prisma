@@ -410,3 +410,26 @@ model WebhookDeadLater {
   @@index([userId,createdAt])
   @@map("webhook_dead_later")
 }
+
+enum WebhookSource {
+  BLOCKRADAR
+  KALSHI
+}
+enum WebhookQueueStatus {
+  PENDING
+  PROCESSED
+}
+model WebhookQueue {
+  id String @id @default(cuid())
+  source WebhookSource
+  eventType String @map("event_type") @db.VarChar(120)
+  idempotencyKey String @map("idempotency_key") @db.VarChar(200)
+  payload Json
+  status WebhookQueueStatus @default(PENDING)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  processedAt DateTime? @map("processed_at")
+  @@unique([source,idempotencyKey])
+  @@index([status,createdAt])
+  @@map("webhook_queue")
+}
