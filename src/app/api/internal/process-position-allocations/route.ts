@@ -1,18 +1,15 @@
-import {timingSafeEqual} from "node:crypto";
 import {NextResponse} from "next/server";
-import {prisma} from "@/lib/db";
+import {authorizedCron} from "@/lib/cron-auth";
+import {processPendingAllocations} from "@/lib/allocation-payout-worker";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
-function authorized(request:Request){
- const secret=process.env.CRON_SECRET;
- const value=request.headers.get("authorization")?.replace(/^Bearer /,"")??"";
- return Boolean(secret&&value&&Buffer.byteLength(secret)===Buffer.byteLength(value)&&timingSafeEqual(Buffer.from(secret!),Buffer.from(value)));
-}
-// Deliberately monitor-only until the exact Kalshi funding rail, return rail and
-// both sides' authenticated settlement events are implemented and reviewed.
-// Never mark an operation in-flight without initiating a verified transfer.
 export async function GET(request:Request){
- if(!authorized(request))return NextResponse.json({error:"Unauthorized"},{status:401});
- const pending=await prisma.positionAllocation.aggregate({where:{status:"PENDING"},_count:{_all:true},_sum:{amountUsdcMicros:true}});
- return NextResponse.json({status:"awaiting_verified_transfer_integration",direction:"master_to_kalshi",requests:pending._count._all,amountUsdcMicros:(pending._sum.amountUsdcMicros??0n).toString()});
+ if(!authorizedCron(request))return NextResponse.json({error:"Unauthorized"},{status:401});
+ try{
+  const outcome=await processPendingAllocations();
+  return NextResponse.json({outcome},{headers:{"Cache-Control":"no-store"}});
+ }catch(error){
+  console.error(JSON.stringify({component:"allocation-worker",errorType:error instanceof Error?error.name:"unknown"}));
+  return NextResponse.json({error:"Allocation worker failed"},{status:503});
+ }
 }
