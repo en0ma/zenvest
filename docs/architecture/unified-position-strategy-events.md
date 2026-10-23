@@ -1,13 +1,13 @@
 # Unified position and strategy events — implementation contract (2026-10-23)
 
-Status: **newly approved target architecture; implementation pending**. This document supersedes the older direct `position_allocations.treasury_id` batching model and older allocation-to-Kalshi completion claims. Do not treat this design text as deployed behavior.
+Status (2026-10-23): **implementation underway on the draft branch**. Position-event schema consolidation, deprecated-column removal, and success-only withdrawal treasury creation have code/migrations; production deployment and Kalshi authenticated transport are not approved or complete. This document supersedes the older direct `position_allocations.treasury_id` batching model and older allocation-to-Kalshi completion claims. Do not treat this design text as deployed behavior.
 
 ## Tables and relationships
 
 1. Rename `position_allocations` to `position_events`. Retain position ID, user ID, amount (BigInt USDC micros), status, and created/updated timestamps. Drop `request_key`, `treasury_id`, `provider_reference`, and `completed_at`. Add `strategy_id` (FK to strategies), `kind` (ALLOCATE / DEALLOCATE), and nullable `strategy_event_id` (FK to strategy_events). This becomes the shared source for allocation and deallocation requests. Populate strategy ID through each position's strategy and maintain it consistently.
 2. Remove the standalone `position_deallocations` table only after moving its outstanding rows into `position_events` (or explicitly verifying disposable data may be discarded). Preserve the remaining deallocation ownership, amount-limit, and one-active-reduction invariants in the combined model.
 3. Create `strategy_events` with ID, `kind` (ALLOCATE / DEALLOCATE), `amount` in USDC micros, `created_at`, `updated_at` (user supplied `updated_id`; interpreted as a likely timestamp naming typo pending confirmation), `strategy_id`, `status` (PROCESSING, CONFIRMING, COMPLETED), nullable `treasury_transaction_id`, `source_confirmed` and `destination_confirmed` default false. The event ID is the durable outbound provider correlation ID; unique batch membership is via `position_events.strategy_event_id`.
-4. Preserve safe handling of asynchronous failures and ambiguous submissions: the user-specified strategy event statuses do not include REVIEW or FAILED. Until exceptions are explicitly mapped, retain existing protective reservation semantics and fail closed; never assume missing confirmations imply cancellation. Do not drop request idempotency operationally merely because request_key is removed — provide another persistent mechanism.
+4. Preserve safe handling of asynchronous failures and ambiguous submissions: the user-specified strategy event statuses do not include REVIEW or FAILED. Until exceptions are explicitly mapped, retain existing protective reservation semantics and fail closed; never assume missing confirmations imply cancellation. The persistent `position_event_requests` table stores `request_key -> position_event_id` separately to preserve request idempotency when the original column is removed.
 
 ## Exact provider references and transaction fields
 
@@ -30,7 +30,7 @@ The exact received webhook `reference` is stored in `treasury_transactions.refer
 ## User deposits and withdrawals
 
 - Deposit `deposit.success` records confirmation state only; full `deposit.swept.success` atomically creates COMPLETE treasury transfer and updates deposit, investor unallocated balance and DEPOSIT treasury bucket.
-- The investor withdrawal request and worker retain a durable intent and the original full-gross reservation but must not create a `treasury_transactions` row until an authenticated `withdraw.success` settles the payment. When settled, create the COMPLETE treasury row, debit user gross from unallocated, debit master bucket(s), post retained fee, mark withdrawal COMPLETED, all atomically.
+- The investor withdrawal request and worker retain a durable intent and the original full-gross reservation, and only an authenticated `withdraw.success` creates a COMPLETE `treasury_transactions` row in the same transaction as settlement. When settled, create the COMPLETE treasury row, debit user gross from unallocated, debit master bucket(s), post retained fee, mark withdrawal COMPLETED, all atomically.
 - For ambiguous payout submissions, keep durable state outside the treasury transaction, with explicit REVIEW, no automatic re-send, and existing two-hour timeout and late success dead-letter behavior. Change worker and webhook code together before removing the existing `withdrawals.treasury_id` dependency.
 
 ## Current confirmed reservation rule
@@ -46,3 +46,11 @@ The exact received webhook `reference` is stored in `treasury_transactions.refer
 - Verify all migration DDL on disposable PostgreSQL 16, including unique strategy-event/treasury links, FK constraints, amount conservation, duplicate webhook handling, concurrency, rollback, failure, late arrival, and reentrant cron processing.
 - Block live financial operations until authenticated Kalshi receipt schema and correlation fields have been validated with provider documentation or sandbox fixtures. No invented endpoint, webhook event names, or fictional finality.
 - No production DB migration, PR merge or deployment without explicit authorization.
+
+## Updated implementation notes (2026-10-23)
+
+- `position_events` no longer declares `request_key`, `treasury_id`, `provider_reference`, or `completed_at`. Existing request identifiers move to `position_event_requests` before the four columns are dropped by a nonproduction migration. The Earn history displays `updated_at` only for completed events.
+- A regular user withdrawal creates no treasury transaction during PENDING, SUBMITTING, PROCESSING or REVIEW. The verified Blockradar `withdraw.success` handler creates one COMPLETE row, sets reference `withdrawal:<id>`, origin external ID to Blockradar transaction ID and destination external ID to the investor wallet address. FAILED/CANCELLED, REVIEW timeout, and archived late success create no treasury transaction.
+- `withdrawals.treasury_id` is retained as an optional *post-settlement* link for compatibility. Its null value before settlement is intentional.
+- The strategy-event destination settlement domain service exists but **no independently authenticated Kalshi webhook adapter** is yet wired; external receipts cannot be assumed valid.
+- CI still needs to pass all migration, integration, typecheck, unit and build stages for the latest draft head before this can be described as verified.
