@@ -4,16 +4,17 @@ import { prisma } from "./db.ts";
 import { withdrawalSplit } from "./treasury-accounting.ts";
 import {WITHDRAWAL_FEE_USDC_MICROS} from "./withdrawal-fee.ts";
 import {withdrawalWebhookTarget} from "./transfer-lifecycle.ts";
+import {withdrawalReference} from "./blockradar-payout.ts";
 
 // Called only after the Blockradar HMAC signature has been verified.
 export async function handleWithdrawalWebhook(event: string, data: Record<string,unknown>, masterWalletId: string, rawPayload?: Record<string,unknown>) {
   if (!["withdraw.success","withdraw.failed","withdraw.cancelled"].includes(event)) return "ignored";
   const reference = data.reference;
-  if (typeof reference !== "string" || !/^c[a-z0-9]{10,40}$/.test(reference)) return "unrelated";
-  const id = reference;
+  if (typeof reference !== "string" || !/^withdrawal:c[a-z0-9]{10,40}$/.test(reference)) return "unrelated";
+  const id = reference.slice("withdrawal:".length);
   const item = await prisma.investorWithdrawal.findUnique({where:{id},include:{treasury:true}});
   if (!item) return "unknown_withdrawal";
-  if(!item.treasury || item.treasury.direction!=="WITHDRAWAL" || item.treasury.feeUsdcMicros!==item.feeUsdcMicros || item.feeUsdcMicros<WITHDRAWAL_FEE_USDC_MICROS || item.treasury.amountUsdcMicros!==item.amountUsdcMicros)return "treasury_mismatch";
+  if(!item.treasury || item.treasury.reference!==withdrawalReference(id) || item.treasury.direction!=="WITHDRAWAL" || item.treasury.feeUsdcMicros!==item.feeUsdcMicros || item.feeUsdcMicros<WITHDRAWAL_FEE_USDC_MICROS || item.treasury.amountUsdcMicros!==item.amountUsdcMicros)return "treasury_mismatch";
   const treasury=item.treasury;
   const asset = data.asset && typeof data.asset === "object" ? data.asset as Record<string,unknown> : {};
   const wallet = data.wallet && typeof data.wallet === "object" ? data.wallet as Record<string,unknown> : {};
@@ -62,7 +63,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
           destinationWalletAddress:item.destinationAddress},
         data:{status:targetStatus==="COMPLETED"?"COMPLETE":"FAILED",
           originExternalId:transactionId,
-          destinationExternalId:typeof data.hash==="string"?data.hash:null,
+          destinationExternalId:item.destinationAddress,
           ...(targetStatus==="COMPLETED"?{completedAt:new Date()}:{})},
       });
       if(changedTreasury.count!==1)throw new Error("Treasury settlement mismatch");
