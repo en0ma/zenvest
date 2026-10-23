@@ -294,6 +294,15 @@ model InvestorPosition {
   @@map("positions")
 }
 
+// Preserve POST idempotency outside the requested unified event payload.
+model PositionEventRequest {
+  requestKey String @id @map("request_key") @db.VarChar(180)
+  positionEventId String @unique @map("position_event_id")
+  positionEvent PositionAllocation @relation(fields:[positionEventId],references:[id],onDelete:Restrict)
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("position_event_requests")
+}
+
 model PositionAllocation {
   id String @id @default(cuid())
   kind StrategyEventKind @default(ALLOCATE)
@@ -307,7 +316,7 @@ model PositionAllocation {
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
   status PositionTransferStatus @default(PENDING)
-  requestKey String @unique @map("request_key") @db.VarChar(180)
+  request PositionEventRequest?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   @@index([userId, createdAt])
