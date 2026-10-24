@@ -33,6 +33,7 @@ const request=(payload)=>new Request("https://ci.invalid/api/account/confirm",{m
 try{
  await prisma.user.create({data:{id:userId,email:"ci-account-validation@example.invalid",name:"Account Validation",passwordHash:"fixture"}});
  assert.equal((await confirm(request({token,purpose:"RESET_PASSWORD"}))).status,400);
+ assert.equal((await confirm(request({token:"invalid",purpose:"VERIFY_EMAIL"}))).status,400);
  assert.equal((await confirm(request({token,purpose:"VERIFY_EMAIL",password:"TestPassword123!"}))).status,400);
  assert.equal((await confirm(request({token,purpose:"VERIFY_EMAIL"}))).status,400);
  await prisma.actionToken.create({data:{userId,purpose:"VERIFY_EMAIL",hash:digest(token),expiresAt:new Date(Date.now()+600000)}});
