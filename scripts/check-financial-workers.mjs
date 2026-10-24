@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {PrismaClient} from "@prisma/client";
+import {createHmac} from "node:crypto";
 
 if(!process.env.DATABASE_URL?.includes("zenvest_ci"))throw new Error("CI database required");
 const prisma=new PrismaClient();
@@ -7,6 +8,7 @@ const {processPendingWebhook}=await import("../src/lib/webhook-queue-worker.ts")
 const {processPendingAllocations}=await import("../src/lib/allocation-payout-worker.ts");
 const {processPendingWithdrawal}=await import("../src/lib/withdrawal-payout-worker.ts");
 const key="ci-worker-malformed-envelope";
+const {processVerifiedBlockradarQueueItem}=await import("../src/lib/blockradar-webhook-processing.ts");
 try {
  const existing=await prisma.webhookQueue.findFirst({where:{idempotencyKey:key}});
  if(existing)await prisma.webhookQueue.delete({where:{id:existing.id}});
@@ -41,6 +43,20 @@ try {
   delete process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID;
   await assert.rejects(()=>processPendingAllocations(),/asset ID/i);
   await assert.rejects(()=>processPendingWithdrawal(),/asset ID/i);
+  const secret=process.env.BLOCK_RADAR_API_KEY;
+  const signed=raw=>new Request("https://internal.invalid/api/webhooks/blockradar",{
+   method:"POST",body:raw,
+   headers:{"x-blockradar-signature":createHmac("sha512",secret).update(raw).digest("hex")}
+  });
+  assert.equal((await processVerifiedBlockradarQueueItem(new Request(
+   "https://internal.invalid/api/webhooks/blockradar",{method:"POST",body:"{}"}
+  ))).status,401,"unsigned durable webhook must fail closed");
+  assert.equal((await processVerifiedBlockradarQueueItem(signed("not-json"))).status,400);
+  assert.equal((await processVerifiedBlockradarQueueItem(signed("null"))).status,400);
+  assert.equal((await processVerifiedBlockradarQueueItem(signed(JSON.stringify({
+   event:"deposit.success",data:{id:"ci-never-credit"}
+  })))).status,503,"disabled deposit processing must not post funds");
+
  }finally{
   if(originalKey===undefined)delete process.env.BLOCK_RADAR_API_KEY;
   else process.env.BLOCK_RADAR_API_KEY=originalKey;
