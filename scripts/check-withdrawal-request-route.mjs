@@ -46,6 +46,17 @@ try{
  assert.equal((await call({amount:"8.000000",address,maxTotalFeeMicros:"2100000"})).status,409,
   "pending withdrawal reserves gross funds");
  assert.equal(await prisma.investorWithdrawal.count({where:{userId:owner}}),1);
+ // Fee-quote provider failure cannot persist a withdrawal.
+ const requestsBefore=await prisma.investorWithdrawal.count({where:{userId:owner}});
+ globalThis.fetch=async()=>new Response("upstream unavailable",{status:503});
+ assert.equal((await call({amount:"3.000000",address,maxTotalFeeMicros:"3000000"})).status,503);
+ assert.equal(await prisma.investorWithdrawal.count({where:{userId:owner}}),requestsBefore);
+ globalThis.fetch=async()=>Response.json({data:{networkFeeInUSD:"0.100000"}});
+ // Disable guard must not contact Blockradar or mutate investor balances.
+ process.env.BLOCKRADAR_WITHDRAWALS_ENABLED="false";
+ globalThis.fetch=async()=>{throw Error("Unexpected disabled provider call");};
+ assert.equal((await call({amount:"3.000000",address,maxTotalFeeMicros:"3000000"})).status,503);
+ assert.equal(await prisma.investorWithdrawal.count({where:{userId:owner}}),requestsBefore);
  console.log("Withdrawal route source coverage passed: validation, fee acceptance, successful request, reserved balance and insufficient available funds");
 }finally{
  globalThis.fetch=nativeFetch;
