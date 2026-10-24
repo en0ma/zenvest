@@ -35,7 +35,7 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-[#E8EDF4] bg-[#FAFBFD] p-5">
           <p className="flex items-center gap-2 text-sm font-medium text-[#5B6B7F]"><ShieldCheck size={17}/>Allocated capital</p>
-          <p className="mt-3 text-2xl font-bold tracking-tight text-[#11263E] sm:text-3xl">{formatUsdc(positions.reduce((sum,p)=>sum+p.principalUsdcMicros,0n))}</p>
+          <p className="mt-3 text-2xl font-bold tracking-tight text-[#11263E] sm:text-3xl">{formatUsdc(positions.reduce((sum,p)=>sum+p.allocatedUsdcMicros,0n))}</p>
           <p className="mt-2 text-xs text-[#7A889A]">May require deallocation</p>
         </div>
         <div className="rounded-2xl border border-[#E8EDF4] bg-[#FAFBFD] p-5">
