@@ -13,6 +13,7 @@ for(const [command,args] of [
  ["node",["scripts/check-deallocation-coordinator.mjs"]],
  ["node",["scripts/check-financial-cron-routes.mjs"]],
  ["node",["scripts/check-blockradar-reconciliation.mjs"]],
+ ["node",["scripts/check-webhook-ingestion-concurrency.mjs"]],
  ["node",["scripts/check-account-route-validation.mjs"]],
  ["node",["--experimental-strip-types","--test",...readdirSync("tests").filter(x=>x.endsWith(".test.ts")).sort().map(x=>"tests/"+x)]],
 ]){
