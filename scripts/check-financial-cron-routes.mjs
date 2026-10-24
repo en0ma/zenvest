@@ -54,6 +54,14 @@ try{
   assert.equal(webhookResponse.status,200);
   assert.equal(webhookResponse.headers.get("cache-control"),"no-store");
   assert.ok((await webhookResponse.json()).outcome!==undefined);
+  // Exercise the authenticated P&L cron route with no unsettled trades.
+  // The real service must return an outcome and a non-cacheable response.
+  const {GET:processTradePnl}=await import("../src/app/api/internal/process-position-trade-pnl/route.ts");
+  const pnlResponse=await processTradePnl(authorized);
+  assert.equal(pnlResponse.status,200);
+  assert.equal(pnlResponse.headers.get("cache-control"),"no-store");
+  assert.ok(Object.hasOwn(await pnlResponse.json(),"results"));
+
 
  }finally{
   await db.$disconnect();
