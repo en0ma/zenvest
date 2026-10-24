@@ -80,6 +80,19 @@ try{
   asset:{address:"ci-test-usdc-mint",symbol:"USDC",decimals:6},
   hash:"ci-chain-confirmed",confirmed:true,metadata:{userId}
  };
+ // Signed callbacks with mismatched payment evidence must never settle or debit.
+ for(const [field,bad] of [
+  ["amount","5.000002"],["recipientAddress","wrong-recipient"],["network","mainnet"],
+  ["id","unrelated-provider-receipt"],
+ ]){
+  const outcome=await handleWithdrawalWebhook("withdraw.success",{...signedData,[field]:bad},deposit.walletId);
+  assert.equal(outcome,"mismatch","invalid "+field+" cannot authorize settlement");
+  assert.equal((await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:first.id}})).status,"PROCESSING");
+  assert.equal(await prisma.treasuryTransfer.count({where:{reference:"withdrawal:"+successId}}),0);
+  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,100000000n);
+ }
+ assert.equal(await handleWithdrawalWebhook("withdraw.success",{...signedData,confirmed:false},deposit.walletId),"unconfirmed");
+ assert.equal((await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:first.id}})).status,"PROCESSING");
  assert.equal(await handleWithdrawalWebhook("withdraw.success",signedData,deposit.walletId),"settled",
   "trusted verified provider callback must settle accepted withdrawal");
  assert.equal((await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:first.id}})).status,"COMPLETED");
