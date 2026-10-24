@@ -313,17 +313,32 @@ try {
   status:"SETTLED",settledAt:new Date("2026-02-01T00:15:00Z"),
   realizedPnlUsdcMicros:7_000_000n,
  }});
- const funding=()=>prisma.$transaction(async tx=>{
-  await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${strategy.id} FOR UPDATE`;
-  await tx.investorPosition.update({where:{id:pnlPosition.id},
-   data:{allocatedUsdcMicros:{increment:added}}});
- },{isolationLevel:"Serializable"});
+ // Use the real verified strategy funding domain service as the competitor,
+ // not a mocked balance update. Its source transfer has already been marked
+ // confirmed in this isolated CI fixture.
+ const fundingEvent=await prisma.strategyEvent.create({data:{strategyId:strategy.id,
+  kind:"ALLOCATE",amountUsdcMicros:added,status:"CONFIRMING",sourceConfirmed:true}});
+ const masterForFunding=await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}});
+ const fundingTransfer=await prisma.treasuryTransfer.create({data:{
+  direction:"ALLOCATE",status:"PROCESSING",amountUsdcMicros:added,
+  feeUsdcMicros:0n,destinationWalletAddress:strategyWallet,
+  masterWalletAddress:masterForFunding.walletAddress,masterWalletId:masterForFunding.walletId,
+  reference:"strategy_withdrawal:"+fundingEvent.id,originExternalId:"ci-concurrent-source"
+ }});
+ await prisma.strategyEvent.update({where:{id:fundingEvent.id},data:{treasuryTransactionId:fundingTransfer.id}});
+ await prisma.positionAllocation.create({data:{userId:user.id,positionId:pnlPosition.id,strategyId:strategy.id,
+  kind:"ALLOCATE",status:"CONFIRMING",strategyEventId:fundingEvent.id,
+  amountUsdcMicros:added}});
+ const concurrentFundingReceipt={strategyEventId:fundingEvent.id,
+  kalshiTransactionId:"ci-concurrent-destination",strategyWalletAddress:strategyWallet,
+  amountUsdcMicros:added,asset:"USDC",network:"solana"};
+ const funding=()=>settleVerifiedStrategyFunding(concurrentFundingReceipt);
  const attempts=await Promise.allSettled([processPositionTradePnl(),funding()]);
  for(let i=0;i<attempts.length;i++){
   if(attempts[i].status==="rejected"){
    const error=attempts[i].reason;
    assert.equal(error?.code,"P2034","only serializable write conflicts may retry");
-   if(i===0)await processPositionTradePnl();else await funding();
+   if(i===0)await processPositionTradePnl();else assert.equal(await funding(),"settled");
   }
  }
  const eventRows=await prisma.positionTradePnl.findMany({where:{strategyTradeId:start.id}});
@@ -334,6 +349,7 @@ try {
  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:pnlPosition.id}})).allocatedUsdcMicros,
   opening+added+received,"concurrent allocation and P&L must never overwrite invested equity");
  assert.equal((await prisma.strategyTrade.findUniqueOrThrow({where:{id:start.id}})).isPnlCalculated,true);
+ assert.equal((await prisma.strategyEvent.findUniqueOrThrow({where:{id:fundingEvent.id}})).status,"COMPLETED");
  await processPositionTradePnl();
  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:pnlPosition.id}})).allocatedUsdcMicros,
   opening+added+received,"replayed P&L cron must never double-credit");
