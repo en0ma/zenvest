@@ -28,6 +28,7 @@ model User {
   webhookDeadLater WebhookDeadLater[]
   positions InvestorPosition[]
   positionAllocations PositionAllocation[]
+  tradePnls PositionTradePnl[]
   activity InvestorActivity[]
   tokens       ActionToken[]
   createdAt    DateTime @default(now()) @map("created_at")
@@ -90,7 +91,9 @@ model Strategy {
 }
 /** A strategy's event trade record, keyed by Kalshi event ID and strategy. */
 enum StrategyTradeStatus {
+  AWAITING_ALLOCATION
   TRADING
+  SETTLED
   ENDED
   ERROR
 }
@@ -100,7 +103,10 @@ model StrategyTrade {
   strategy Strategy @relation(fields:[strategyId],references:[id],onDelete:Restrict)
   marketTradeId String? @map("market_trade_id") @db.VarChar(180)
   marketTradeName String @map("market_trade_name") @db.VarChar(200)
-  status StrategyTradeStatus @default(TRADING)
+  status StrategyTradeStatus @default(AWAITING_ALLOCATION)
+  isPnlCalculated Boolean @default(false) @map("is_pnl_calculated")
+  eligibleCapitalUsdcMicros BigInt @default(0) @map("eligible_capital_usdc_micros")
+  appliedPlatformProfitPercentage Decimal? @map("applied_platform_profit_percentage") @db.Decimal(7,4)
   yesContracts Int @default(0) @map("yes_contracts")
   noContracts Int @default(0) @map("no_contracts")
   yesCostUsdcMicros BigInt @default(0) @map("yes_cost_usdc_micros")
@@ -115,6 +121,7 @@ model StrategyTrade {
   currentPrice Decimal? @map("current_price") @db.Decimal(20,8)
   createdAt DateTime @default(now()) @map("created_at")
   settledAt DateTime? @map("settled_at")
+  positionTradePnls PositionTradePnl[]
   @@unique([strategyId,marketTradeId])
   @@index([strategyId,createdAt])
   @@map("strategy_trades")
@@ -261,8 +268,8 @@ model Treasury {
 
 /** Investor-controlled position; principal only changes on independently verified funding/return. */
 enum PositionStatus {
-  PENDING
-  ACTIVE
+  OPEN
+  CLOSING
   CLOSED
 }
 
@@ -283,13 +290,14 @@ model InvestorPosition {
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
   strategyId String @map("strategy_id") @db.VarChar(64)
   strategy Strategy @relation(fields:[strategyId], references:[id],onDelete:Restrict)
-  principalUsdcMicros BigInt @default(0) @map("principal_usdc_micros")
-  realizedPnlUsdcMicros BigInt @default(0) @map("realized_pnl_usdc_micros")
-  status PositionStatus @default(PENDING)
+  allocatedUsdcMicros BigInt @default(0) @map("allocated_usdc_micros")
+  lastPnlUpdated Boolean @default(false) @map("last_pnl_updated")
+  status PositionStatus @default(OPEN)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   closedAt DateTime? @map("closed_at")
   allocations PositionAllocation[]
+  tradePnls PositionTradePnl[]
   @@index([userId, status, createdAt])
   @@map("positions")
 }
@@ -427,4 +435,30 @@ model WebhookQueue {
   @@unique([source,idempotencyKey])
   @@index([status,createdAt])
   @@map("webhook_queue")
+}
+
+// Immutable trade exposure basis; settlement columns are filled once by the P&L worker.
+enum PositionTradePnlStatus {
+  SNAPSHOTTED
+  SETTLED
+}
+model PositionTradePnl {
+  id String @id @default(cuid())
+  strategyTradeId String @map("strategy_trade_id") @db.VarChar(64)
+  strategyTrade StrategyTrade @relation(fields:[strategyTradeId],references:[id],onDelete:Restrict)
+  positionId String @map("position_id")
+  position InvestorPosition @relation(fields:[positionId],references:[id],onDelete:Restrict)
+  userId String @map("user_id")
+  user User @relation(fields:[userId],references:[id],onDelete:Restrict)
+  eligibleCapitalUsdcMicros BigInt @map("eligible_capital_usdc_micros")
+  grossPnlUsdcMicros BigInt? @map("gross_pnl_usdc_micros")
+  platformFeeUsdcMicros BigInt? @map("platform_fee_usdc_micros")
+  netPnlUsdcMicros BigInt? @map("net_pnl_usdc_micros")
+  status PositionTradePnlStatus @default(SNAPSHOTTED)
+  createdAt DateTime @default(now()) @map("created_at")
+  settledAt DateTime? @map("settled_at")
+  @@unique([strategyTradeId,positionId])
+  @@index([userId,status,settledAt])
+  @@index([positionId,status,settledAt])
+  @@map("position_trade_pnl")
 }
