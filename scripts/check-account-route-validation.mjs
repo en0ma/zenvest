@@ -212,6 +212,30 @@ try{
  })));
  assert.equal(replayRegistration.status,202);
  assert.equal(await prisma.user.count({where:{email:newEmail}}),1,"re-registration cannot duplicate identity");
+ // Once the throttling window expires, registration may issue a fresh verification
+ // token. Simulate unavailable delivery without sending any external email.
+ const previousVerification=await prisma.actionToken.findFirstOrThrow({where:{userId:created.id,purpose:"VERIFY_EMAIL"}});
+ await prisma.actionToken.update({where:{id:previousVerification.id},data:{createdAt:new Date(Date.now()-120000)}});
+ const priorEmailKey=process.env.RESEND_API_KEY;
+ const priorSender=process.env.EMAIL_FROM;
+ try{
+  delete process.env.RESEND_API_KEY;
+  delete process.env.EMAIL_FROM;
+  const retried=await register(registerRequest(JSON.stringify({
+   name:"NewUser",email:newEmail,password:"TestPass123!"
+  })));
+  assert.equal(retried.status,202,"registration remains accepted when activation delivery is unavailable");
+ }finally{
+  if(priorEmailKey===undefined)delete process.env.RESEND_API_KEY;else process.env.RESEND_API_KEY=priorEmailKey;
+  if(priorSender===undefined)delete process.env.EMAIL_FROM;else process.env.EMAIL_FROM=priorSender;
+ }
+ const verifications=await prisma.actionToken.findMany({where:{userId:created.id,purpose:"VERIFY_EMAIL"}});
+ assert.equal(verifications.length,2,"expired throttle allows one replacement activation link");
+ assert.ok(verifications.find(x=>x.id===previousVerification.id).expiresAt.getTime()<=Date.now(),
+  "issuing a replacement must expire the prior verification token");
+ assert.equal(verifications.filter(x=>x.expiresAt.getTime()>Date.now()).length,1);
+ assert.equal(await prisma.user.count({where:{email:newEmail}}),1);
+
  console.log("Account token lifecycle passed: purpose isolation, single use and verified state");
 }finally{
  const newRegistrant=await prisma.user.findUnique({where:{email:"ci-new-registration@example.invalid"}});
