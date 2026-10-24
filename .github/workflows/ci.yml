@@ -57,6 +57,8 @@ jobs:
           retention-days: 14
       - run: npm run typecheck
       - run: npm run build
+      - name: Verify built HTTP financial endpoint security
+        run: node scripts/check-http-routes.mjs
 
   migrate-production:
     name: Apply production database migrations
