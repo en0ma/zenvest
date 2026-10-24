@@ -44,14 +44,19 @@ export function EarnActions({available,positions,operations,strategies}:{availab
   <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <h2 className="text-xl font-semibold text-[#11263E]">Active allocations</h2>
    <p className="mt-2 text-sm text-[#64748B]">Reduce part of a position or request its full closure. Returned USDC is not spendable until verified back in master custody.</p>
-   {positions.filter(p=>p.status==="ACTIVE"||p.status==="PENDING").length===0?<p className="mt-6 text-sm text-[#64748B]">No positions yet.</p>:
+   {positions.filter(p=>p.status==="OPEN"||p.status==="CLOSING").length===0?<p className="mt-6 text-sm text-[#64748B]">No positions yet.</p>:
     <div role="region" aria-label="Active allocations table" tabIndex={0} className="mt-5 overflow-x-auto rounded-xl border border-[#E7EDF4]">
-     <table className="w-full min-w-[800px]"><thead className="bg-[#F8FAFC]"><tr>{["Position ID","Principal","Status","Created","Action"].map(h=><th key={h} className={heading}>{h}</th>)}</tr></thead>
+     <table className="w-full min-w-[800px]"><thead className="bg-[#F8FAFC]"><tr>{["Position ID","Allocated","Status","Created","Action"].map(h=><th key={h} className={heading}>{h}</th>)}</tr></thead>
      <tbody className="divide-y divide-[#EDF0F5]">{positions.filter(p=>p.status==="ACTIVE"||p.status==="PENDING").map(p=><tr key={p.id}>
       <td className={cell+" font-mono text-xs"}>{p.id}</td><td className={cell}>{money(p.principal)}</td><td className={cell}>{p.status}{p.pending?" · reduction pending":""}</td><td className={cell}>{p.created}</td>
-      <td className={cell}><button type="button" disabled={working||p.status!=="ACTIVE"||p.pending||BigInt(p.principal)<=0n} onClick={()=>{setSelected(p);setReduceAmount("");setError("");}} className="rounded-lg border border-[#635BFF] px-3 py-2 font-semibold text-[#635BFF] disabled:opacity-40">Deallocate</button></td>
+      <td className={cell}><button type="button" disabled={working||p.status!=="OPEN"||p.pending||BigInt(p.principal)<=0n} onClick={()=>{setSelected(p);setReduceAmount("");setError("");}} className="rounded-lg border border-[#635BFF] px-3 py-2 font-semibold text-[#635BFF] disabled:opacity-40">Deallocate</button> <button type="button" disabled={working||p.status!=="OPEN"} onClick={()=>void submit("/api/earn/positions/close",{positionId:p.id})} className="ml-2 rounded-lg border px-3 py-2 font-semibold disabled:opacity-40">Close position</button></td>
      </tr>)}</tbody></table>
     </div>}
+  </section>
+  <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
+   <h2 className="text-xl font-semibold text-[#11263E]">Position history</h2>
+   {positions.filter(p=>p.status==="CLOSED").map(p=><p key={p.id} className="border-b py-3 text-sm text-[#64748B]">{p.id} · Closed · {p.created}</p>)}
+   {!positions.some(p=>p.status==="CLOSED")&&<p className="mt-3 text-sm text-[#64748B]">No closed positions</p>}
   </section>
   <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <h2 className="text-xl font-semibold text-[#11263E]">Allocations and deallocations</h2>
@@ -72,9 +77,9 @@ export function EarnActions({available,positions,operations,strategies}:{availab
    <div role="dialog" aria-modal="true" aria-labelledby="deallocate-title" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
     <h2 id="deallocate-title" className="text-xl font-semibold text-[#11263E]">Deallocate position</h2>
     <p className="mt-2 break-all text-xs text-[#64748B]">Allocation ID: {selected.id}</p>
-    <p className="mt-3 text-sm text-[#64748B]">Current principal: {money(selected.principal)}. A full reduction will close this position after verified settlement.</p>
+    <p className="mt-3 text-sm text-[#64748B]">Current allocated balance: {money(selected.principal)}. A deallocation never closes the position. Use the separate Close Position action to close it.</p>
     <form className="mt-5 space-y-4" onSubmit={e=>{e.preventDefault();if(valid(reduceAmount))void submit("/api/earn/deallocations",{positionId:selected.id,amount:reduceAmount});}}>
-     <label className="flex flex-col gap-2 text-sm font-semibold">Principal to deallocate (USDC)<input autoFocus required inputMode="decimal" value={reduceAmount} onChange={e=>setReduceAmount(e.target.value)} className="rounded-xl border border-[#CBD5E1] px-4 py-3 font-normal" placeholder="0.00"/></label>
+     <label className="flex flex-col gap-2 text-sm font-semibold">Amount to deallocate (USDC)<input autoFocus required inputMode="decimal" value={reduceAmount} onChange={e=>setReduceAmount(e.target.value)} className="rounded-xl border border-[#CBD5E1] px-4 py-3 font-normal" placeholder="0.00"/></label>
      <button type="button" onClick={()=>setReduceAmount((BigInt(selected.principal)/1000000n).toString()+"."+(BigInt(selected.principal)%1000000n).toString().padStart(6,"0"))} className="text-sm font-semibold text-[#635BFF]">Use full position amount</button>
      <div className="flex justify-end gap-3"><button type="button" onClick={()=>setSelected(null)} className="rounded-lg border px-4 py-2">Cancel</button><button disabled={working||!valid(reduceAmount)||Number(reduceAmount)>Number(selected.principal)/1e6} className="rounded-lg bg-[#635BFF] px-4 py-2 font-semibold text-white disabled:opacity-40">Request deallocation</button></div>
     </form>
