@@ -32,11 +32,8 @@ try{
  assert.equal((await submit(JSON.stringify({event,data:{}}))).status,400,"missing identity must not enqueue");
  const results=await Promise.all(Array.from({length:12},()=>submit(body)));
  assert.ok(results.every(r=>r.status===200),"concurrent signed duplicates must be accepted without duplicate insert");
- assert.equal(await prisma.webhookQueue.count({where:{source:"BLOCKRADAR",eventType:event,idempotencyKey:{
-  in:[] // Query by stored event type and payload identity instead of assuming hash structure.
- }}}),0);
  const {createHash}=await import("node:crypto");
- const hash=createHash("sha256").update(event+"\\0"+id).digest("hex");
+ const hash=createHash("sha256").update(event+"\0"+id).digest("hex");
  const entries=await prisma.webhookQueue.findMany({where:{source:"BLOCKRADAR",idempotencyKey:hash}});
  assert.equal(entries.length,1,"concurrent signed delivery must create exactly one durable queue record");
  assert.equal(entries[0].status,"PENDING");
@@ -45,12 +42,12 @@ try{
  const lifecycle=JSON.stringify({event:"deposit.success",data:{id}});
  assert.equal((await submit(lifecycle)).status,200,"distinct lifecycle events must not deduplicate");
  assert.equal(await prisma.webhookQueue.count({where:{source:"BLOCKRADAR",idempotencyKey:{
-  in:[hash,createHash("sha256").update("deposit.success"+"\\0"+id).digest("hex")]
+  in:[hash,createHash("sha256").update("deposit.success"+"\0"+id).digest("hex")]
  }}}),2);
  console.log("Signed webhook concurrent duplicate ingestion and durable idempotency passed");
 }finally{
  const {createHash}=await import("node:crypto");
- const hashes=[event,"deposit.success"].map(e=>createHash("sha256").update(e+"\\0"+id).digest("hex"));
+ const hashes=[event,"deposit.success"].map(e=>createHash("sha256").update(e+"\0"+id).digest("hex"));
  await prisma.webhookQueue.deleteMany({where:{source:"BLOCKRADAR",idempotencyKey:{in:hashes}}});
  await prisma.$disconnect();
  if(previous.key===undefined)delete process.env.BLOCK_RADAR_API_KEY;else process.env.BLOCK_RADAR_API_KEY=previous.key;
