@@ -1,5 +1,4 @@
 import {prisma} from "./db.ts";
-import {processVerifiedBlockradarQueueItem} from "./blockradar-webhook-processing.ts";
 
 // Process one queued message per invocation. The short claim transaction prevents
 // overlapping cron workers from running the same item concurrently.
@@ -25,6 +24,7 @@ export async function processPendingWebhook(){
   const request=new Request("https://internal.invalid/api/webhooks/blockradar",{
    method:"POST",headers:{"x-blockradar-signature":body.signature},body:body.raw,
   });
+  const {processVerifiedBlockradarQueueItem}=await import("./blockradar-webhook-processing.ts");
   const response=await processVerifiedBlockradarQueueItem(request);
   if(response.ok){
    await prisma.webhookQueue.updateMany({where:{id:candidate.id,status:"PENDING"},
