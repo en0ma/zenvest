@@ -64,7 +64,7 @@ try{
  assert.equal(transfers,1);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,100000000n,
   "investor's available balance changes only on verified settlement");
- const second=await make(unknownId,"1991-01-01T00:00:00Z");
+ const second=await make(unknownId,new Date().toISOString());
  mode="timeout";
  assert.equal(await processPendingWithdrawal(),"review_pending","ambiguous payout response must retain REVIEW hold");
  const unknown=await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:second.id}});
