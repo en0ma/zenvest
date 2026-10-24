@@ -15,6 +15,7 @@ for(const [command,args] of [
  ["node",["scripts/check-blockradar-reconciliation.mjs"]],
  ["node",["scripts/check-webhook-ingestion-concurrency.mjs"]],
  ["node",["scripts/check-verified-blockradar-processing.mjs"]],
+ ["node",["scripts/check-wallet-activation-lifecycle.mjs"]],
  ["node",["scripts/check-account-route-validation.mjs"]],
  ["node",["--experimental-strip-types","--test",...readdirSync("tests").filter(x=>x.endsWith(".test.ts")).sort().map(x=>"tests/"+x)]],
 ]){
