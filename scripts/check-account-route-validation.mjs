@@ -51,6 +51,12 @@ try{
  assert.equal(active.status,200);
  assert.deepEqual(await active.json(),await unknown.json(),"account existence must not leak");
  assert.equal(await prisma.actionToken.count({where:{userId}}),1,"verified investor must not receive another verification token");
+ const inactiveToken="e".repeat(64);
+ await prisma.actionToken.create({data:{userId,purpose:"VERIFY_EMAIL",hash:digest(inactiveToken),expiresAt:new Date(Date.now()+600000)}});
+ await prisma.user.update({where:{id:userId},data:{isActive:false}});
+ assert.equal((await confirm(request({token:inactiveToken,purpose:"VERIFY_EMAIL"}))).status,400,
+  "inactive user cannot confirm even with a valid token");
+ await prisma.user.update({where:{id:userId},data:{isActive:true}});
  const expired="d".repeat(64);
  await prisma.actionToken.create({data:{userId,purpose:"VERIFY_EMAIL",hash:digest(expired),expiresAt:new Date(Date.now()-60000)}});
  assert.equal((await confirm(request({token:expired,purpose:"VERIFY_EMAIL"}))).status,400,
