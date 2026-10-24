@@ -42,7 +42,10 @@ export async function POST(request: Request) {
       if(!canRequestAllocation({amount,minimum:strategy.minAllocationUsdcMicros,maximum:strategy.maxAllocationUsdcMicros,
         capacity:strategy.availableCapacityUsdcMicros,pendingStrategy:outstanding._sum.amountUsdcMicros??0n,
         availableUser,active:strategy.isActive,isPublic:strategy.isPublic}))return null;
-      const position=await tx.investorPosition.create({data:{userId:user.id,strategyId}});
+      const existingId=typeof body.positionId==="string"?body.positionId:null;
+      const existing=existingId?await tx.investorPosition.findFirst({where:{id:existingId,userId:user.id,strategyId,status:"OPEN"}}):null;
+      if(existingId&&!existing)return null;
+      const position=existing??await tx.investorPosition.create({data:{userId:user.id,strategyId,status:"OPEN"}});
       const op=await tx.positionAllocation.create({data:{
         userId:user.id,positionId:position.id,strategyId,
         status:"PENDING",amountUsdcMicros:amount,
