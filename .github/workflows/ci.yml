@@ -6,6 +6,7 @@ on:
     branches: [main]
 permissions:
   contents: read
+  pull-requests: write
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -46,6 +47,24 @@ jobs:
       - name: Publish coverage summary
         if: always()
         run: node scripts/coverage-summary.mjs
+      - name: Publish coverage on pull request
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('node:fs');
+            if (!fs.existsSync('coverage/coverage-summary.json')) return;
+            const report = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+            const marker = '<!-- zenvest-coverage-report -->';
+            const metrics = ['lines', 'branches', 'functions', 'statements'];
+            const rows = metrics.map(k => '| ' + k + ' | ' + report.total[k].pct.toFixed(2) + '% |');
+            const body = [marker, '## Zenvest test coverage', '', '| Metric | Coverage |', '|---|---:|', ...rows, '', 'Source: CI run ' + context.runId + ', commit ' + context.sha.slice(0, 7), 'Coverage is informational; no minimum threshold is enforced.'].join('\n');
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {owner, repo, issue_number, per_page: 100});
+            const previous = comments.find(x => x.user?.type === 'Bot' && x.body?.includes(marker));
+            if (previous) await github.rest.issues.updateComment({owner, repo, comment_id: previous.id, body});
+            else await github.rest.issues.createComment({owner, repo, issue_number, body});
       - name: Upload coverage artifacts
         if: always()
         uses: actions/upload-artifact@v4
