@@ -50,6 +50,10 @@ try{
  assert.equal(active.status,200);
  assert.deepEqual(await active.json(),await unknown.json(),"account existence must not leak");
  assert.equal(await prisma.actionToken.count({where:{userId}}),1,"verified investor must not receive another verification token");
+ const expired="d".repeat(64);
+ await prisma.actionToken.create({data:{userId,purpose:"VERIFY_EMAIL",hash:digest(expired),expiresAt:new Date(Date.now()-60000)}});
+ assert.equal((await confirm(request({token:expired,purpose:"VERIFY_EMAIL"}))).status,400,
+  "expired verification token must never activate account");
  const reset="c".repeat(64);
  const sessionBefore=(await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion;
  await prisma.actionToken.create({data:{userId,purpose:"RESET_PASSWORD",hash:digest(reset),expiresAt:new Date(Date.now()+600000)}});
