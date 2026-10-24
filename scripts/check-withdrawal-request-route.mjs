@@ -55,30 +55,30 @@ try{
  assert.equal(body.gross,"5000000");
  assert.equal(body.net,"2900000");
  assert.equal(body.fee,"2100000");
- const row=await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:body.id}});
+ const row=await prisma.withdrawal.findUniqueOrThrow({where:{id:body.id}});
  assert.equal(row.userId,owner);
  assert.equal(row.treasuryTransactionId,null);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:owner}})).unallocated,12000000n);
  assert.equal((await call({amount:"8.000000",address,maxTotalFeeMicros:"2100000"})).status,409,
   "pending withdrawal reserves gross funds");
- assert.equal(await prisma.investorWithdrawal.count({where:{userId:owner}}),1);
+ assert.equal(await prisma.withdrawal.count({where:{userId:owner}}),1);
  // Fee-quote provider failure cannot persist a withdrawal.
- const requestsBefore=await prisma.investorWithdrawal.count({where:{userId:owner}});
+ const requestsBefore=await prisma.withdrawal.count({where:{userId:owner}});
  globalThis.fetch=async()=>new Response("upstream unavailable",{status:503});
  assert.equal((await call({amount:"3.000000",address,maxTotalFeeMicros:"3000000"})).status,503);
- assert.equal(await prisma.investorWithdrawal.count({where:{userId:owner}}),requestsBefore);
+ assert.equal(await prisma.withdrawal.count({where:{userId:owner}}),requestsBefore);
  globalThis.fetch=async()=>Response.json({data:{networkFeeInUSD:"0.100000"}});
  // Disable guard must not contact Blockradar or mutate investor balances.
  process.env.BLOCKRADAR_WITHDRAWALS_ENABLED="false";
  globalThis.fetch=async()=>{throw Error("Unexpected disabled provider call");};
  assert.equal((await call({amount:"3.000000",address,maxTotalFeeMicros:"3000000"})).status,503);
- assert.equal(await prisma.investorWithdrawal.count({where:{userId:owner}}),requestsBefore);
+ assert.equal(await prisma.withdrawal.count({where:{userId:owner}}),requestsBefore);
  console.log("Withdrawal route source coverage passed: validation, fee acceptance, successful request, reserved balance and insufficient available funds");
 }finally{
  globalThis.fetch=nativeFetch;
  for(const [key,value] of [["BLOCKRADAR_WITHDRAWALS_ENABLED",previous.enabled],["BLOCKRADAR_SOLANA_USDC_ASSET_ID",previous.asset],["BLOCK_RADAR_API_KEY",previous.key],["BLOCK_RADAR_MASTER_WALLET_ID",previous.wallet]])if(value===undefined)delete process.env[key];else process.env[key]=value;
  await prisma.investorActivity.deleteMany({where:{userId:owner}});
- await prisma.investorWithdrawal.deleteMany({where:{userId:owner}});
+ await prisma.withdrawal.deleteMany({where:{userId:owner}});
  await prisma.user.deleteMany({where:{id:owner}});
  await prisma.$disconnect();
 }
