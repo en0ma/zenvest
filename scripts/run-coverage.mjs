@@ -5,6 +5,7 @@ import {readdirSync} from "node:fs";
 // This captures PostgreSQL integration paths as well as native Node unit tests.
 for(const [command,args] of [
  ["node",["scripts/check-ci-db.mjs"]],
+ ["node",["scripts/check-financial-workers.mjs"]],
  ["node",["--experimental-strip-types","--test",...readdirSync("tests").filter(x=>x.endsWith(".test.ts")).sort().map(x=>"tests/"+x)]],
 ]){
  const result=spawnSync(command,args,{stdio:"inherit",env:process.env});
