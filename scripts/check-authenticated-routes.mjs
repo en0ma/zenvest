@@ -16,6 +16,7 @@ const {POST:allocate}=await import("../src/app/api/earn/allocations/route.ts");
 const {POST:deallocate}=await import("../src/app/api/earn/deallocations/route.ts");
 const {POST:closePosition}=await import("../src/app/api/earn/positions/close/route.ts");
 const {GET:csvReport}=await import("../src/app/api/earn/reports/trade-pnl.csv/route.ts");
+const {POST:cancelWithdrawal}=await import("../src/app/api/withdrawals/cancel/route.ts");
 function request(body){return new Request("http://ci.local/api/earn/allocations",{method:"POST",headers:{"content-type":"application/json"},body:typeof body==="string"?body:JSON.stringify(body)});}
 async function post(body){return allocate(request(body));}
 try{
