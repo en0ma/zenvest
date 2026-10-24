@@ -31,3 +31,12 @@ Changes committed to the draft feature branch. Do not merge, deploy production, 
 - Integration fixture exercises the real P&L worker and real verified funding settlement concurrently against the same position; serializable conflicts are safely retried, and the final equity must include both events exactly once.
 - Integration fixture verifies incorrect return amounts do not settle, full authenticated return closes CLOSING positions, and replayed receipts never credit users again.
 - Dashboard now reports settled event daily/weekly/monthly USDC net P&L, win rate (excluding zero-result events), per-position aggregate, platform fees, best and worst realized trade, cumulative realized P&L chart, and authenticated CSV. Percentage period returns and historical portfolio market valuations are intentionally **not** invented without time-weighted cash-flow / valuation evidence.
+
+## Hourly portfolio snapshots
+
+A separate `portfolio_snapshots` table records one observation per investor per UTC hour. The `position_trade_pnl` schema is unchanged.
+
+- Scheduled route: `/api/internal/snapshot-portfolios` at `0 * * * *`, authenticated with `CRON_SECRET`.
+- Captures settled invested equity (`sum(positions.allocated_usdc_micros)`), unallocated funds, pending withdrawal + allocation reservations, total portfolio value, and cumulative settled investor net P&L.
+- Serializable per-user reads and a unique `(user_id,snapshot_at)` enforce consistent, idempotent snapshots. Failed users are retried on another invocation within the same hour; past missed hours are not fabricated.
+- These are **hourly observations**, not exact cash-flow boundary valuations. They support portfolio value trends and clearly labeled approximate interval returns, but cannot alone establish exact time-weighted performance when external deposits/withdrawals occur between samples. Live unrealized value is not included until a verified live valuation source exists.
