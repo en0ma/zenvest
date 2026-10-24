@@ -41,9 +41,20 @@ jobs:
         run: npx prisma migrate status
       - name: Seed deterministic test-only records
         run: node scripts/seed-ci.mjs
-      - name: Run PostgreSQL integration assertions
-        run: node scripts/check-ci-db.mjs
-      - run: npm test
+      - name: Run integration and unit tests with combined coverage
+        run: npm run test:coverage
+      - name: Publish coverage summary
+        if: always()
+        run: node scripts/coverage-summary.mjs
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zenvest-coverage
+          path: |
+            coverage/
+          if-no-files-found: warn
+          retention-days: 14
       - run: npm run typecheck
       - run: npm run build
 
