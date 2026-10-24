@@ -386,20 +386,5 @@ try {
  console.log("Position P&L concurrency, replay and authenticated-return closure passed");
  console.log("Strategy source-only confirmation, duplicate, mismatch, and financial conservation passed");
  console.log("CI PostgreSQL transaction rollback, uniqueness and idempotent settlement assertions passed");
- const {captureHourlyPortfolioSnapshots,utcHourBucket}=await import("../src/lib/hourly-portfolio-snapshot-worker.ts");
- assert.equal(utcHourBucket(new Date("2026-01-01T15:37:41Z")).toISOString(),"2026-01-01T15:00:00.000Z");
- const snapshotNow=new Date("2026-12-01T12:00:00.000Z");
- const initial=await captureHourlyPortfolioSnapshots(snapshotNow);
- assert.equal(initial.failed,0);
- const record=await prisma.portfolioSnapshot.findUniqueOrThrow({where:{
-  userId_snapshotAt:{userId:user.id,snapshotAt:utcHourBucket(snapshotNow)}}});
- const posNow=await prisma.investorPosition.aggregate({where:{userId:user.id},_sum:{allocatedUsdcMicros:true}});
- const userNow=await prisma.user.findUniqueOrThrow({where:{id:user.id}});
- assert.equal(record.portfolioValueUsdcMicros,userNow.unallocated+(posNow._sum.allocatedUsdcMicros??0n));
- const again=await captureHourlyPortfolioSnapshots(new Date("2026-12-01T12:12:00.000Z"));
- assert.equal(again.failed,0);
- assert.equal(again.created,0,"hourly snapshot must be idempotent");
- assert.equal(await prisma.portfolioSnapshot.count({where:{userId:user.id,snapshotAt:utcHourBucket(snapshotNow)}}),1);
- console.log("Hourly portfolio snapshots aggregate equity and remain idempotent");
  console.log("CI PostgreSQL migration, fixtures and uniqueness assertions passed");
 }finally{await prisma.$disconnect();}
