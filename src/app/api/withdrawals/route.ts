@@ -1,3 +1,4 @@
+import {isValidSolanaAddress} from "@/lib/solana-address";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/access";
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
   const input = body as Record<string, unknown>;
   const amount = parseMicros(input.amount);
   const address = input.address;
-  if (!amount || typeof address !== "string" || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))
+  if (!amount || !isValidSolanaAddress(address))
     return NextResponse.json({error:"Enter a valid USDC amount and Solana address"},{status:400});
 
   if (amount <= WITHDRAWAL_FEE_USDC_MICROS) return NextResponse.json({error:"Amount must exceed the 2 USDC fee"},{status:400});
