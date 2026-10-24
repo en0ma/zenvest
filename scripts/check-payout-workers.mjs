@@ -11,14 +11,19 @@ const prisma=new PrismaClient();
 const originalEnv={key:process.env.BLOCK_RADAR_API_KEY,wallet:process.env.BLOCK_RADAR_MASTER_WALLET_ID,asset:process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID};
 const realFetch=globalThis.fetch;
 const {processPendingAllocations}=await import("../src/lib/allocation-payout-worker.ts");
+const {handleAllocationWebhook}=await import("../src/lib/allocation-webhook.ts");
 const strategyId="ci_worker_allocation";
 const walletAddress="11111111111111111111111111111111";
 let positionId=null,allocationId=null,eventId=null;
+const priorMint=process.env.BLOCKRADAR_SOLANA_USDC_MINT;
+let originalDeposit=null;
 try{
  const deposit=await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}});
  process.env.BLOCK_RADAR_API_KEY="ci-provider-fixture";
  process.env.BLOCK_RADAR_MASTER_WALLET_ID=deposit.walletId;
  process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID="ci-usdc";
+ process.env.BLOCKRADAR_SOLANA_USDC_MINT="ci-mint";
+ originalDeposit=deposit.amount;
  await prisma.strategy.create({data:{id:strategyId,name:"CI Payout Worker Strategy",description:"Isolated payout worker lifecycle test",kalshiWalletAddress:walletAddress}});
  const position=await prisma.investorPosition.create({data:{userId:"ci_test_user",strategyId}});
  positionId=position.id;
@@ -84,6 +89,29 @@ try{
  assert.equal(await processPendingAllocations(),"empty");
  assert.equal(transfers,2,"ambiguous allocation must not be resent");
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:"ci_test_user"}})).unallocated,before.unallocated);
+ const signedEvent={
+  id:"ci-accepted-transfer-1",reference:"strategy_withdrawal:"+eventId,
+  amount:"1.500001",recipientAddress:walletAddress,
+  wallet:{id:deposit.walletId},type:"WITHDRAW",status:"SUCCESS",network:"testnet",
+  asset:{symbol:"USDC",decimals:6,address:"ci-mint"},hash:"ci-verified-onchain-1",confirmed:true
+ };
+ assert.equal(await handleAllocationWebhook("withdraw.success",signedEvent,deposit.walletId),
+  "awaiting_kalshi_receipt","source provider confirmation must record custody movement");
+ assert.equal(await handleAllocationWebhook("withdraw.success",signedEvent,deposit.walletId),
+  "duplicate","repeated source confirmation cannot charge master twice");
+ const sourceEvent=await prisma.strategyEvent.findUniqueOrThrow({where:{id:eventId}});
+ assert.equal(sourceEvent.status,"CONFIRMING");
+ assert.equal(sourceEvent.sourceConfirmed,true);
+ assert.equal(sourceEvent.destinationConfirmed,false);
+ const ledger=await prisma.treasuryTransfer.findUniqueOrThrow({where:{reference:"strategy_withdrawal:"+eventId}});
+ assert.equal(ledger.direction,"ALLOCATE");
+ assert.equal(ledger.status,"PROCESSING","source-only callback is not final strategy receipt");
+ assert.equal(ledger.amountUsdcMicros,1500001n);
+ assert.equal((await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).amount,
+  originalDeposit-1500001n,"verified source custody must debit once");
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:"ci_test_user"}})).unallocated,before.unallocated,
+  "source-only movement must not settle investor equity");
+ assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:allocationId}})).status,"CONFIRMING");
  console.log("Allocation worker PostgreSQL lifecycle passed: insufficient custody retry, successful provider acceptance, no premature settlement, no resubmission");
 }finally{
  globalThis.fetch=realFetch;
@@ -92,6 +120,9 @@ try{
  }
  await prisma.positionAllocation.deleteMany({where:{strategyId}});
  await prisma.strategyEvent.deleteMany({where:{strategyId}});
+ await prisma.treasuryTransfer.deleteMany({where:{reference:"strategy_withdrawal:"+eventId}});
+ if(originalDeposit!==null)await prisma.treasury.update({where:{kind:"DEPOSIT"},data:{amount:originalDeposit}});
+ if(priorMint===undefined)delete process.env.BLOCKRADAR_SOLANA_USDC_MINT;else process.env.BLOCKRADAR_SOLANA_USDC_MINT=priorMint;
  if(positionId)await prisma.investorPosition.deleteMany({where:{id:positionId}});
  await prisma.strategy.deleteMany({where:{id:strategyId}});
  await prisma.$disconnect();
