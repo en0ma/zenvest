@@ -3,6 +3,7 @@ import {PrismaClient} from "@prisma/client";
 import {registerHooks} from "node:module";
 registerHooks({
  resolve(specifier,context,nextResolve){
+  if(specifier==="server-only")return nextResolve(new URL("./ci-server-only-shim.mjs",import.meta.url).href,context);
   if(specifier.startsWith("@/lib/")){
    const target=new URL("../src/lib/"+specifier.slice(6)+(specifier.endsWith(".ts")?"":".ts"),import.meta.url);
    return nextResolve(target.href,context);
