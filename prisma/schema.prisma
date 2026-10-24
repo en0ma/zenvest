@@ -24,7 +24,7 @@ model User {
   sessionVersion Int @default(0) @map("session_version")
   unallocated BigInt @default(0)
   depositWallet InvestorDepositWallet?
-  withdrawals InvestorWithdrawal[]
+  withdrawals Withdrawal[]
   webhookDeadLater WebhookDeadLater[]
   positions InvestorPosition[]
   positionAllocations PositionAllocation[]
@@ -209,7 +209,7 @@ enum WithdrawalStatus {
   CANCELLED
 }
 
-model InvestorWithdrawal {
+model Withdrawal {
   id String @id @default(cuid())
   userId String @map("user_id")
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -387,7 +387,7 @@ model TreasuryTransfer {
   updatedAt DateTime @updatedAt @map("updated_at")
   completedAt DateTime? @map("completed_at")
   strategyEvent StrategyEvent?
-  withdrawals InvestorWithdrawal[]
+  withdrawals Withdrawal[]
   deposit BlockchainDeposit? @relation("DepositTreasuryTransaction")
   @@index([direction,status,createdAt])
   @@index([originExternalId])
