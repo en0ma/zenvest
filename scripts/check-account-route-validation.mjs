@@ -66,6 +66,13 @@ try{
  const versionBeforeExpiry=(await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion;
  assert.equal((await confirm(request({token:expiredReset,purpose:"RESET_PASSWORD",password:"NewPass123!"}))).status,400);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion,versionBeforeExpiry);
+ const fresh="1".repeat(64);
+ await prisma.actionToken.create({data:{userId,purpose:"RESET_PASSWORD",hash:digest(fresh),expiresAt:new Date(Date.now()+600000)}});
+ const throttled=await callLink({email:"ci-account-validation@example.invalid",purpose:"RESET_PASSWORD"});
+ assert.equal(throttled.status,200);
+ assert.equal(await prisma.actionToken.count({where:{userId,purpose:"RESET_PASSWORD"}}),2,
+  "recent password reset cannot issue another token");
+ await prisma.actionToken.delete({where:{hash:digest(fresh)}});
  const reset="c".repeat(64);
  const sessionBefore=(await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion;
  await prisma.actionToken.create({data:{userId,purpose:"RESET_PASSWORD",hash:digest(reset),expiresAt:new Date(Date.now()+600000)}});
