@@ -106,11 +106,15 @@ try{
   "wrong-purpose verification must not consume the reset token");
  assert.equal(await consumeToken(crossPurpose,"VERIFY_EMAIL"),false,
   "reset token must not be valid as a verification token");
+ // Resetting a password must invalidate all other outstanding reset links,
+ // including ones that may have been issued before the accepted request.
+ const staleLink="4".repeat(64);
+ await prisma.actionToken.create({data:{userId,purpose:"RESET_PASSWORD",hash:digest(staleLink),expiresAt:new Date(Date.now()+600000)}});
  const fresh="1".repeat(64);
  await prisma.actionToken.create({data:{userId,purpose:"RESET_PASSWORD",hash:digest(fresh),expiresAt:new Date(Date.now()+600000)}});
  const throttled=await callLink({email:"ci-account-validation@example.invalid",purpose:"RESET_PASSWORD"});
  assert.equal(throttled.status,200);
- assert.equal(await prisma.actionToken.count({where:{userId,purpose:"RESET_PASSWORD"}}),3,
+ assert.equal(await prisma.actionToken.count({where:{userId,purpose:"RESET_PASSWORD"}}),4,
   "recent password reset cannot issue another token");
  await prisma.actionToken.delete({where:{hash:digest(fresh)}});
  const reset="c".repeat(64);
@@ -124,6 +128,11 @@ try{
   "only retryable serialization conflicts may interrupt competing reset transactions");
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion,sessionBefore+1);
  assert.equal((await confirm(request({token:reset,purpose:"RESET_PASSWORD",password:"NewPass123!"}))).status,400);
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).passwordHash,"ci-raced-hashed-password");
+ assert.equal(await prisma.actionToken.count({where:{userId,purpose:"RESET_PASSWORD"}}),0,
+  "successful password reset must revoke all other outstanding reset tokens");
+ assert.equal(await consumeToken(staleLink,"RESET_PASSWORD","ci-untrusted-password"),false,
+  "an older reset link cannot change credentials after a successful reset");
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).passwordHash,"ci-raced-hashed-password");
  console.log("Account token lifecycle passed: purpose isolation, single use and verified state");
 }finally{
