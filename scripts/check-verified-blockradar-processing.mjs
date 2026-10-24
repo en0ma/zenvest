@@ -89,6 +89,18 @@ try{
    "duplicate signed sweep is acknowledged without second settlement");
   assert.equal((await db.user.findUniqueOrThrow({where:{id:userId}})).unallocated,amountBefore+micros,
    "verified full sweep credits exactly once");
+  // Reusing a trusted provider transaction ID with altered immutable amount,
+  // hash or recipient must fail atomically, without accepting a second deposit.
+  for(const tampered of [
+   {...swept,amount:"1.500002",assetSweptAmount:"1.500002"},
+   {...swept,hash:"ci-conflicting-chain-hash"},
+  ]){
+   assert.equal((await call({event:"deposit.swept.success",data:tampered})).status,503,
+    "an existing provider transaction cannot be rebound to different custody evidence");
+   assert.equal((await db.user.findUniqueOrThrow({where:{id:userId}})).unallocated,amountBefore+micros,
+    "tampered replay must not credit another micro-unit");
+   assert.equal(await db.treasuryTransfer.count({where:{reference:providerTx}}),1);
+  }
   // Competing first-time signed sweep deliveries must never mint duplicate equity.
   const racingId="ci-verified-deposit-racing";
   const racingData={...data,id:racingId,hash:"ci-racing-hash"};
