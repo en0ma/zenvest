@@ -40,7 +40,7 @@ try{
  assert.equal((await estimate({amount:"5.000000",address})).status,503,
   "network-fee provider failure must not be converted into a valid quote");
  globalThis.fetch=async(url)=>{
-  assert.match(String(url),/\\/withdraw\\/network-fee$/);
+  assert.ok(String(url).endsWith("/withdraw/network-fee"));
   return Response.json({data:{networkFeeInUSD:"0.100000"}});
  };
  assert.equal((await call("{bad")).status,400);
