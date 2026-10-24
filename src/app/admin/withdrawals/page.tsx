@@ -8,7 +8,7 @@ export const dynamic="force-dynamic";
 
 export default async function AdminWithdrawals() {
   await requireAdmin();
-  const withdrawals=await prisma.investorWithdrawal.findMany({
+  const withdrawals=await prisma.withdrawal.findMany({
     orderBy:{createdAt:"desc"},take:100,
     include:{user:{select:{id:true,email:true}}},
   });
