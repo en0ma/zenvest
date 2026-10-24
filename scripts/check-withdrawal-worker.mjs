@@ -4,6 +4,7 @@ import {registerHooks} from "node:module";
 registerHooks({resolve(specifier,context,nextResolve){
  if(specifier==="server-only")return nextResolve(new URL("./ci-server-only-shim.mjs",import.meta.url).href,context);
  if(specifier.startsWith("@/lib/"))return nextResolve(new URL("../src/lib/"+specifier.slice(6)+".ts",import.meta.url).href,context);
+ if(specifier.startsWith("./") && context.parentURL?.includes("/src/lib/") && !/\.[cm]?[jt]s$/.test(specifier))return nextResolve(new URL(specifier+".ts",context.parentURL).href,context);
  return nextResolve(specifier,context);
 }});
 if(!process.env.DATABASE_URL?.includes("zenvest_ci"))throw Error("CI database required");
