@@ -111,8 +111,8 @@ try{
   assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).amount,treasuryBefore.amount+micros*2n);
  }finally{
   await db.investorActivity.deleteMany({where:{userId}});
-  await db.blockchainDeposit.deleteMany({where:{providerTransactionId:providerTx}});
-  await db.treasuryTransfer.deleteMany({where:{reference:providerTx}});
+  await db.blockchainDeposit.deleteMany({where:{providerTransactionId:{in:[providerTx,"ci-verified-deposit-racing"]}}});
+  await db.treasuryTransfer.deleteMany({where:{reference:{in:[providerTx,"ci-verified-deposit-racing"]}}});
   await db.investorDepositWallet.deleteMany({where:{userId}});
   await db.user.deleteMany({where:{id:userId}});
   await db.treasury.update({where:{kind:"DEPOSIT"},data:{amount:treasuryBefore.amount}});
