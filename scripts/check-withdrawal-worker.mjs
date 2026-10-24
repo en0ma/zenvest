@@ -1,0 +1,237 @@
+import assert from "node:assert/strict";
+import {PrismaClient} from "@prisma/client";
+import {registerHooks} from "node:module";
+registerHooks({resolve(specifier,context,nextResolve){
+ if(specifier==="server-only")return nextResolve(new URL("./ci-server-only-shim.mjs",import.meta.url).href,context);
+ if(specifier.startsWith("@/lib/"))return nextResolve(new URL("../src/lib/"+specifier.slice(6)+".ts",import.meta.url).href,context);
+ if(specifier.startsWith("./") && context.parentURL?.includes("/src/lib/") && !/\.[cm]?[jt]s$/.test(specifier))return nextResolve(new URL(specifier+".ts",context.parentURL).href,context);
+ return nextResolve(specifier,context);
+}});
+if(!process.env.DATABASE_URL?.includes("zenvest_ci"))throw Error("CI database required");
+const prisma=new PrismaClient();
+const originalEnv={key:process.env.BLOCK_RADAR_API_KEY,wallet:process.env.BLOCK_RADAR_MASTER_WALLET_ID,asset:process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID};
+const realFetch=globalThis.fetch;
+const {processPendingWithdrawal}=await import("../src/lib/withdrawal-payout-worker.ts");
+const {handleWithdrawalWebhook}=await import("../src/lib/withdrawal-webhook.ts");
+const userId="ci_payout_worker_user";
+const successId="cworkerwithdrawal00000001";
+const unknownId="cworkerwithdrawal00000002";
+const priorMint=process.env.BLOCKRADAR_SOLANA_USDC_MINT;
+let treasuryStart=null;
+let createdUser=false;
+try{
+ const deposit=await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}});
+ process.env.BLOCK_RADAR_API_KEY="ci-provider-fixture";
+ process.env.BLOCK_RADAR_MASTER_WALLET_ID=deposit.walletId;
+ process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID="ci-usdc";
+ process.env.BLOCKRADAR_SOLANA_USDC_MINT="ci-test-usdc-mint";
+ treasuryStart=await prisma.treasury.findMany({where:{kind:{in:["DEPOSIT","DEALLOCATE","WITHDRAWAL_FEE"]}},select:{kind:true,amount:true}});
+ await prisma.user.create({data:{id:userId,name:"CI Payout Worker",email:"ci-payout-worker@example.invalid",passwordHash:"ci-only",unallocated:100000000n}});
+ createdUser=true;
+ const make=(id,stamp)=>prisma.withdrawal.create({data:{
+  id,userId,amountUsdcMicros:5000001n,grossUsdcMicros:7000001n,
+  feeUsdcMicros:2000000n,destinationAddress:"11111111111111111111111111111111",
+  status:"PENDING",createdAt:new Date(stamp),updatedAt:new Date(stamp)
+ }});
+ let mode="insufficient",transfers=0,providerReceiptId="ci-provider-accepted";
+ globalThis.fetch=async(url,init)=>{
+  assert.match(String(url),/^https:\/\/api\.blockradar\.co\/v1\/wallets\//);
+  if(String(url).includes("/balance"))return new Response(JSON.stringify({
+   statusCode:200,data:{asset:"USDC",balance:mode==="insufficient"?"0.000001":"999999999999.000001"}
+  }),{status:200});
+  if(String(url).endsWith("/withdraw")){
+   transfers++;
+   const data=JSON.parse(String(init?.body));
+   assert.equal(data.amount,"5.000001");
+   assert.equal(data.assetId,"ci-usdc");
+   assert.equal(data.address,"11111111111111111111111111111111");
+   if(mode==="timeout")throw Error("Simulated provider timeout after network call");
+   return new Response(JSON.stringify({data:{id:providerReceiptId,hash:"ci-hash"}}),{status:200});
+  }
+  throw Error("Unexpected external network request");
+ };
+ const first=await make(successId,"1990-01-01T00:00:00Z");
+ assert.equal(await processPendingWithdrawal(),"preflight_retry","insufficient master funds cannot trigger a payout");
+ assert.equal((await prisma.withdrawal.findUniqueOrThrow({where:{id:first.id}})).status,"PENDING");
+ assert.equal(transfers,0);
+ mode="success";
+ assert.equal(await processPendingWithdrawal(),"submitted","provider acceptance is asynchronous, not final settlement");
+ let accepted=await prisma.withdrawal.findUniqueOrThrow({where:{id:first.id}});
+ assert.equal(accepted.status,"PROCESSING");
+ assert.equal(accepted.providerTransactionId,"ci-provider-accepted");
+ assert.equal(accepted.transactionHash,"ci-hash");
+ assert.equal(accepted.treasuryTransactionId,null,"provider acceptance cannot mint a completed transfer");
+ assert.equal(transfers,1);
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,100000000n,
+  "investor's available balance changes only on verified settlement");
+ const second=await make(unknownId,new Date().toISOString());
+ mode="timeout";
+ assert.equal(await processPendingWithdrawal(),"review_pending","ambiguous payout response must retain REVIEW hold");
+ const unknown=await prisma.withdrawal.findUniqueOrThrow({where:{id:second.id}});
+ assert.equal(unknown.status,"REVIEW");
+ assert.equal(unknown.failureCode,"PAYOUT_RESPONSE_UNKNOWN");
+ assert.equal(unknown.treasuryTransactionId,null);
+ assert.equal(transfers,2);
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,100000000n);
+ const signedData={
+  id:"ci-provider-accepted",reference:"withdrawal:"+successId,amount:"5.000001",
+  recipientAddress:"11111111111111111111111111111111",
+  wallet:{id:deposit.walletId},type:"WITHDRAW",status:"SUCCESS",network:"testnet",
+  asset:{address:"ci-test-usdc-mint",symbol:"USDC",decimals:6},
+  hash:"ci-chain-confirmed",confirmed:true,metadata:{userId}
+ };
+ // Signed callbacks with mismatched payment evidence must never settle or debit.
+ for(const [field,bad] of [
+  ["amount","5.000002"],["recipientAddress","wrong-recipient"],["network","mainnet"],
+  ["id","unrelated-provider-receipt"],
+ ]){
+  const outcome=await handleWithdrawalWebhook("withdraw.success",{...signedData,[field]:bad},deposit.walletId);
+  assert.equal(outcome,"mismatch","invalid "+field+" cannot authorize settlement");
+  assert.equal((await prisma.withdrawal.findUniqueOrThrow({where:{id:first.id}})).status,"PROCESSING");
+  assert.equal(await prisma.treasuryTransfer.count({where:{reference:"withdrawal:"+successId}}),0);
+  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,100000000n);
+ }
+ assert.equal(await handleWithdrawalWebhook("withdraw.success",{...signedData,confirmed:false},deposit.walletId),"unconfirmed");
+ assert.equal((await prisma.withdrawal.findUniqueOrThrow({where:{id:first.id}})).status,"PROCESSING");
+ assert.equal(await handleWithdrawalWebhook("withdraw.success",signedData,deposit.walletId),"settled",
+  "trusted verified provider callback must settle accepted withdrawal");
+ assert.equal((await prisma.withdrawal.findUniqueOrThrow({where:{id:first.id}})).status,"COMPLETED");
+ const ledger=await prisma.treasuryTransfer.findUniqueOrThrow({where:{reference:"withdrawal:"+successId}});
+ assert.equal(ledger.status,"COMPLETE");
+ assert.equal(ledger.amountUsdcMicros,5000001n);
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,92999999n,
+  "confirmed settlement must debit the gross amount including fixed fee exactly once");
+ const parallelDuplicates=await Promise.all(Array.from({length:6},()=>handleWithdrawalWebhook("withdraw.success",signedData,deposit.walletId)));
+ assert.deepEqual(parallelDuplicates,Array(6).fill("duplicate"),
+  "simultaneous redelivery after settlement must remain idempotent");
+ assert.equal(await prisma.treasuryTransfer.count({where:{reference:"withdrawal:"+successId}}),1);
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,92999999n,
+  "replayed trusted callback cannot debit funds again");
+ // A stale REVIEW must expire without contacting the provider or debiting funds.
+ const stale=await prisma.withdrawal.create({data:{
+  id:"cworkerreviewexpired000001",userId,amountUsdcMicros:5000001n,
+  grossUsdcMicros:7000001n,feeUsdcMicros:2000000n,
+  destinationAddress:"11111111111111111111111111111111",
+  status:"REVIEW",createdAt:new Date("2000-01-01T00:00:00Z")
+ }});
+ const transfersBeforeExpiry=transfers;
+ assert.equal(await processPendingWithdrawal(),"review_expired");
+ const expired=await prisma.withdrawal.findUniqueOrThrow({where:{id:stale.id}});
+ assert.equal(expired.status,"FAILED");
+ assert.equal(expired.failureCode,"REVIEW_TIMEOUT");
+ assert.equal(expired.treasuryTransactionId,null);
+ assert.equal(transfers,transfersBeforeExpiry,"review expiration must not submit a payout");
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,92999999n);
+ // Interrupted settlement must roll back ALL journal writes and remain retryable.
+ const interruptedId="cworkerinterrupted0000003";
+ const interruptedReference="withdrawal:"+interruptedId;
+ await prisma.withdrawal.create({data:{
+  id:interruptedId,userId,amountUsdcMicros:5000001n,grossUsdcMicros:7000001n,
+  feeUsdcMicros:2000000n,destinationAddress:"11111111111111111111111111111111",
+  status:"PROCESSING",providerTransactionId:"ci-provider-interrupted"
+ }});
+ const beforeInterrupted=(await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated;
+ const depositBeforeInterrupted=await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}});
+ const deallocateBeforeInterrupted=await prisma.treasury.findUniqueOrThrow({where:{kind:"DEALLOCATE"}});
+ await prisma.treasury.update({where:{kind:"DEPOSIT"},data:{amount:0n}});
+ await prisma.treasury.update({where:{kind:"DEALLOCATE"},data:{amount:0n}});
+ const interruptedData={...signedData,id:"ci-provider-interrupted",reference:interruptedReference,hash:"ci-interrupted-hash"};
+ try{
+  await assert.rejects(handleWithdrawalWebhook("withdraw.success",interruptedData,deposit.walletId),
+   /Insufficient master treasury balance/);
+  assert.equal((await prisma.withdrawal.findUniqueOrThrow({where:{id:interruptedId}})).status,"PROCESSING",
+   "failed settlement must roll back status transition");
+  assert.equal(await prisma.treasuryTransfer.count({where:{reference:interruptedReference}}),0,
+   "failed settlement cannot leave a completed treasury transfer");
+  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,beforeInterrupted,
+   "failed settlement cannot debit funds");
+ }finally{
+  await prisma.treasury.update({where:{kind:"DEPOSIT"},data:{amount:depositBeforeInterrupted.amount>=7000001n?depositBeforeInterrupted.amount:7000001n}});
+  await prisma.treasury.update({where:{kind:"DEALLOCATE"},data:{amount:deallocateBeforeInterrupted.amount}});
+ }
+ // Race first-time signed settlement deliveries, not merely duplicates after completion.
+ // PostgreSQL SERIALIZABLE may abort a contender with P2034; it must be retryable
+ // and must never produce an additional transfer or gross debit.
+ const raced=await Promise.allSettled(Array.from({length:4},()=>
+  handleWithdrawalWebhook("withdraw.success",interruptedData,deposit.walletId)));
+ for(const outcome of raced){
+  if(outcome.status==="rejected"){
+   assert.equal(outcome.reason?.code,"P2034",
+    "only a database serialization conflict is an acceptable concurrent failure");
+  }else{
+   assert.ok(["settled","duplicate"].includes(outcome.value));
+  }
+ }
+ assert.equal(raced.filter(x=>x.status==="fulfilled"&&x.value==="settled").length,1,
+  "exactly one first-time callback can settle the withdrawal");
+ assert.equal(await handleWithdrawalWebhook("withdraw.success",interruptedData,deposit.walletId),"duplicate",
+  "retry after concurrent serialization conflict must be idempotent");
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,beforeInterrupted-7000001n);
+ assert.equal(await prisma.treasuryTransfer.count({where:{reference:interruptedReference}}),1);
+ // Competing worker invocations must not broadcast the same pending payout twice.
+ const competingId="cworkercompeting00000004";
+ await prisma.withdrawal.create({data:{
+  id:competingId,userId,amountUsdcMicros:5000001n,grossUsdcMicros:7000001n,
+  feeUsdcMicros:2000000n,destinationAddress:"11111111111111111111111111111111",
+  status:"PENDING",createdAt:new Date("2001-01-01T00:00:00Z")
+ }});
+ mode="success";
+ providerReceiptId="ci-provider-competing";
+ const beforeCompetingTransfers=transfers;
+ const competing=await Promise.allSettled(Array.from({length:3},()=>processPendingWithdrawal()));
+ for(const result of competing){
+  if(result.status==="rejected"){
+   assert.equal(result.reason?.code,"P2034",
+    "only retryable PostgreSQL serialization conflicts are acceptable during competing claims");
+  }else{
+   assert.ok(["submitted","already_claimed","empty"].includes(result.value),
+    "a competing claim must not settle or submit an unrelated operation");
+  }
+ }
+ assert.equal(transfers-beforeCompetingTransfers,1,"only one provider payout may be broadcast");
+ assert.equal((await prisma.withdrawal.findUniqueOrThrow({where:{id:competingId}})).status,"PROCESSING");
+ assert.equal(await processPendingWithdrawal(),"empty","another worker cannot resubmit an accepted payout");
+ assert.equal(transfers-beforeCompetingTransfers,1);
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,beforeInterrupted-7000001n,
+  "claiming or submitting must not debit investor capital before verified settlement");
+ // PostgreSQL itself rejects inconsistent net/gross/fee rows, even if an
+ // upstream application validation regression were introduced.
+ const invalidId="cworkerinvalidtotals00005";
+ const transfersBeforeInvalid=transfers;
+ await assert.rejects(prisma.withdrawal.create({data:{
+  id:invalidId,userId,amountUsdcMicros:5000001n,grossUsdcMicros:7000002n,
+  feeUsdcMicros:2000000n,destinationAddress:"11111111111111111111111111111111",
+  status:"PENDING",createdAt:new Date("1991-01-01T00:00:00Z")
+ }}),/withdrawal_gross_net_fee/,
+  "DB constraint must reject impossible withdrawal arithmetic");
+ assert.equal(await prisma.withdrawal.count({where:{id:invalidId}}),0);
+ assert.equal(transfers,transfersBeforeInvalid);
+ // Reserved withdrawals must not claim an operation exceeding investor capital.
+ const overdrawId="cworkeroverdraw00000006";
+ await prisma.withdrawal.create({data:{
+  id:overdrawId,userId,amountUsdcMicros:99000000n,grossUsdcMicros:101000000n,
+  feeUsdcMicros:2000000n,destinationAddress:"11111111111111111111111111111111",
+  status:"PENDING",createdAt:new Date("1991-01-01T00:00:00Z")
+ }});
+ assert.equal(await processPendingWithdrawal(),"failed_validation",
+  "worker must terminally reject requests invalidated by subsequent balance holds");
+ assert.equal(transfers,transfersBeforeInvalid,"insufficient available funds must not submit a payout");
+ const overdraw=await prisma.withdrawal.findUniqueOrThrow({where:{id:overdrawId}});
+ assert.equal(overdraw.status,"FAILED");
+ assert.equal(overdraw.failureCode,"INSUFFICIENT_AVAILABLE_FUNDS");
+ assert.equal(await processPendingWithdrawal(),"empty","failed operation must not be retried");
+ await prisma.withdrawal.delete({where:{id:overdrawId}});
+ console.log("Withdrawal worker PostgreSQL lifecycle passed: custody preflight, successful provider acceptance, unknown response enters REVIEW, signed settlement, one ledger entry, replay-safe gross debit");
+}finally{
+ globalThis.fetch=realFetch;
+ for(const [name,value] of [["BLOCK_RADAR_API_KEY",originalEnv.key],["BLOCK_RADAR_MASTER_WALLET_ID",originalEnv.wallet],["BLOCKRADAR_SOLANA_USDC_ASSET_ID",originalEnv.asset]]){
+  if(value===undefined)delete process.env[name];else process.env[name]=value;
+ }
+ await prisma.withdrawal.deleteMany({where:{userId}});
+ await prisma.investorActivity.deleteMany({where:{userId}});
+ await prisma.treasuryTransfer.deleteMany({where:{reference:{in:["withdrawal:"+successId,"withdrawal:cworkerinterrupted0000003"]}}});
+ if(treasuryStart)for(const entry of treasuryStart)await prisma.treasury.update({where:{kind:entry.kind},data:{amount:entry.amount}});
+ if(priorMint===undefined)delete process.env.BLOCKRADAR_SOLANA_USDC_MINT;else process.env.BLOCKRADAR_SOLANA_USDC_MINT=priorMint;
+ if(createdUser)await prisma.user.deleteMany({where:{id:userId}});
+ await prisma.$disconnect();
+}

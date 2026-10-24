@@ -9,7 +9,27 @@
       "schedule": "* * * * *"
     },
     {
-      "path": "/api/internal/process-deallocations",
+      "path": "/api/internal/process-position-allocations",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/internal/process-position-deallocations",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/internal/blockradar-deposit-finder",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/internal/blockradar-sweep-assets",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/internal/process-webhook-queue",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/internal/process-position-trade-pnl",
       "schedule": "* * * * *"
     }
   ]

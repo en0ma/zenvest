@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   if (existing) return NextResponse.json({code:"ACCOUNT_EXISTS",error:"An account already exists with this email. If this is your account, please log in."},{status:409});
   const passwordHash = await bcrypt.hash(password, 12);
   try {
-    const user = await prisma.user.create({ data: { name, email, passwordHash, role: "INVESTOR", portfolio: { create: { mode: "SANDBOX" } } } });
+    const user = await prisma.user.create({ data: { name, email, passwordHash, role: "USER" } });
     try { const token = await issueToken(user.id,"VERIFY_EMAIL"); await sendAccountEmail(email,zenvestEmailSubject("account_activation"),"Activate your account using this link:",tokenLink("/verify-email",token),user.name); } catch { console.error("Activation delivery failed; user can request another link"); }
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {

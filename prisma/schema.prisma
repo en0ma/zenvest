@@ -6,7 +6,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 enum Role {
-  INVESTOR
+  USER
   ADMIN
 }
 enum TokenPurpose {
@@ -18,14 +18,18 @@ model User {
   email        String   @unique @db.VarChar(254)
   name         String   @db.VarChar(120)
   passwordHash String   @map("password_hash") @db.VarChar(255)
-  role         Role     @default(INVESTOR)
+  role         Role     @default(USER)
   isActive     Boolean  @default(true) @map("is_active")
   emailVerifiedAt DateTime? @map("email_verified_at")
   sessionVersion Int @default(0) @map("session_version")
-  portfolio InvestorPortfolio?
+  unallocated BigInt @default(0)
   depositWallet InvestorDepositWallet?
-  withdrawals InvestorWithdrawal[]
-  deallocationRequests WithdrawalDeallocation[]
+  withdrawals Withdrawal[]
+  webhookDeadLater WebhookDeadLater[]
+  positions InvestorPosition[]
+  positionAllocations PositionAllocation[]
+  tradePnls PositionTradePnl[]
+  activity InvestorActivity[]
   tokens       ActionToken[]
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -45,7 +49,7 @@ model ActionToken {
   @@map("action_tokens")
 }
 
-enum BotRunState {
+enum StrategyStatus {
   OFFLINE
   IDLE
   MONITORING
@@ -53,89 +57,74 @@ enum BotRunState {
   PAUSED
   ERROR
 }
-
-model BotStatus {
-  botId                     String @id @map("bot_id") @db.VarChar(64)
-  state                     BotRunState @default(OFFLINE)
-  currentEventTicker        String? @map("current_event_ticker") @db.VarChar(200)
-  currentEventClosesAt      DateTime? @map("current_event_closes_at")
-  inventoryYesContracts     Int @default(0) @map("inventory_yes_contracts")
-  inventoryNoContracts      Int @default(0) @map("inventory_no_contracts")
-  availableFundsUsdcMicros  BigInt @default(0) @map("available_funds_usdc_micros")
-  releasableFundsUsdcMicros BigInt @default(0) @map("releasable_funds_usdc_micros")
-  realizedPnlUsdcMicros     BigInt @default(0) @map("realized_pnl_usdc_micros")
-  unrealizedPnlUsdcMicros   BigInt @default(0) @map("unrealized_pnl_usdc_micros")
-  asOf                      DateTime @map("as_of")
-  updatedAt                 DateTime @updatedAt @map("updated_at")
-  trades                    BotTrade[]
-  @@map("bot_status")
+enum MarketType {
+  PREDICTION
+  PERP
+  SPOT
 }
-
-/** Registered trading bots; each bot has at most one active market snapshot. */
-model Bot {
+model Strategy {
   id String @id @db.VarChar(64)
-  name String @db.VarChar(120)
+  name String @unique @db.VarChar(120)
   description String @db.VarChar(500)
-  activeTrade ActiveBotTrade?
-  @@map("bots")
+  note String? @db.VarChar(1000)
+  minCapacityUsdcMicros BigInt @default(0) @map("min_capacity_usdc_micros")
+  maxCapacityUsdcMicros BigInt @default(0) @map("max_capacity_usdc_micros")
+  availableCapacityUsdcMicros BigInt @default(0) @map("available_capacity_usdc_micros")
+  minAllocationUsdcMicros BigInt @default(0) @map("min_allocation_usdc_micros")
+  maxAllocationUsdcMicros BigInt @default(0) @map("max_allocation_usdc_micros")
+  platformProfitPercentage Decimal @default(0) @map("platform_profit_percentage") @db.Decimal(7,4)
+  isActive Boolean @default(false) @map("is_active")
+  isPublic Boolean @default(false) @map("is_public")
+  status StrategyStatus @default(OFFLINE)
+  marketType MarketType @default(PREDICTION) @map("market_type")
+  marketId String? @map("market_id") @db.VarChar(200)
+  marketName String? @map("market_name") @db.VarChar(200)
+  kalshiWalletAddress String? @map("kalshi_wallet_address") @db.VarChar(128)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  positions InvestorPosition[]
+  strategyEvents StrategyEvent[]
+  positionEvents PositionAllocation[]
+  trades StrategyTrade[]
+  @@index([isActive,isPublic])
+  @@map("strategies")
 }
-
-/** Latest active 15-minute market snapshot: Python bot upserts by bot_id. */
-model ActiveBotTrade {
-  botId String @id @map("bot_id") @db.VarChar(64)
-  bot Bot @relation(fields:[botId],references:[id],onDelete:Restrict)
-  status BotRunState @default(OFFLINE)
-  eventTicker String? @map("event_ticker") @db.VarChar(200)
+/** A strategy's event trade record, keyed by Kalshi event ID and strategy. */
+enum StrategyTradeStatus {
+  AWAITING_ALLOCATION
+  TRADING
+  SETTLED
+  ENDED
+  ERROR
+}
+model StrategyTrade {
+  id String @id @default(cuid()) @db.VarChar(64)
+  strategyId String @map("strategy_id") @db.VarChar(64)
+  strategy Strategy @relation(fields:[strategyId],references:[id],onDelete:Restrict)
+  marketTradeId String? @map("market_trade_id") @db.VarChar(180)
+  marketTradeName String @map("market_trade_name") @db.VarChar(200)
+  status StrategyTradeStatus @default(AWAITING_ALLOCATION)
+  isPnlCalculated Boolean @default(false) @map("is_pnl_calculated")
+  eligibleCapitalUsdcMicros BigInt @default(0) @map("eligible_capital_usdc_micros")
+  appliedPlatformProfitPercentage Decimal? @map("applied_platform_profit_percentage") @db.Decimal(7,4)
   yesContracts Int @default(0) @map("yes_contracts")
   noContracts Int @default(0) @map("no_contracts")
   yesCostUsdcMicros BigInt @default(0) @map("yes_cost_usdc_micros")
   noCostUsdcMicros BigInt @default(0) @map("no_cost_usdc_micros")
-  asOf DateTime @map("as_of")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  @@map("active_bot_trade")
-}
-
-model BotTrade {
-  id                      String @id @default(cuid())
-  botId                   String @map("bot_id") @db.VarChar(64)
-  bot                     BotStatus @relation(fields: [botId], references: [botId])
-  externalTradeId         String @unique @map("external_trade_id") @db.VarChar(180)
-  eventTicker             String @map("event_ticker") @db.VarChar(200)
-  side                    String @db.VarChar(12)
-  outcome                 String? @db.VarChar(12)
-  contracts               Int
-  entryCostUsdcMicros     BigInt @map("entry_cost_usdc_micros")
-  payoutUsdcMicros        BigInt? @map("payout_usdc_micros")
-  feesUsdcMicros          BigInt @default(0) @map("fees_usdc_micros")
-  realizedPnlUsdcMicros   BigInt? @map("realized_pnl_usdc_micros")
-  openedAt                DateTime @map("opened_at")
-  settledAt               DateTime? @map("settled_at")
-  @@index([botId, openedAt])
-  @@map("bot_trades")
-}
-
-model InvestorPortfolio {
-  id String @id @default(cuid())
-  userId String @unique @map("user_id")
-  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
-  mode String @default("SANDBOX") @db.VarChar(16)
-  depositedKobo BigInt @default(0) @map("deposited_kobo")
-  depositedUsdcMicros BigInt @default(0) @map("deposited_usdc_micros")
-  allocatedKobo BigInt @default(0) @map("allocated_kobo")
-  allocatedUsdcMicros BigInt @default(0) @map("allocated_usdc_micros")
-  unallocatedKobo BigInt @default(0) @map("unallocated_kobo")
-  unallocatedUsdcMicros BigInt @default(0) @map("unallocated_usdc_micros")
-  realizedPnlKobo BigInt @default(0) @map("realized_pnl_kobo")
-  realizedPnlUsdcMicros BigInt @default(0) @map("realized_pnl_usdc_micros")
-  pendingDepositsKobo BigInt @default(0) @map("pending_deposits_kobo")
-  pendingDepositsUsdcMicros BigInt @default(0) @map("pending_deposits_usdc_micros")
-  pendingWithdrawalsKobo BigInt @default(0) @map("pending_withdrawals_kobo")
-  pendingWithdrawalsUsdcMicros BigInt @default(0) @map("pending_withdrawals_usdc_micros")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  activity InvestorActivity[]
-  withdrawals InvestorWithdrawal[]
-  deallocationRequests WithdrawalDeallocation[]
-  @@map("investor_portfolios")
+  realizedPnlUsdcMicros BigInt? @map("realized_pnl_usdc_micros")
+  profit Decimal? @map("profit") @db.Decimal(20,8)
+  platformProfitShare Decimal? @map("platform_profit_share") @db.Decimal(20,8)
+  marketStart DateTime? @map("market_start")
+  marketEnd DateTime? @map("market_end")
+  openPrice Decimal? @map("open_price") @db.Decimal(20,8)
+  closePrice Decimal? @map("close_price") @db.Decimal(20,8)
+  currentPrice Decimal? @map("current_price") @db.Decimal(20,8)
+  createdAt DateTime @default(now()) @map("created_at")
+  settledAt DateTime? @map("settled_at")
+  positionTradePnls PositionTradePnl[]
+  @@unique([strategyId,marketTradeId])
+  @@index([strategyId,createdAt])
+  @@map("strategy_trades")
 }
 
 enum InvestorActivityType {
@@ -151,8 +140,8 @@ enum InvestorActivityType {
 
 model InvestorActivity {
   id String @id @default(cuid())
-  portfolioId String @map("portfolio_id")
-  portfolio InvestorPortfolio @relation(fields:[portfolioId],references:[id],onDelete:Restrict)
+  userId String @map("user_id")
+  user User @relation(fields:[userId],references:[id],onDelete:Restrict)
   type InvestorActivityType
   amountKobo BigInt @map("amount_kobo")
   amountUsdcMicros BigInt @default(0) @map("amount_usdc_micros")
@@ -160,7 +149,7 @@ model InvestorActivity {
   description String @db.VarChar(320)
   occurredAt DateTime @default(now()) @map("occurred_at")
   createdAt DateTime @default(now()) @map("created_at")
-  @@index([portfolioId,occurredAt])
+  @@index([userId,occurredAt])
   @@map("investor_activity")
 }
 
@@ -183,7 +172,7 @@ model InvestorDepositWallet {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   deposits BlockchainDeposit[]
-  @@map("investor_deposit_wallets")
+  @@map("user_wallets")
 }
 
 enum BlockchainDepositStatus {
@@ -199,81 +188,278 @@ model BlockchainDeposit {
   transactionHash String @map("transaction_hash") @db.VarChar(180)
   assetAddress String @map("asset_address") @db.VarChar(128)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
+  feeUsdcMicros BigInt @default(0) @map("fee_usdc_micros")
   status BlockchainDepositStatus @default(CONFIRMING)
   sweepHash String? @map("sweep_hash") @db.VarChar(180)
   creditedAt DateTime? @map("credited_at")
+  treasuryTransactionId String? @unique @map("treasury_transaction_id")
+  treasuryTransaction TreasuryTransfer? @relation("DepositTreasuryTransaction",fields:[treasuryTransactionId],references:[id],onDelete:Restrict)
   createdAt DateTime @default(now()) @map("created_at")
   @@index([walletId, createdAt])
-  @@map("blockchain_deposits")
+  @@map("deposits")
 }
 
 enum WithdrawalStatus {
-  PROCESSING
-  SUCCESS
-  REQUESTED
-  SUBMITTING
   PENDING
+  SUBMITTING
+  PROCESSING
+  REVIEW
   COMPLETED
   FAILED
-  REVIEW
+  CANCELLED
 }
 
-model InvestorWithdrawal {
+model Withdrawal {
   id String @id @default(cuid())
   userId String @map("user_id")
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
-  portfolioId String @map("portfolio_id")
-  portfolio InvestorPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Restrict)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
   grossUsdcMicros BigInt @map("gross_usdc_micros")
   asset String @default("USDC") @db.VarChar(16)
   feeUsdcMicros BigInt @default(2000000) @map("fee_usdc_micros")
   destinationAddress String @map("destination_address") @db.VarChar(128)
-  idempotencyKey String @map("idempotency_key") @db.VarChar(64)
-  status WithdrawalStatus @default(REQUESTED)
+  status WithdrawalStatus @default(PENDING)
   providerTransactionId String? @unique @map("provider_transaction_id") @db.VarChar(180)
   transactionHash String? @map("transaction_hash") @db.VarChar(180)
   failureCode String? @map("failure_code") @db.VarChar(100)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   completedAt DateTime? @map("completed_at")
-  deallocations WithdrawalDeallocation[]
-  @@unique([userId, idempotencyKey])
+  treasuryTransactionId String? @map("treasury_transaction_id")
+  treasuryTransaction TreasuryTransfer? @relation(fields:[treasuryTransactionId],references:[id],onDelete:Restrict)
   @@index([userId, createdAt])
   @@index([status, createdAt])
-  @@map("investor_withdrawals")
+  @@index([treasuryTransactionId])
+  @@map("withdrawals")
 }
 
-model MasterWalletBalance {
-  walletId String @id @map("wallet_id")
-  confirmedUsdcMicros BigInt @default(0) @map("confirmed_usdc_micros")
-  reservedUsdcMicros BigInt @default(0) @map("reserved_usdc_micros")
-  feeReserveUsdcMicros BigInt @default(0) @map("fee_reserve_usdc_micros")
+enum TreasurySource {
+  KALSHI
+  MASTER_WALLET
+}
+enum TreasuryKind {
+  WITHDRAWAL_FEE
+  DEPOSIT_FEE
+  DEPOSIT
+  DEALLOCATE
+  ALLOCATE
+  M_BANK
+  K_BANK
+}
+/** Treasury accounting entries; not a substitute for custody reconciliation. */
+model Treasury {
+  id String @id @default(cuid())
+  walletAddress String @map("wallet_address") @db.VarChar(180)
+  walletId String @map("wallet_id") @db.VarChar(180)
+  asset String @default("USDC") @db.VarChar(16)
+  network String @default("solana") @db.VarChar(32)
+  source TreasurySource
+  kind TreasuryKind @unique
+  amount BigInt
   updatedAt DateTime @updatedAt @map("updated_at")
-  @@map("master_wallet_balances")
+  @@index([walletId,asset,network])
+  @@index([source,kind])
+  @@map("treasuries")
 }
 
-enum DeallocationStatus {
+
+
+
+
+/** Investor-controlled position; principal only changes on independently verified funding/return. */
+enum PositionStatus {
+  OPEN
+  CLOSING
+  CLOSED
+}
+
+enum PositionTransferStatus {
   PENDING
+  SUBMITTING
   PROCESSING
+  CONFIRMING
+  REVIEW
   COMPLETED
   FAILED
+  CANCELLED
 }
 
-model WithdrawalDeallocation {
+model InvestorPosition {
   id String @id @default(cuid())
-  withdrawalId String @map("withdrawal_id")
-  withdrawal InvestorWithdrawal @relation(fields:[withdrawalId], references:[id], onDelete:Restrict)
   userId String @map("user_id")
-  user User @relation(fields:[userId],references:[id],onDelete:Restrict)
-  portfolioId String @map("portfolio_id")
-  portfolio InvestorPortfolio @relation(fields:[portfolioId],references:[id],onDelete:Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  strategyId String @map("strategy_id") @db.VarChar(64)
+  strategy Strategy @relation(fields:[strategyId], references:[id],onDelete:Restrict)
+  allocatedUsdcMicros BigInt @default(0) @map("allocated_usdc_micros")
+  lastPnlUpdated Boolean @default(false) @map("last_pnl_updated")
+  status PositionStatus @default(OPEN)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  closedAt DateTime? @map("closed_at")
+  allocations PositionAllocation[]
+  tradePnls PositionTradePnl[]
+  @@index([userId, status, createdAt])
+  @@map("positions")
+}
+
+model PositionAllocation {
+  id String @id @default(cuid())
+  kind StrategyEventKind @default(ALLOCATE)
+  strategyId String @map("strategy_id") @db.VarChar(64)
+  strategy Strategy @relation(fields:[strategyId],references:[id],onDelete:Restrict)
+  strategyEventId String? @map("strategy_event_id")
+  strategyEvent StrategyEvent? @relation(fields:[strategyEventId],references:[id],onDelete:Restrict)
+  positionId String @map("position_id")
+  position InvestorPosition @relation(fields: [positionId], references: [id], onDelete: Restrict)
+  userId String @map("user_id")
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
-  status DeallocationStatus @default(PENDING)
+  status PositionTransferStatus @default(PENDING)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@index([userId, createdAt])
+  @@index([strategyId,kind,strategyEventId,status])
+  @@index([status, createdAt])
+  @@map("position_events")
+}
+
+// One pooled capital movement per strategy, before any treasury settlement.
+enum StrategyEventKind {
+  ALLOCATE
+  DEALLOCATE
+}
+enum StrategyEventStatus {
+  PROCESSING
+  CONFIRMING
+  COMPLETED
+}
+model StrategyEvent {
+  id String @id @default(cuid())
+  kind StrategyEventKind
+  amountUsdcMicros BigInt @map("amount_usdc_micros")
+  strategyId String @map("strategy_id") @db.VarChar(64)
+  strategy Strategy @relation(fields:[strategyId],references:[id],onDelete:Restrict)
+  status StrategyEventStatus @default(PROCESSING)
+  treasuryTransactionId String? @unique @map("treasury_transaction_id")
+  treasuryTransaction TreasuryTransfer? @relation(fields:[treasuryTransactionId],references:[id],onDelete:Restrict)
+  positionEvents PositionAllocation[]
+  sourceConfirmed Boolean @default(false) @map("source_confirmed")
+  destinationConfirmed Boolean @default(false) @map("destination_confirmed")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@index([strategyId,kind,status,createdAt])
+  @@map("strategy_events")
+}
+
+enum TreasuryDirection {
+  DEPOSIT
+  ALLOCATE
+  DEALLOCATE
+  WITHDRAWAL
+  PLATFORM_PULL
+  PLATFORM_M_BANK
+  PLATFORM_K_BANK
+}
+enum TreasuryStatus {
+  PENDING
+  PROCESSING
+  COMPLETE
+  FAILED
+  REVIEW
+}
+/** One treasury transfer may fund or return capital for multiple investor positions. */
+model TreasuryTransfer {
+  id String @id @default(cuid())
+  direction TreasuryDirection
+  status TreasuryStatus @default(PENDING)
+  assetId String? @map("asset_id") @db.VarChar(180)
+  asset String @default("USDC") @db.VarChar(16)
+  amountUsdcMicros BigInt @map("amount_usdc_micros")
+  feeUsdcMicros BigInt @default(0) @map("fee_usdc_micros")
+  destinationWalletAddress String @map("destination_wallet_address") @db.VarChar(180)
+  network String @default("solana") @db.VarChar(32)
+  masterWalletAddress String @map("master_wallet_address") @db.VarChar(180)
+  masterWalletId String @map("master_wallet_id") @db.VarChar(180)
+  originExternalId String? @map("origin_external_id") @db.VarChar(180)
+  destinationExternalId String? @map("destination_external_id") @db.VarChar(180)
+  reference String @unique @db.VarChar(180)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   completedAt DateTime? @map("completed_at")
-  @@unique([withdrawalId])
-  @@index([status,createdAt])
-  @@map("withdrawal_deallocations")
+  strategyEvent StrategyEvent?
+  withdrawals Withdrawal[]
+  deposit BlockchainDeposit? @relation("DepositTreasuryTransaction")
+  @@index([direction,status,createdAt])
+  @@index([originExternalId])
+  @@index([destinationExternalId])
+  @@map("treasury_transactions")
 }
+
+/** Signed, late success webhooks for withdrawals already marked FAILED. */
+model WebhookDeadLater {
+  id String @id @default(cuid())
+  kind String @db.VarChar(32)
+  userId String @map("user_id")
+  user User @relation(fields:[userId],references:[id],onDelete:Restrict)
+  reference String @db.VarChar(180)
+  providerTransactionId String @map("provider_transaction_id") @db.VarChar(180)
+  payload Json
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([kind,reference,providerTransactionId])
+  @@index([userId,createdAt])
+  @@map("webhook_dead_later")
+}
+
+enum WebhookSource {
+  BLOCKRADAR
+  KALSHI
+}
+enum WebhookQueueStatus {
+  PENDING
+  PROCESSED
+}
+model WebhookQueue {
+  id String @id @default(cuid())
+  source WebhookSource
+  eventType String @map("event_type") @db.VarChar(120)
+  idempotencyKey String @map("idempotency_key") @db.VarChar(200)
+  payload Json
+  status WebhookQueueStatus @default(PENDING)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  processedAt DateTime? @map("processed_at")
+  leaseUntil DateTime? @map("lease_until")
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at")
+  attempts Int @default(0)
+  lastError String? @map("last_error") @db.VarChar(200)
+  @@unique([source,idempotencyKey])
+  @@index([status,createdAt])
+  @@map("webhook_queue")
+}
+
+// Immutable trade exposure basis; settlement columns are filled once by the P&L worker.
+enum PositionTradePnlStatus {
+  SNAPSHOTTED
+  SETTLED
+}
+model PositionTradePnl {
+  id String @id @default(cuid())
+  strategyTradeId String @map("strategy_trade_id") @db.VarChar(64)
+  strategyTrade StrategyTrade @relation(fields:[strategyTradeId],references:[id],onDelete:Restrict)
+  positionId String @map("position_id")
+  position InvestorPosition @relation(fields:[positionId],references:[id],onDelete:Restrict)
+  userId String @map("user_id")
+  user User @relation(fields:[userId],references:[id],onDelete:Restrict)
+  eligibleCapitalUsdcMicros BigInt @map("eligible_capital_usdc_micros")
+  grossPnlUsdcMicros BigInt? @map("gross_pnl_usdc_micros")
+  platformFeeUsdcMicros BigInt? @map("platform_fee_usdc_micros")
+  netPnlUsdcMicros BigInt? @map("net_pnl_usdc_micros")
+  status PositionTradePnlStatus @default(SNAPSHOTTED)
+  createdAt DateTime @default(now()) @map("created_at")
+  settledAt DateTime? @map("settled_at")
+  @@unique([strategyTradeId,positionId])
+  @@index([userId,status,settledAt])
+  @@index([positionId,status,settledAt])
+  @@map("position_trade_pnl")
+}
+

@@ -13,7 +13,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:validate": "prisma validate",
     "db:seed:sandbox": "node scripts/seed-investor-sandbox.mjs",
-    "db:seed:bots": "node scripts/seed-bots.mjs"
+    "db:seed:bots": "node scripts/seed-bots.mjs",
+    "test:coverage": "npx --yes c8@10.1.3 --all --reporter=text --reporter=lcov --reporter=json-summary --include='src/lib/**' --include='src/app/api/**' node scripts/run-coverage.mjs"
   },
   "dependencies": {
     "next": "^15.5.0",

@@ -1,4 +1,7 @@
-import { LineChart, FileBarChart2 } from "lucide-react";
+import { FileBarChart2 } from "lucide-react";
+import {PortfolioValueChart} from "@/components/portfolio-value-chart";
+import {reconstructPortfolioPerformance, type PortfolioEvent} from "@/lib/portfolio-performance";
+import {PnlPerformanceChart} from "@/components/pnl-performance-chart";
 import { Shell } from "@/components/shell";
 import { requireUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
@@ -6,15 +9,45 @@ import { formatUsdc } from "@/lib/usdc-money";
 export const dynamic = "force-dynamic";
 export default async function Dashboard(){
  const session = await requireUser();
- const portfolio = await prisma.investorPortfolio.findUnique({where:{userId:session.id}});
- const allocated=portfolio?.allocatedUsdcMicros??0n;
- const unallocated=portfolio?.unallocatedUsdcMicros??0n;
- const realized=portfolio?.realizedPnlUsdcMicros??0n;
- const equity=allocated+unallocated+realized;
+ const account=await prisma.user.findUniqueOrThrow({where:{id:session.id},select:{unallocated:true}});
+ const positions=await prisma.investorPosition.findMany({where:{userId:session.id},include:{strategy:{select:{name:true}}},orderBy:{createdAt:"desc"}});
+ const allocated=positions.reduce((total,p)=>total+p.allocatedUsdcMicros,0n);
+ const unallocated=account.unallocated;
+ const settled=await prisma.positionTradePnl.findMany({where:{userId:session.id,status:"SETTLED"},orderBy:[{settledAt:"asc"},{id:"asc"}],include:{strategyTrade:{select:{marketTradeName:true}}}});
+ const [deposits,withdrawals]=await Promise.all([
+  prisma.blockchainDeposit.findMany({where:{wallet:{userId:session.id},status:"CONFIRMED",creditedAt:{not:null}},
+   select:{id:true,creditedAt:true,amountUsdcMicros:true}}),
+  prisma.withdrawal.findMany({where:{userId:session.id,status:"COMPLETED",completedAt:{not:null}},
+   select:{id:true,completedAt:true,grossUsdcMicros:true}}),
+ ]);
+ const financialEvents:PortfolioEvent[]=[
+  ...deposits.filter(d=>d.creditedAt).map(d=>({id:"deposit:"+d.id,at:d.creditedAt!,kind:"DEPOSIT" as const,
+   amountMicros:d.amountUsdcMicros})),
+  ...withdrawals.filter(w=>w.completedAt).map(w=>({id:"withdrawal:"+w.id,at:w.completedAt!,kind:"WITHDRAWAL" as const,
+   amountMicros:-w.grossUsdcMicros})),
+  ...settled.filter(p=>p.settledAt).map(p=>({id:"pnl:"+p.id,at:p.settledAt!,kind:"PNL" as const,
+   amountMicros:p.netPnlUsdcMicros??0n})),
+ ];
+ const realized=settled.reduce((total,p)=>total+(p.netPnlUsdcMicros??0n),0n);
+ const winning=settled.filter(p=>(p.netPnlUsdcMicros??0n)>0n).length;
+ const losing=settled.filter(p=>(p.netPnlUsdcMicros??0n)<0n).length;
+ const lastThirty=settled.filter(p=>p.settledAt&&p.settledAt.getTime()>=Date.now()-30*86400000).reduce((n,p)=>n+(p.netPnlUsdcMicros??0n),0n);
+ const equity=allocated+unallocated;
  const capital=allocated+unallocated;
+ const historical=reconstructPortfolioPerformance(capital,financialEvents);
  const allocatedPct=capital>0n?Number(allocated*10000n/capital)/100:0;
  const unallocatedPct=capital>0n?100-allocatedPct:0;
- const periods=[{label:"Daily",window:"24 hours"},{label:"Weekly",window:"7 days"},{label:"Monthly",window:"30 days"}];
+ const now=Date.now();
+ const sumSince=(days:number)=>settled.filter(x=>x.settledAt&&x.settledAt.getTime()>=now-days*86400000).reduce((n,x)=>n+(x.netPnlUsdcMicros??0n),0n);
+ const periods=[{label:"24-hour P&L",value:sumSince(1),window:"Past 24 hours"},
+  {label:"7-day P&L",value:sumSince(7),window:"Past 7 days"},
+  {label:"30-day P&L",value:sumSince(30),window:"Past 30 days"}];
+ const feePaid=settled.reduce((n,p)=>n+(p.platformFeeUsdcMicros??0n),0n);
+ const best=settled.reduce<bigint|null>((v,p)=>v===null||(p.netPnlUsdcMicros??0n)>v?(p.netPnlUsdcMicros??0n):v,null);
+ const worst=settled.reduce<bigint|null>((v,p)=>v===null||(p.netPnlUsdcMicros??0n)<v?(p.netPnlUsdcMicros??0n):v,null);
+ const positionStats=await prisma.positionTradePnl.groupBy({by:["positionId"],where:{userId:session.id,status:"SETTLED"},
+  _sum:{netPnlUsdcMicros:true,platformFeeUsdcMicros:true},_count:{_all:true}});
+ const statsByPosition=new Map(positionStats.map(x=>[x.positionId,x]));
  return <Shell><div className="mx-auto max-w-7xl space-y-6">
   <header><p className="text-sm leading-6 text-[#64748B]">Welcome back{session.name?", "+session.name:""}. Here's how your investment is performing.</p></header>
   <section aria-label="Investment overview" className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
@@ -37,27 +70,53 @@ export default async function Dashboard(){
      <div className="min-w-0"><dt className="flex items-center gap-2 text-xs text-[#64748B]"><span className="h-2 w-2 rounded-full bg-[#635BFF]"/>Allocated</dt><dd className="mt-2 break-words text-lg font-semibold tabular-nums text-[#11263E] sm:text-xl">{formatUsdc(allocated)}</dd><p className="mt-1 text-xs text-[#94A3B8]">{allocatedPct.toFixed(1)}% of capital</p></div>
      <div className="min-w-0"><dt className="flex items-center gap-2 text-xs text-[#64748B]"><span className="h-2 w-2 rounded-full bg-[#C7D2FE]"/>Unallocated</dt><dd className="mt-2 break-words text-lg font-semibold tabular-nums text-[#11263E] sm:text-xl">{formatUsdc(unallocated)}</dd><p className="mt-1 text-xs text-[#94A3B8]">{unallocatedPct.toFixed(1)}% of capital</p></div>
     </dl>
-    <p className="mt-6 border-t border-[#EDF0F5] pt-4 text-xs leading-5 text-[#94A3B8]">Percentages use allocated + unallocated capital, excluding realized P&amp;L.</p>
+    <p className="mt-6 border-t border-[#EDF0F5] pt-4 text-xs leading-5 text-[#94A3B8]">Percentages use allocated + unallocated capital, including retained settled P&amp;L.</p>
    </article>
   </section>
-  <section aria-labelledby="trend-heading" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
-   <div className="flex flex-wrap items-start justify-between gap-4">
-    <div><h2 id="trend-heading" className="text-lg font-semibold text-[#11263E]">Portfolio value over time</h2><p className="mt-1 text-sm text-[#64748B]">Historical performance and growth.</p></div>
-    <p className="rounded-full bg-[#F1F3F9] px-3 py-1.5 text-xs font-medium text-[#7B8799]">History unavailable</p>
-   </div>
-   <div className="mt-6 flex min-h-[255px] flex-col items-center justify-center rounded-xl bg-[#F8FAFD] px-6 py-9 text-center">
-    <LineChart size={28} strokeWidth={1.5} className="text-[#8C85F5]" aria-hidden="true"/>
-    <p className="mt-4 text-sm font-semibold text-[#11263E]">Building your performance history</p>
-    <p className="mt-2 max-w-sm text-xs leading-5 text-[#64748B]">A verified historical valuation series is needed before charting investment growth. We won't draw an artificial return curve.</p>
-   </div>
+  {historical.completeHistory?<PortfolioValueChart points={historical.points}/>:<section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6"><h2 className="text-lg font-semibold">Historical portfolio value</h2><p className="mt-3 text-sm text-[#64748B]">Historical balances are unavailable until existing deposits, withdrawals, adjustments and trading entries reconcile with the current portfolio balance.</p></section>}
+  <section aria-label="Investment return calculations" className="grid gap-4 sm:grid-cols-2">
+   {[{label:"Settled-equity time-weighted return",value:historical.twrPercent,detail:"Compounds realized event returns, excluding deposits and withdrawals."},
+     {label:"Net P&L as % of deposits",value:historical.simplePnlPercent,detail:"Simple cumulative net P&L divided by confirmed deposits; not annualized."}].map(metric=>
+    <article key={metric.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5">
+     <p className="text-sm text-[#64748B]">{metric.label}</p>
+     <p className="mt-2 text-2xl font-semibold text-[#11263E]">{metric.value===null?"—":metric.value.toFixed(2)+"%"}</p>
+     <p className="mt-2 text-xs text-[#64748B]">{metric.detail}</p>
+    </article>)}
   </section>
+  <PnlPerformanceChart rows={settled.filter(p=>p.settledAt).map(p=>({day:p.settledAt!.toISOString().slice(0,10),netMicros:(p.netPnlUsdcMicros??0n).toString()}))}/>
+  <div className="flex justify-end"><a href="/api/earn/reports/trade-pnl.csv" className="rounded-xl border border-[#635BFF] px-4 py-2 text-sm font-semibold text-[#635BFF]">Export settled event report (CSV)</a></div>
   <section aria-labelledby="period-heading">
-   <h2 id="period-heading" className="mb-3 text-lg font-semibold text-[#11263E]">Period returns</h2>
+   <h2 id="period-heading" className="mb-3 text-lg font-semibold text-[#11263E]">Realized P&amp;L by period</h2>
    <div className="grid grid-cols-3 gap-3">{periods.map(period=><article key={period.label} className="rounded-xl border border-[#E3E8EE] bg-white px-4 py-4">
-    <p className="text-xs font-medium text-[#64748B]">{period.label}</p><p className="mt-2 text-xl font-semibold text-[#94A3B8]">—</p><p className="mt-1 text-xs text-[#94A3B8]">{period.window}</p>
+    <p className="text-xs font-medium text-[#64748B]">{period.label}</p><p className={"mt-2 text-xl font-semibold tabular-nums "+(period.value<0n?"text-red-600":"text-emerald-700")}>{period.value>0n?"+":""}{formatUsdc(period.value)}</p><p className="mt-1 text-xs text-[#94A3B8]">{period.window}</p>
    </article>)}</div>
-   <p className="mt-3 text-xs leading-5 text-[#64748B]">Period returns are not yet supported by verified investor-level valuation history.</p>
+   <p className="mt-3 text-xs leading-5 text-[#64748B]">These figures are realized profit or loss in USDC, not percentage investment returns.</p>
   </section>
+  <section className="grid gap-4 sm:grid-cols-3" aria-label="Trade analytics">
+  {[{label:"Settled events",value:String(settled.length)},{label:"Event win rate",value:winning+losing>0?(winning*100/(winning+losing)).toFixed(1)+"%":"—"},{label:"Last 30 days net P&L",value:formatUsdc(lastThirty)}].map(x=><article key={x.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5"><p className="text-sm text-[#64748B]">{x.label}</p><p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p></article>)}
+  </section>
+  <section aria-label="Detailed trading statistics" className="grid gap-4 sm:grid-cols-3">
+   {[{label:"Platform fees paid",value:formatUsdc(feePaid)},
+     {label:"Best settled event",value:best===null?"—":formatUsdc(best)},
+     {label:"Worst settled event",value:worst===null?"—":formatUsdc(worst)}].map(x=>
+     <article key={x.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5">
+      <p className="text-sm text-[#64748B]">{x.label}</p><p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p>
+     </article>)}
+  </section>
+  <section aria-label="Position performance" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
+   <h2 className="text-lg font-semibold text-[#11263E]">Position performance</h2>
+   <p className="mt-1 text-sm text-[#64748B]">Current invested balances include retained settled profits and losses.</p>
+   <div className="mt-5 overflow-x-auto"><table className="w-full text-sm">
+    <thead className="text-left text-[#64748B]"><tr><th className="py-3">Strategy / Position</th><th>Status</th><th className="text-right">Allocated</th><th className="text-right">Settled events</th><th className="text-right">Lifetime net P&amp;L</th></tr></thead>
+    <tbody>{positions.map(p=>{const stats=statsByPosition.get(p.id);return <tr key={p.id} className="border-t border-[#EDF0F5]">
+     <td className="py-3"><p className="font-semibold text-[#11263E]">{p.strategy.name}</p><p className="font-mono text-xs text-[#64748B]">{p.id}</p></td><td>{p.status}</td>
+     <td className="text-right tabular-nums">{formatUsdc(p.allocatedUsdcMicros)}</td>
+     <td className="text-right tabular-nums">{stats?stats._count._all:0}</td>
+     <td className={"text-right tabular-nums font-semibold "+((stats?._sum.netPnlUsdcMicros??0n)<0n?"text-red-600":"text-emerald-700")}>{formatUsdc(stats?._sum.netPnlUsdcMicros??0n)}</td>
+    </tr>})}</tbody>
+   </table>{positions.length===0&&<p className="py-6 text-sm text-[#64748B]">No positions yet.</p>}</div>
+  </section>
+  <section aria-label="Trade P&L history" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8"><h2 className="text-lg font-semibold text-[#11263E]">Settled trade history</h2><div className="mt-5 overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-left text-[#64748B]"><th className="py-3">Event</th><th>Settled</th><th className="text-right">Eligible capital</th><th className="text-right">Gross P&amp;L</th><th className="text-right">Fee</th><th className="text-right">Net P&amp;L</th></tr></thead><tbody>{settled.slice(-30).reverse().map(p=><tr key={p.id} className="border-t border-[#E3E8EE]"><td className="py-3">{p.strategyTrade.marketTradeName}</td><td>{p.settledAt?.toLocaleDateString("en-US",{timeZone:"UTC"})}</td><td className="text-right">{formatUsdc(p.eligibleCapitalUsdcMicros)}</td><td className="text-right">{formatUsdc(p.grossPnlUsdcMicros??0n)}</td><td className="text-right">{formatUsdc(p.platformFeeUsdcMicros??0n)}</td><td className={"text-right font-semibold "+((p.netPnlUsdcMicros??0n)<0n?"text-red-600":"text-emerald-600")}>{formatUsdc(p.netPnlUsdcMicros??0n)}</td></tr>)}</tbody></table>{!settled.length&&<p className="py-6 text-sm text-[#64748B]">No verified settled event P&L yet.</p>}</div></section>
   <section aria-labelledby="report-heading" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <div className="flex items-center gap-2"><FileBarChart2 size={18} className="text-[#635BFF]"/><h2 id="report-heading" className="text-lg font-semibold text-[#11263E]">Performance report</h2></div>
    <p className="mt-2 text-sm text-[#64748B]">A summary of verified portfolio accounting, without speculative returns.</p>

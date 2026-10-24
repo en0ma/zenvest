@@ -1,0 +1,83 @@
+# Blockradar fixtures and provider boundary (prelaunch)
+
+Sources checked on 2026-10-21:
+- https://docs.blockradar.co/en/utilities/webhooks
+- https://docs.blockradar.co/en/use-cases/withdraw-stablecoins
+- https://docs.blockradar.co/en/use-cases/deposit-stablecoins
+
+Verified Blockradar API:
+- `POST /v1/wallets/{walletId}/withdraw`: `assetId`, `address`, `amount`, `reference` and optional `note`, `metadata`. The payout business layer is currently disabled until wallet availability and safe retry handling are implemented.
+- `POST /v1/wallets/{walletId}/withdraw/network-fee`: `assetId`, `address`, `amount`. Documentation shows `data.networkFee`, `data.networkFeeInUSD`, and `data.transactionFee` among the response fields.
+- `GET /v1/wallets/{walletId}/balance?assetId={assetId}`: master balance by asset.
+- `POST /v1/wallets/{walletId}/transactions/webhooks/resend` with transaction `id`: replay for reconciliation.
+- `POST /v1/wallets/{walletId}/addresses`: new investor deposit address.
+
+Verified webhook contract:
+- `x-blockradar-signature`: HMAC-SHA512 of raw request body using the wallet API secret; reject tampering.
+- `deposit.success`: an on-chain confirmed deposit, **not** proof of sweep into master.
+- `deposit.swept.success`: event with `id`, `amountPaid`, `hash`, `confirmed`, `status`, `type`, `network`, `asset`, `wallet`, `recipientAddress`, `assetSwept`, `assetSweptAmount`, `assetSweptHash`, `assetSweptSenderAddress`, `assetSweptRecipientAddress`. Credit the user only after exact sweep checks.
+- `withdraw.success`, `withdraw.failed`, `withdraw.cancelled`: include transaction identity/reference, destination, value, status and wallet identity for settlement. Verified success can settle, failure cannot debit user.
+- Provider may resend unsuccessful webhook deliveries; handlers must be idempotent.
+
+The published example payloads largely show EVM addresses. Mock data in `tests/blockradar-event-validation.test.ts` is **synthetic Solana/testnet-shaped data following the webhook field contract**, not a captured live Solana payload. Before enabling production transfers, confirm a real Blockradar Solana testnet event matches each field and event source.
+
+Test strategy:
+- Mock external Blockradar and Kalshi interactions, test deterministic domain rules independently, and use real disposable PostgreSQL to assert ledger behavior.
+- Active unit fixtures test HMAC, exact micro-USDC parsing, sweep custody, strategy cap/availability, and platform profit/withdrawal accounting; the live deposit handler imports the tested validators.
+- The Kalshi transfer service is **not implemented**; no invented Kalshi API method/payload may be treated as an established contract. Existing position cron stays monitor-only.
+- Full route-level signed-webhook integration, concurrent operations and provider callback replay remain follow-up coverage.
+
+The authoritative prelaunch DB is defined by `prisma/schema.prisma`; historical customer-data preservation is not required and disposable test data may be wiped.
+
+## Withdrawal network-fee estimation (implemented in draft PR)
+- Required environment: `BLOCKRADAR_SOLANA_USDC_ASSET_ID` (Blockradar asset UUID, not Solana mint); existing `BLOCK_RADAR_API_KEY` and `BLOCK_RADAR_MASTER_WALLET_ID`.
+- Authenticated `POST /api/withdrawals/estimate-fee` calls Blockradar `POST /v1/wallets/{walletId}/withdraw/network-fee`, with `assetId`, `address`, and `amount`.
+- Single-estimate response field `data.networkFeeInUSD` is the USD cost to add to the 2 USDC Zenvest service fee; `data.networkFee` is denominated in native Solana gas token and **must not** be treated as USDC.
+- Conversion to six-decimal USDC micro amounts **rounds upward** to avoid understating a fractional-micro fee. User withdrawal gross = recipient net USDC + service fee + estimated network fee. UI fetches a quote after valid address/amount, and submission re-quotes server-side, rejecting if fees exceed the user's approved quote.
+- `withdrawals.fee_usdc_micros` and linked `treasury_transactions.fee_usdc_micros` hold total (service + network). Successful payout credits only **2 USDC** to retained `treasuries.WITHDRAWAL_FEE`. The network component is not retained platform revenue.
+- `tests/withdrawal-network-fee.test.ts` injects sample response objects without calling Blockradar. The actual payout CRON remains intentionally disabled; estimated USD fees may differ from future native-SOL execution cost. Native gas sufficiency and provider fee changes must be checked at actual payout.
+
+## Automated Blockradar wallet discovery and sweep
+- Deposit Finder: `POST /v1/wallets/{walletId}/rescan/blocks`, accepts optional `transactionHash`. Every-two-minute cron calls with `{}` for a wallet-wide scan.
+- Sweep: `POST /v1/wallets/{walletId}/sweep/assets`, optional `forceSweep` and `transactionId`. Every-two-minute cron calls with `{}` (no forced sweep, no single-transaction override).
+- Vercel cron routes: `/api/internal/blockradar-deposit-finder` and `/api/internal/blockradar-sweep-assets`. Both require only `CRON_SECRET` for request authentication and Blockradar wallet credentials for API calls; no environment feature flags control whether these scheduled jobs run.
+- The deposit/sweep CRON jobs run on every scheduled invocation without deposit-feature toggle checks. The separately implemented deposit webhook still has its own `BLOCKRADAR_DEPOSITS_ENABLED` gate; configure it to true before expecting account credit. The API response means only that rescan/sweep was *initiated*, not that a deposit was found or funds have been swept. User funds are credited only by the separately authenticated `deposit.swept.success` webhook.
+- Calls happen every two minutes only if the Vercel deployment plan permits that frequency. Confirm provider rate limits before enabling both feature flags.
+- `tests/blockradar-wallet-actions.test.ts` mocks each endpoint and checks method, headers, body, and provider errors. No real sweep is performed by CI.
+
+## Master-wallet withdrawal CRON (draft implementation)
+- Vercel runs `GET /api/internal/process-withdrawals` every minute using the existing `CRON_SECRET` Bearer token. Only one oldest `PENDING` withdrawal is considered per invocation.
+- A PostgreSQL serializable transaction reserves the investor's outstanding gross USDC (including concurrent `SUBMITTING`, `PROCESSING`, and `REVIEW` states) and creates a unique `WITHDRAWAL` treasury transfer. Only a successful conditional `PENDING -> SUBMITTING` claim may proceed to the provider. Other allocation/withdrawal requests also reserve `SUBMITTING` balances.
+- Preflight checks: master-wallet treasury ledger liquidity, Blockradar `GET /v1/wallets/{walletId}/balance?assetId=...` USDC balance, network-fee quote, native SOL gas balance, and fees remaining within the investor's approved amount.
+- Sends a single `POST /v1/wallets/{walletId}/withdraw` with `assetId`, `address`, exact recipient net USDC `amount`, and durable `reference: zenvest-withdrawal:{id}`. Provider acknowledgements must match reference, destination and amount.
+- Valid provider acknowledgement records provider transaction ID and marks `PROCESSING`. **Only** signed `withdraw.success` webhook settles ledger and marks successful withdrawal; failure/cancel callback releases reservation without debit.
+- Provider ambiguity, network timeouts, database acknowledgement errors and failed preflight move or leave the claim in `REVIEW`; it is never automatically re-submitted, because a network timeout may hide a successful money movement. Operator reconciliation of provider transactions by reference is required before manually resolving such a record.
+- `tests/blockradar-payout.test.ts`, `tests/blockradar-master-balance.test.ts` and `tests/withdrawal-network-fee.test.ts` mock Blockradar acknowledgement, custody and gas fee payloads. Live provider sandbox reconciliation and end-to-end payout-webhook PostgreSQL concurrency tests remain release readiness tasks.
+- The master-wallet balance response is currently interpreted as `data.balance` denominated in USDC units after an `assetId` filter. If Blockradar exposes a different response structure for the project's Solana wallet, the worker fails closed to `REVIEW` until a captured sandbox fixture validates the mapping. No production funds have been transferred by these tests.
+
+## Withdrawal lifecycle (2026-10-22)
+- Investor withdrawals and position allocations share six lifecycle statuses: `PENDING -> SUBMITTING -> PROCESSING -> COMPLETED / FAILED / CANCELLED`. There is no `REVIEW` state. Kalshi allocation/deallocation transfer executors remain monitor-only until the transfer integration exists.
+- Available unallocated balance reserves gross withdrawals and allocation requests in `PENDING`, `SUBMITTING`, or `PROCESSING`; final states release the hold. Settlement debits user balance exactly once on verified successful withdrawal.
+- Provider withdrawal payload uses `reference: withdrawal.id` and `metadata: {userId}`. On a matching Blockradar HTTP 200 accepted response, the worker stores the provider transaction ID and moves to PROCESSING; final state arrives via signed webhook.
+- When the provider call is made but its outcome cannot be determined, retain PROCESSING without resending. This prevents duplicate payments despite no explicit provider idempotent-submission guarantee. A late signed webhook may still complete it. This does not create a separate review status.
+- Fees were accepted and stored at investor submission time; the worker does not call the network fee estimation endpoint again.
+- Master USDC custody threshold remains `DEPOSIT + DEALLOCATE` treasury balance.
+
+## Two-hour withdrawal REVIEW expiry (2026-10-22)
+- No withdrawal `attempts` or `next_retry` fields. No timed payout re-submission.
+- When a Blockradar submission has an uncertain outcome, the withdrawal enters `REVIEW` and its full gross amount remains reserved. Valid signed withdrawal webhooks still move REVIEW to COMPLETED, FAILED, or CANCELLED.
+- The withdrawal CRON checks one expired REVIEW record per invocation: if `created_at <= now - 2 hours`, transactionally change REVIEW to FAILED with `REVIEW_TIMEOUT` and the matching pending/processing treasury transfer to FAILED. The terminal state releases the pending investor reservation; the worker moves to other queued withdrawals on later invocations.
+- **Custody caveat:** Two-hour timeout is a user-requested policy, not a provider-confirmed cancellation. If Blockradar accepted an ambiguous payout and confirms it only after expiry, the late success webhook will not settle an already FAILED withdrawal. An operator must reconcile such exceptions before users spend the released balance. No automatic duplicate payout is issued.
+
+## Late successful withdrawal webhook archive (2026-10-22)
+- After HMAC verification and normal withdrawal identity/asset/destination/amount validation, a `withdraw.success` for an already-`FAILED` withdrawal **does not** change the withdrawal, treasury transfer, or user balances.
+- Instead, persist the **full signed webhook envelope** in `webhook_dead_later.payload` (JSONB) with `kind=withdrawal`, `user_id`, `reference` (withdrawal ID), `provider_transaction_id`, and receipt time. Identical late successes are deduplicated by kind + reference + provider transaction ID.
+- Record creation occurs inside a transaction; a concurrent timeout/settlement race is checked after the conditional status transition. A late payout still requires manual custody reconciliation.
+
+## Strategy allocation payouts (2026-10-22)
+- `Strategy.kalshiWalletAddress` stores the Solana USDC deposit destination for that strategy. Null destinations cannot be submitted.
+- On each authorized allocation cron run, choose one strategy with pending allocations, claim all its pending operations in one SERIALIZABLE transaction, and create **one** `TreasuryTransfer(direction=ALLOCATE)` carrying their exact sum. Allocations share its `treasuryId` (not their unique `providerReference` field).
+- Blockradar receives exactly one master-wallet `POST /withdraw` with the aggregate amount, strategy destination, `reference=allocation:<uuid>`, and `metadata={strategyId,kind:"allocation"}`. HTTP 200 means asynchronous acceptance.
+- The signed `withdraw.success` callback matches that treasury reference, provider wallet, USDC mint, aggregate amount, destination and transaction type. Settlement changes every claimed allocation to COMPLETED, increases each position principal, debits each investor's unallocated balance and moves the aggregate from DEPOSIT/DEALLOCATE to ALLOCATE custody accounting atomically. Duplicate callbacks do not double debit.
+- Failed and cancelled callbacks mark claimed allocation rows terminal without adjusting principal. An unknown post-submission response enters REVIEW; no second money transfer is automatically sent. Review expiry mirrors the existing two-hour withdrawal policy.
+- Unit tests mock Blockradar acceptance and errors, while disposable PostgreSQL tests exercise successful multi-position and failed batch webhook settlement.
