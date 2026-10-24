@@ -54,6 +54,12 @@ try{
  const outage=await validate({address});
  assert.equal(outage.status,503);
  assert.equal((await outage.json()).valid,false,"provider outage must fail closed");
+ // Restore the mocked fee-quote provider after the deliberate address-validation
+ // outage. Each provider endpoint has independent fixtures.
+ globalThis.fetch=async(url)=>{
+  assert.match(String(url),/\/withdraw\/network-fee$/);
+  return Response.json({data:{networkFeeInUSD:"0.100000"}});
+ };
  const estimate=data=>estimateFee(new Request("http://ci.local/api/withdrawals/estimate-fee",{method:"POST",body:typeof data==="string"?data:JSON.stringify(data)}));
  assert.equal((await estimate("{bad")).status,400);
  assert.equal((await estimate({amount:"0",address})).status,400);
