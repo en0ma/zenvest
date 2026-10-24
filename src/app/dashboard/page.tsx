@@ -8,9 +8,13 @@ export default async function Dashboard(){
  const session = await requireUser();
  const account=await prisma.user.findUniqueOrThrow({where:{id:session.id},select:{unallocated:true}});
  const positions=await prisma.investorPosition.findMany({where:{userId:session.id}});
- const allocated=positions.reduce((total,p)=>total+p.principalUsdcMicros,0n);
+ const allocated=positions.reduce((total,p)=>total+p.allocatedUsdcMicros,0n);
  const unallocated=account.unallocated;
- const realized=positions.reduce((total,p)=>total+p.realizedPnlUsdcMicros,0n);
+ const settled=await prisma.positionTradePnl.findMany({where:{userId:session.id,status:"SETTLED"},orderBy:[{settledAt:"asc"},{id:"asc"}],include:{strategyTrade:{select:{marketTradeName:true}}}});
+ const realized=settled.reduce((total,p)=>total+(p.netPnlUsdcMicros??0n),0n);
+ const winning=settled.filter(p=>(p.netPnlUsdcMicros??0n)>0n).length;
+ const losing=settled.filter(p=>(p.netPnlUsdcMicros??0n)<0n).length;
+ const lastThirty=settled.filter(p=>p.settledAt&&p.settledAt.getTime()>=Date.now()-30*86400000).reduce((n,p)=>n+(p.netPnlUsdcMicros??0n),0n);
  const equity=allocated+unallocated;
  const capital=allocated+unallocated;
  const allocatedPct=capital>0n?Number(allocated*10000n/capital)/100:0;
@@ -38,7 +42,7 @@ export default async function Dashboard(){
      <div className="min-w-0"><dt className="flex items-center gap-2 text-xs text-[#64748B]"><span className="h-2 w-2 rounded-full bg-[#635BFF]"/>Allocated</dt><dd className="mt-2 break-words text-lg font-semibold tabular-nums text-[#11263E] sm:text-xl">{formatUsdc(allocated)}</dd><p className="mt-1 text-xs text-[#94A3B8]">{allocatedPct.toFixed(1)}% of capital</p></div>
      <div className="min-w-0"><dt className="flex items-center gap-2 text-xs text-[#64748B]"><span className="h-2 w-2 rounded-full bg-[#C7D2FE]"/>Unallocated</dt><dd className="mt-2 break-words text-lg font-semibold tabular-nums text-[#11263E] sm:text-xl">{formatUsdc(unallocated)}</dd><p className="mt-1 text-xs text-[#94A3B8]">{unallocatedPct.toFixed(1)}% of capital</p></div>
     </dl>
-    <p className="mt-6 border-t border-[#EDF0F5] pt-4 text-xs leading-5 text-[#94A3B8]">Percentages use allocated + unallocated capital, excluding realized P&amp;L.</p>
+    <p className="mt-6 border-t border-[#EDF0F5] pt-4 text-xs leading-5 text-[#94A3B8]">Percentages use allocated + unallocated capital, including retained settled P&amp;L.</p>
    </article>
   </section>
   <section aria-labelledby="trend-heading" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
@@ -59,6 +63,10 @@ export default async function Dashboard(){
    </article>)}</div>
    <p className="mt-3 text-xs leading-5 text-[#64748B]">Period returns are not yet supported by verified investor-level valuation history.</p>
   </section>
+  <section className="grid gap-4 sm:grid-cols-3" aria-label="Trade analytics">
+  {[{label:"Settled events",value:String(settled.length)},{label:"Event win rate",value:winning+losing>0?(winning*100/(winning+losing)).toFixed(1)+"%":"—"},{label:"Last 30 days net P&L",value:formatUsdc(lastThirty)}].map(x=><article key={x.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5"><p className="text-sm text-[#64748B]">{x.label}</p><p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p></article>)}
+  </section>
+  <section aria-label="Trade P&L history" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8"><h2 className="text-lg font-semibold text-[#11263E]">Settled trade history</h2><div className="mt-5 overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-left text-[#64748B]"><th className="py-3">Event</th><th>Settled</th><th className="text-right">Eligible capital</th><th className="text-right">Net P&L</th></tr></thead><tbody>{settled.slice(-30).reverse().map(p=><tr key={p.id} className="border-t border-[#E3E8EE]"><td className="py-3">{p.strategyTrade.marketTradeName}</td><td>{p.settledAt?.toLocaleDateString("en-US",{timeZone:"UTC"})}</td><td className="text-right">{formatUsdc(p.eligibleCapitalUsdcMicros)}</td><td className={"text-right font-semibold "+((p.netPnlUsdcMicros??0n)<0n?"text-red-600":"text-emerald-600")}>{formatUsdc(p.netPnlUsdcMicros??0n)}</td></tr>)}</tbody></table>{!settled.length&&<p className="py-6 text-sm text-[#64748B]">No verified settled event P&L yet.</p>}</div></section>
   <section aria-labelledby="report-heading" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <div className="flex items-center gap-2"><FileBarChart2 size={18} className="text-[#635BFF]"/><h2 id="report-heading" className="text-lg font-semibold text-[#11263E]">Performance report</h2></div>
    <p className="mt-2 text-sm text-[#64748B]">A summary of verified portfolio accounting, without speculative returns.</p>
