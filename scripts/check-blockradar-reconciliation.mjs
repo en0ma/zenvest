@@ -132,6 +132,36 @@ try{
   assert.deepEqual(await response.json(),{
    error:"Reconciliation failed; retry required",scanned:1,missing:1,replayRequested:0,complete:false
   });
+  // A later-page transport failure must not claim complete reconciliation.
+  // Previously requested webhook replay does not imply that the ledger is credited.
+  const pageOne=[unknown,...Array.from({length:99},(_,i)=>({
+   id:"ci-skipped-"+i,status:"PENDING",type:"DEPOSIT"
+  }))];
+  let replayCalls=0;
+  globalThis.fetch=async(input,init)=>{
+   const url=String(input);
+   if(init?.method==="POST"){replayCalls++;return Response.json({ok:true});}
+   const page=new URL(url).searchParams.get("page");
+   return page==="1"?Response.json({data:pageOne}):new Response("upstream outage",{status:503});
+  };
+  response=await call();
+  assert.equal(response.status,503);
+  assert.deepEqual(await response.json(),{
+   error:"Reconciliation failed; retry required",scanned:1,missing:1,replayRequested:1,complete:false
+  });
+  assert.equal(replayCalls,1);
+  assert.equal(await db.blockchainDeposit.count({where:{providerTransactionId:"ci-missing-deposit"}}),0);
+  globalThis.fetch=async(input,init)=>{
+   if(init?.method==="POST"){replayCalls++;return Response.json({ok:true});}
+   return Response.json({data:new URL(String(input)).searchParams.get("page")==="1"?pageOne:[]});
+  };
+  response=await call();
+  assert.equal(response.status,200);
+  assert.deepEqual(await response.json(),{
+   scanned:1,missing:1,replayRequested:1,complete:true,note:"Scanned all returned pages"
+  });
+  assert.equal(replayCalls,2,"safe retry requests replay again until authenticated processing records the deposit");
+  assert.equal(await db.blockchainDeposit.count({where:{providerTransactionId:"ci-missing-deposit"}}),0);
  }finally{
   await db.blockchainDeposit.deleteMany({where:{providerTransactionId:txId}});
   await db.investorDepositWallet.deleteMany({where:{userId}});
