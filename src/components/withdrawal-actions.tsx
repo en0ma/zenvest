@@ -147,7 +147,7 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
         <p id="recipient-help" className="mt-2 text-xs text-[#687B91]">Double-check the address. Transfers to an incorrect wallet cannot be reversed.</p>
         {address && !addressValid && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#97605A]"><AlertCircle size={15}/> Enter a valid Solana wallet address.</p>}
         {addressValid && (!addressCheck || addressCheck.address!==address || addressCheck.state==="checking") && <p role="status" className="mt-2 text-xs text-[#687B91]">Checking address with Blockradar…</p>}
-        {addressApproved && <p role="status" className="mt-2 flex items-center gap-1.5 text-xs text-[#317054]"><CheckCircle2 size={15}/> Blockradar accepted this Solana USDC address for fee estimation. This does not establish wallet ownership.</p>}
+        {addressApproved && <p role="status" className="mt-2 flex items-center gap-1.5 text-xs text-[#317054]"><CheckCircle2 size={15}/> Blockradar validated the Solana address format. This does not establish wallet ownership or AML clearance.</p>}
         {addressValid && addressCheck?.address===address && addressCheck.state==="error" && <p role="alert" className="mt-2 text-xs text-[#97605A]">{addressCheck.message}</p>}
       </div>
     </div>
