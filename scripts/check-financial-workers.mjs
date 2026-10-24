@@ -57,7 +57,28 @@ try {
  }finally{
   await prisma.webhookQueue.deleteMany({where:{id:locked.id}});
  }
- console.log("Financial worker integration tests passed: durable webhook retry, backoff, and lease recovery");
+ // Concurrent schedulers must only lease each durable event once.
+ const concurrentKey="ci-worker-concurrent-lease";
+ const concurrent=await prisma.webhookQueue.create({data:{
+  source:"BLOCKRADAR",eventType:"deposit.success",idempotencyKey:concurrentKey,
+  payload:{notAValidEnvelope:true},status:"PENDING",
+  createdAt:new Date("2002-01-01T00:00:00Z"),
+  nextAttemptAt:new Date("2002-01-01T00:00:00Z")
+ }});
+ try{
+  const outcomes=await Promise.all([processPendingWebhook(),processPendingWebhook()]);
+  assert.equal(outcomes.filter(x=>x==="retry_pending").length,1,
+   "two workers must not both process the same event");
+  assert.ok(outcomes.every(x=>["retry_pending","empty","already_claimed"].includes(x)));
+  const state=await prisma.webhookQueue.findUniqueOrThrow({where:{id:concurrent.id}});
+  assert.equal(state.attempts,1,"claiming must increment attempts exactly once");
+  assert.equal(state.status,"PENDING");
+  assert.equal(state.leaseUntil,null);
+  assert.ok(state.nextAttemptAt.getTime()>Date.now());
+ }finally{
+  await prisma.webhookQueue.deleteMany({where:{id:concurrent.id}});
+ }
+ console.log("Financial worker integration tests passed: durable webhook retry, lease recovery and concurrent claiming");
 }finally{
  await prisma.$disconnect();
 }
