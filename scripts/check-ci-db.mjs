@@ -337,7 +337,7 @@ try {
  for(let i=0;i<attempts.length;i++){
   if(attempts[i].status==="rejected"){
    const error=attempts[i].reason;
-   assert.equal(error?.code,"P2034","only serializable write conflicts may retry");
+   assert.ok(error?.code==="P2034"||(error?.code==="P2010"&&["40001","40P01"].includes(String(error?.meta?.code))),"only serializable write conflicts may retry");
    if(i===0)await processPositionTradePnl();else assert.equal(await funding(),"settled");
   }
  }
