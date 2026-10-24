@@ -67,6 +67,16 @@ try{
   assert.equal(allocationResponse.status,200);
   assert.equal(allocationResponse.headers.get("cache-control"),"no-store");
   assert.ok(Object.hasOwn(await allocationResponse.json(),"outcome"));
+  // The deallocation coordinator is deliberately non-custodial until verified
+  // Kalshi return integration; its empty-queue response must not book a payout.
+  const {GET:processDeallocations}=await import("../src/app/api/internal/process-position-deallocations/route.ts");
+  const deallocationResponse=await processDeallocations(authorized);
+  assert.equal(deallocationResponse.status,200);
+  const deallocationBody=await deallocationResponse.json();
+  assert.equal(deallocationBody.status,"awaiting_verified_kalshi_return_integration");
+  assert.equal(deallocationBody.createdFinalCloseRequests,0);
+  assert.equal(deallocationBody.closedWithoutFunds,0);
+
 
 
 
