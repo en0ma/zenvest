@@ -42,6 +42,13 @@ try{
  assert.equal((await first.json()).ok,true);
  assert.ok((await prisma.user.findUniqueOrThrow({where:{id:userId}})).emailVerifiedAt);
  assert.equal((await confirm(request({token,purpose:"VERIFY_EMAIL"}))).status,400);
+ const reset="c".repeat(64);
+ const sessionBefore=(await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion;
+ await prisma.actionToken.create({data:{userId,purpose:"RESET_PASSWORD",hash:digest(reset),expiresAt:new Date(Date.now()+600000)}});
+ const resetResponse=await confirm(request({token:reset,purpose:"RESET_PASSWORD",password:"NewPassword123!Strong"}));
+ assert.equal(resetResponse.status,200);
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion,sessionBefore+1);
+ assert.equal((await confirm(request({token:reset,purpose:"RESET_PASSWORD",password:"NewPassword123!Strong"}))).status,400);
  console.log("Account token lifecycle passed: purpose isolation, single use and verified state");
 }finally{
  await prisma.actionToken.deleteMany({where:{userId}});
