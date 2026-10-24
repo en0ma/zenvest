@@ -66,6 +66,20 @@ try{
  assert.equal(active.status,200);
  assert.deepEqual(await active.json(),await unknown.json(),"account existence must not leak");
  assert.equal(await prisma.actionToken.count({where:{userId}}),1,"verified investor must not receive another verification token");
+ // Existing but unverified registration should return an indistinguishable
+ // check-email response without issuing duplicate verification links.
+ await prisma.user.update({where:{id:userId},data:{emailVerifiedAt:null}});
+ const recentVerify="5".repeat(64);
+ await prisma.actionToken.create({data:{userId,purpose:"VERIFY_EMAIL",hash:digest(recentVerify),expiresAt:new Date(Date.now()+600000)}});
+ const tokensBeforeRegister=await prisma.actionToken.count({where:{userId,purpose:"VERIFY_EMAIL"}});
+ const retryRegistration=await register(registerRequest(JSON.stringify({
+  name:"Account Validation",email:"ci-account-validation@example.invalid",password:"TestPass123!"
+ })));
+ assert.equal(retryRegistration.status,202,"unverified account registration must offer verification rather than 409");
+ assert.equal((await retryRegistration.json()).code,"CHECK_EMAIL");
+ assert.equal(await prisma.actionToken.count({where:{userId,purpose:"VERIFY_EMAIL"}}),tokensBeforeRegister,
+  "repeated registration within throttle window cannot mint new activation tokens");
+ await prisma.user.update({where:{id:userId},data:{emailVerifiedAt:new Date()}});
  const inactiveToken="e".repeat(64);
  await prisma.actionToken.create({data:{userId,purpose:"VERIFY_EMAIL",hash:digest(inactiveToken),expiresAt:new Date(Date.now()+600000)}});
  await prisma.user.update({where:{id:userId},data:{isActive:false}});
