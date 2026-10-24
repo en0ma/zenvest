@@ -45,10 +45,10 @@ try{
  const reset="c".repeat(64);
  const sessionBefore=(await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion;
  await prisma.actionToken.create({data:{userId,purpose:"RESET_PASSWORD",hash:digest(reset),expiresAt:new Date(Date.now()+600000)}});
- const resetResponse=await confirm(request({token:reset,purpose:"RESET_PASSWORD",password:"NewPassword123!Strong"}));
+ const resetResponse=await confirm(request({token:reset,purpose:"RESET_PASSWORD",password:"NewPass123!"}));
  assert.equal(resetResponse.status,200);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion,sessionBefore+1);
- assert.equal((await confirm(request({token:reset,purpose:"RESET_PASSWORD",password:"NewPassword123!Strong"}))).status,400);
+ assert.equal((await confirm(request({token:reset,purpose:"RESET_PASSWORD",password:"NewPass123!"}))).status,400);
  console.log("Account token lifecycle passed: purpose isolation, single use and verified state");
 }finally{
  await prisma.actionToken.deleteMany({where:{userId}});
