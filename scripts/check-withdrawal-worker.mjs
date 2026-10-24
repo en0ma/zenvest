@@ -155,6 +155,31 @@ try{
   "retry after concurrent serialization conflict must be idempotent");
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,beforeInterrupted-7000001n);
  assert.equal(await prisma.treasuryTransfer.count({where:{reference:interruptedReference}}),1);
+ // Competing worker invocations must not broadcast the same pending payout twice.
+ const competingId="cworkercompeting00000004";
+ await prisma.investorWithdrawal.create({data:{
+  id:competingId,userId,amountUsdcMicros:5000001n,grossUsdcMicros:7000001n,
+  feeUsdcMicros:2000000n,destinationAddress:"11111111111111111111111111111111",
+  status:"PENDING",createdAt:new Date("2001-01-01T00:00:00Z")
+ }});
+ mode="success";
+ const beforeCompetingTransfers=transfers;
+ const competing=await Promise.allSettled(Array.from({length:3},()=>processPendingWithdrawal()));
+ for(const result of competing){
+  if(result.status==="rejected"){
+   assert.equal(result.reason?.code,"P2034",
+    "only retryable PostgreSQL serialization conflicts are acceptable during competing claims");
+  }else{
+   assert.ok(["submitted","already_claimed","empty"].includes(result.value),
+    "a competing claim must not settle or submit an unrelated operation");
+  }
+ }
+ assert.equal(transfers-beforeCompetingTransfers,1,"only one provider payout may be broadcast");
+ assert.equal((await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:competingId}})).status,"PROCESSING");
+ assert.equal(await processPendingWithdrawal(),"empty","another worker cannot resubmit an accepted payout");
+ assert.equal(transfers-beforeCompetingTransfers,1);
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,beforeInterrupted-7000001n,
+  "claiming or submitting must not debit investor capital before verified settlement");
  console.log("Withdrawal worker PostgreSQL lifecycle passed: custody preflight, successful provider acceptance, unknown response enters REVIEW, signed settlement, one ledger entry, replay-safe gross debit");
 }finally{
  globalThis.fetch=realFetch;
