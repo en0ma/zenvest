@@ -48,6 +48,25 @@ try{
   "investor cannot allocate into someone else's position");
  assert.equal(await prisma.positionAllocation.count({where:{userId}}),1,
   "failed requests cannot persist allocation records");
+ const pos=await prisma.investorPosition.create({data:{userId,strategyId,allocatedUsdcMicros:4000000n}});
+ const call=(handler,payload)=>handler(new Request("http://ci.local/test",{method:"POST",body:typeof payload==="string"?payload:JSON.stringify(payload)}));
+ assert.equal((await call(deallocate,{positionId:pos.id,amount:"4.000001"})).status,409);
+ const response=await call(deallocate,{positionId:pos.id,amount:"2.000001"});
+ assert.equal(response.status,201);
+ const op=await prisma.positionAllocation.findUniqueOrThrow({where:{id:(await response.json()).operationId}});
+ assert.equal(op.userId,userId);
+ assert.equal(op.kind,"DEALLOCATE");
+ assert.equal(op.amountUsdcMicros,2000001n);
+ assert.equal((await call(deallocate,{positionId:pos.id,amount:"1"})).status,409);
+ assert.equal((await call(closePosition,{positionId:pos.id})).status,409);
+ await prisma.positionAllocation.update({where:{id:op.id},data:{status:"CANCELLED"}});
+ const closing=await call(closePosition,{positionId:pos.id});
+ assert.equal((await closing.json()).status,"closing");
+ assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:pos.id}})).status,"CLOSING");
+ const zero=await prisma.investorPosition.create({data:{userId,strategyId,allocatedUsdcMicros:0n}});
+ assert.equal((await (await call(closePosition,{positionId:zero.id})).json()).status,"closed");
+ assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:zero.id}})).status,"CLOSED");
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,15000000n);
  console.log("Authenticated-context allocation API source integration passed: validation, real PostgreSQL creation, capacity/ownership rejection, no premature debit");
 }finally{
  await prisma.positionAllocation.deleteMany({where:{userId}});
