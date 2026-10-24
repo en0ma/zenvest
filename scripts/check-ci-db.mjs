@@ -96,7 +96,7 @@ try {
   userId:user.id,positionId:"missing_position",strategyId:"ci_test_strategy",amountUsdcMicros:1n,
  }}),e=>e.code==="P2003","allocation must reference an existing position");
 
- const withdrawal=await prisma.investorWithdrawal.create({data:{
+ const withdrawal=await prisma.withdrawal.create({data:{
   id:"ci_withdrawal_1",userId:user.id,amountUsdcMicros:100_000_000n,
   grossUsdcMicros:102_000_000n,feeUsdcMicros:2_000_000n,
   destinationAddress:"CI_DESTINATION_WALLET",status:"PENDING"
@@ -112,7 +112,7 @@ try {
   destinationWalletAddress:"CI_DESTINATION_WALLET",masterWalletAddress:"CI_MASTER",
   masterWalletId:"CI_TEST_WALLET",reference:"ci-payout-1"
  }}),e=>e.code==="P2002","treasury references must be globally unique");
- await prisma.investorWithdrawal.update({where:{id:withdrawal.id},data:{treasuryTransactionId:payout.id,status:"PROCESSING"}});
+ await prisma.withdrawal.update({where:{id:withdrawal.id},data:{treasuryTransactionId:payout.id,status:"PROCESSING"}});
  
  // Test atomic rollback on an invalid balance movement. No partial user debit.
  const beforeUser=await prisma.user.findUniqueOrThrow({where:{id:user.id}});
@@ -127,7 +127,7 @@ try {
 
  // Conditional transition is an idempotency gate under PostgreSQL transactions.
  const settlement=async()=>prisma.$transaction(async tx=>{
-  const claim=await tx.investorWithdrawal.updateMany({where:{id:withdrawal.id,status:"PROCESSING"},data:{status:"COMPLETED"}});
+  const claim=await tx.withdrawal.updateMany({where:{id:withdrawal.id,status:"PROCESSING"},data:{status:"COMPLETED"}});
   if(claim.count===0)return false;
   const record=await tx.treasuryTransfer.updateMany({where:{id:payout.id,status:"PROCESSING"},data:{status:"COMPLETE"}});
   if(record.count!==1)throw new Error("missing matched payout ledger");
@@ -167,7 +167,7 @@ try {
  const recipient="11111111111111111111111111111111";
  const masterWalletId="CI_TEST_WALLET";
  async function makeWithdrawal(id,status){
-  const w=await prisma.investorWithdrawal.create({data:{
+  const w=await prisma.withdrawal.create({data:{
    id,userId:user.id,amountUsdcMicros:3_000_000n,grossUsdcMicros:5_000_000n,
    feeUsdcMicros:2_000_000n,destinationAddress:recipient,status,
   }});
@@ -190,10 +190,10 @@ try {
  const depositBefore=(await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).amount;
  const success=mockWithdrawWebhook(review.w.id,"ci_review_success");
  assert.equal(await handleWithdrawalWebhook(success.event,success.data,masterWalletId,success),"settled");
- assert.equal((await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:review.w.id}})).status,"COMPLETED");
+ assert.equal((await prisma.withdrawal.findUniqueOrThrow({where:{id:review.w.id}})).status,"COMPLETED");
  const completedRecord=await prisma.treasuryTransfer.findUniqueOrThrow({where:{reference:`withdrawal:${review.w.id}`}});
  assert.equal(completedRecord.status,"COMPLETE");
- assert.equal((await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:review.w.id}})).treasuryTransactionId,completedRecord.id);
+ assert.equal((await prisma.withdrawal.findUniqueOrThrow({where:{id:review.w.id}})).treasuryTransactionId,completedRecord.id);
  assert.equal(completedRecord.originExternalId,"ci_review_success");
  assert.equal(completedRecord.destinationExternalId,recipient);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,balanceBefore-5_000_000n);
@@ -210,17 +210,17 @@ try {
  assert.equal(saved.length,1,"late successful webhook should be archived once");
  assert.equal(saved[0].userId,user.id);
  assert.deepEqual(saved[0].payload,latePayload);
- assert.equal((await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:late.w.id}})).status,"FAILED");
+ assert.equal((await prisma.withdrawal.findUniqueOrThrow({where:{id:late.w.id}})).status,"FAILED");
  assert.equal(await prisma.treasuryTransfer.count({where:{reference:`withdrawal:${late.w.id}`}}),0);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,balanceBeforeLate);
 
  const invalid=await makeWithdrawal("c1234567890abcdef003","REVIEW");
  const tampered=mockWithdrawWebhook(invalid.w.id,"ci_invalid_success","success",{recipientAddress:"other"});
  assert.equal(await handleWithdrawalWebhook(tampered.event,tampered.data,masterWalletId,tampered),"mismatch");
- assert.equal((await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:invalid.w.id}})).status,"REVIEW");
+ assert.equal((await prisma.withdrawal.findUniqueOrThrow({where:{id:invalid.w.id}})).status,"REVIEW");
  const failed=mockWithdrawWebhook(invalid.w.id,"ci_failed","failed");
  assert.equal(await handleWithdrawalWebhook(failed.event,failed.data,masterWalletId,failed),"settled");
- assert.equal((await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:invalid.w.id}})).status,"FAILED");
+ assert.equal((await prisma.withdrawal.findUniqueOrThrow({where:{id:invalid.w.id}})).status,"FAILED");
  assert.equal(await prisma.treasuryTransfer.count({where:{reference:`withdrawal:${invalid.w.id}`}}),0);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,balanceBeforeLate);
  console.log("Actual Blockradar-style webhook handler PostgreSQL success, duplicate, mismatch, failure, late-success archive checks passed");
