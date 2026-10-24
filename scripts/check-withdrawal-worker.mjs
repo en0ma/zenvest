@@ -194,6 +194,31 @@ try{
  assert.equal(transfers-beforeCompetingTransfers,1);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,beforeInterrupted-7000001n,
   "claiming or submitting must not debit investor capital before verified settlement");
+ // A corrupt pending withdrawal must fail its claim before contacting the provider.
+ const invalidId="cworkerinvalidtotals00005";
+ await prisma.investorWithdrawal.create({data:{
+  id:invalidId,userId,amountUsdcMicros:5000001n,grossUsdcMicros:7000002n,
+  feeUsdcMicros:2000000n,destinationAddress:"11111111111111111111111111111111",
+  status:"PENDING",createdAt:new Date("1991-01-01T00:00:00Z")
+ }});
+ const transfersBeforeInvalid=transfers;
+ await assert.rejects(processPendingWithdrawal(),/Withdrawal totals mismatch/,
+  "worker must reject inconsistent gross, net and fee arithmetic");
+ assert.equal(transfers,transfersBeforeInvalid,"invalid totals must not reach provider");
+ assert.equal((await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:invalidId}})).status,"PENDING");
+ await prisma.investorWithdrawal.delete({where:{id:invalidId}});
+ // Reserved withdrawals must not claim an operation exceeding investor capital.
+ const overdrawId="cworkeroverdraw00000006";
+ await prisma.investorWithdrawal.create({data:{
+  id:overdrawId,userId,amountUsdcMicros:99000000n,grossUsdcMicros:101000000n,
+  feeUsdcMicros:2000000n,destinationAddress:"11111111111111111111111111111111",
+  status:"PENDING",createdAt:new Date("1991-01-01T00:00:00Z")
+ }});
+ await assert.rejects(processPendingWithdrawal(),/User funds are not available/,
+  "reserved balance cannot be spent twice");
+ assert.equal(transfers,transfersBeforeInvalid,"insufficient available funds must not submit a payout");
+ assert.equal((await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:overdrawId}})).status,"PENDING");
+ await prisma.investorWithdrawal.delete({where:{id:overdrawId}});
  console.log("Withdrawal worker PostgreSQL lifecycle passed: custody preflight, successful provider acceptance, unknown response enters REVIEW, signed settlement, one ledger entry, replay-safe gross debit");
 }finally{
  globalThis.fetch=realFetch;
