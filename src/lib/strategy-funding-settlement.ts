@@ -17,6 +17,8 @@ export async function settleVerifiedStrategyFunding(receipt:VerifiedStrategyFund
  if(!receipt.kalshiTransactionId||!receipt.strategyWalletAddress||
   receipt.amountUsdcMicros<=0n||receipt.asset!=="USDC"||receipt.network!=="solana")return "invalid_receipt";
  return prisma.$transaction(async tx=>{
+  const lockId=await tx.strategyEvent.findUnique({where:{id:receipt.strategyEventId},select:{strategyId:true}});
+  if(lockId)await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${lockId.strategyId} FOR UPDATE`;
   const event=await tx.strategyEvent.findUnique({where:{id:receipt.strategyEventId},
    include:{strategy:true,positionEvents:true,treasuryTransaction:true}});
   if(!event||event.kind!=="ALLOCATE")return "unrelated";
@@ -63,7 +65,7 @@ export async function settleVerifiedStrategyFunding(receipt:VerifiedStrategyFund
    });
    if(debit.count!==1)throw new Error("Investor balance mismatch");
    await tx.investorPosition.update({where:{id:row.positionId},
-    data:{principalUsdcMicros:{increment:row.amountUsdcMicros},status:"ACTIVE"}});
+    data:{allocatedUsdcMicros:{increment:row.amountUsdcMicros}}});
    await tx.investorActivity.create({data:{
     userId:row.userId,type:"ALLOCATION",amountKobo:0n,
     amountUsdcMicros:row.amountUsdcMicros,
