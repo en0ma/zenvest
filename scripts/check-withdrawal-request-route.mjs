@@ -36,6 +36,13 @@ try{
  assert.equal(quote.status,200);
  assert.equal(quote.headers.get("cache-control"),"no-store");
  assert.deepEqual(await quote.json(),{serviceFeeMicros:"2000000",networkFeeMicros:"100000",totalFeeMicros:"2100000",netMicros:"2900000"});
+ globalThis.fetch=async()=>new Response("provider failed",{status:503});
+ assert.equal((await estimate({amount:"5.000000",address})).status,503,
+  "network-fee provider failure must not be converted into a valid quote");
+ globalThis.fetch=async(url)=>{
+  assert.match(String(url),/\\/withdraw\\/network-fee$/);
+  return Response.json({data:{networkFeeInUSD:"0.100000"}});
+ };
  assert.equal((await call("{bad")).status,400);
  assert.equal((await call({amount:"0",address})).status,400);
  assert.equal((await call({amount:"2.000000",address})).status,400);
