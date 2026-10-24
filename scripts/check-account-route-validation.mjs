@@ -96,6 +96,16 @@ try{
  assert.ok((await prisma.actionToken.findUniqueOrThrow({where:{hash:digest(racingToken)}})).consumedAt);
  const replay=await activateEmailFromLink(racingToken);
  assert.equal(replay?.status,"already_active","already verified account receives explicit state");
+ // Password reset tokens must be purpose-bound and never usable for email activation.
+ const {consumeToken}=await import("../src/lib/account-tokens.ts");
+ const crossPurpose="3".repeat(64);
+ await prisma.actionToken.create({data:{userId,purpose:"RESET_PASSWORD",hash:digest(crossPurpose),expiresAt:new Date(Date.now()+600000)}});
+ assert.equal(await activateEmailFromLink(crossPurpose),null,
+  "reset token must never activate an email account");
+ assert.equal((await prisma.actionToken.findUniqueOrThrow({where:{hash:digest(crossPurpose)}})).consumedAt,null,
+  "wrong-purpose verification must not consume the reset token");
+ assert.equal(await consumeToken(crossPurpose,"VERIFY_EMAIL"),false,
+  "reset token must not be valid as a verification token");
  const fresh="1".repeat(64);
  await prisma.actionToken.create({data:{userId,purpose:"RESET_PASSWORD",hash:digest(fresh),expiresAt:new Date(Date.now()+600000)}});
  const throttled=await callLink({email:"ci-account-validation@example.invalid",purpose:"RESET_PASSWORD"});
@@ -106,7 +116,6 @@ try{
  const reset="c".repeat(64);
  const sessionBefore=(await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion;
  await prisma.actionToken.create({data:{userId,purpose:"RESET_PASSWORD",hash:digest(reset),expiresAt:new Date(Date.now()+600000)}});
- const {consumeToken}=await import("../src/lib/account-tokens.ts");
  const resetRace=await Promise.allSettled(Array.from({length:4},()=>
   consumeToken(reset,"RESET_PASSWORD","ci-raced-hashed-password")));
  assert.equal(resetRace.filter(result=>result.status==="fulfilled"&&result.value===true).length,1,
