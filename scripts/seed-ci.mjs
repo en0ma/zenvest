@@ -12,7 +12,7 @@ try {
  },update:{}});
  await prisma.investorPosition.upsert({where:{id:"ci_test_position"},create:{
   id:"ci_test_position",userId:"ci_test_user",strategyId:"ci_test_strategy",
-  principalUsdcMicros:25_000_000n,status:"ACTIVE",
+  allocatedUsdcMicros:25_000_000n,status:"OPEN",
  },update:{}});
  for(const [kind,source,amount] of [
   ["DEPOSIT","MASTER_WALLET",123_000_000n],
