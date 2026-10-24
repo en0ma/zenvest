@@ -87,13 +87,28 @@ try{
   assert.equal((await call({event:"deposit.swept.success",data:swept})).status,200);
   assert.equal((await call({event:"deposit.swept.success",data:swept})).status,200,
    "duplicate signed sweep is acknowledged without second settlement");
+  // Competing first-time signed sweep deliveries must never mint duplicate equity.
+  const racingId="ci-verified-deposit-racing";
+  const racingData={...data,id:racingId,hash:"ci-racing-hash"};
+  const racingSweep={...swept,id:racingId,hash:"ci-racing-hash",assetSweptHash:"ci-racing-sweep-hash"};
+  assert.equal((await call({event:"deposit.success",data:racingData})).status,200);
+  const concurrent=await Promise.all(Array.from({length:4},()=>
+   call({event:"deposit.swept.success",data:racingSweep})));
+  assert.ok(concurrent.every(r=>[200,503].includes(r.status)),
+   "serialization losers must be retried, not acknowledged as settled");
+  assert.ok(concurrent.some(r=>r.status===200),"at least one confirmed sweep must succeed");
+  assert.equal((await call({event:"deposit.swept.success",data:racingSweep})).status,200,
+   "retrying a raced sweep remains safe");
+  assert.equal(await db.treasuryTransfer.count({where:{reference:racingId}}),1);
+  assert.equal((await db.user.findUniqueOrThrow({where:{id:userId}})).unallocated,amountBefore+micros*2n,
+   "racing sweeps must credit one additional deposit, never more");
   assert.equal((await db.user.findUniqueOrThrow({where:{id:userId}})).unallocated,amountBefore+micros,
    "verified full sweep credits exactly once");
   const deposit=await db.blockchainDeposit.findUniqueOrThrow({where:{providerTransactionId:providerTx}});
   assert.equal(deposit.status,"CONFIRMED");
   assert.ok(deposit.treasuryTransactionId);
   assert.equal(await db.treasuryTransfer.count({where:{reference:providerTx}}),1);
-  assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).amount,treasuryBefore.amount+micros);
+  assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).amount,treasuryBefore.amount+micros*2n);
  }finally{
   await db.investorActivity.deleteMany({where:{userId}});
   await db.blockchainDeposit.deleteMany({where:{providerTransactionId:providerTx}});
