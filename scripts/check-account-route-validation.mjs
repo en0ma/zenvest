@@ -53,7 +53,7 @@ try{
  assert.equal((await first.json()).ok,true);
  assert.ok((await prisma.user.findUniqueOrThrow({where:{id:userId}})).emailVerifiedAt);
  const existingRegistration=await register(registerRequest(JSON.stringify({
-  name:"Account Validation",email:"ci-account-validation@example.invalid",password:"TestPass123!"
+  name:"CiAccount",email:"ci-account-validation@example.invalid",password:"TestPass123!"
  })));
  assert.equal(existingRegistration.status,409,"verified account registration cannot overwrite an existing identity");
 
