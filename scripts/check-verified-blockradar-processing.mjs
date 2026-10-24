@@ -50,6 +50,59 @@ try{
  const unrelated=await call({event:"withdraw.success",data:{reference:"withdrawal:invalid"}});
  assert.equal(unrelated.status,200);
  assert.equal(unrelated.headers.get("cache-control"),"no-store");
+ // Real PostgreSQL settlement: only proven full custody sweep can credit once.
+ const {PrismaClient}=await import("@prisma/client");
+ const db=new PrismaClient();
+ const userId="ci_verified_deposit_user";
+ const providerTx="ci-verified-deposit-tx";
+ const address="ci-verified-deposit-address";
+ const masterWalletId="CI_TEST_WALLET";
+ const masterAddress="CI_TEST_ADDRESS";
+ const micros=1500001n;
+ const treasuryBefore=await db.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}});
+ try{
+  await db.user.create({data:{id:userId,email:"ci-verified-deposit@example.invalid",name:"Verified CI",passwordHash:"ci-fixture"}});
+  await db.investorDepositWallet.create({data:{
+   userId,status:"ACTIVE",masterWalletId,address,addressId:"ci-verified-address-id"
+  }});
+  process.env.BLOCK_RADAR_MASTER_WALLET_ID=masterWalletId;
+  const data={
+   id:providerTx,status:"SUCCESS",type:"DEPOSIT",confirmed:true,
+   recipientAddress:address,hash:"ci-verified-chain-hash",amount:"1.500001",network:"testnet",
+   wallet:{id:masterWalletId,address:masterAddress},
+   asset:{address:"ci-verified-mint",symbol:"USDC",decimals:6},
+   address:{id:"ci-verified-address-id",address}
+  };
+  const amountBefore=(await db.user.findUniqueOrThrow({where:{id:userId}})).unallocated;
+  assert.equal((await call({event:"deposit.success",data})).status,200);
+  assert.equal((await db.blockchainDeposit.findUniqueOrThrow({where:{providerTransactionId:providerTx}})).status,"CONFIRMING");
+  assert.equal((await db.user.findUniqueOrThrow({where:{id:userId}})).unallocated,amountBefore,
+   "deposit notification alone must not credit unproven custody");
+  const swept={...data,assetSwept:true,assetSweptAmount:"1.500001",
+   assetSweptHash:"ci-sweep-hash",assetSweptSenderAddress:address,
+   assetSweptRecipientAddress:masterAddress};
+  assert.equal((await call({event:"deposit.swept.success",data:{...swept,assetSweptAmount:"1.500000"}})).status,422,
+   "partial sweep must not settle");
+  assert.equal((await db.user.findUniqueOrThrow({where:{id:userId}})).unallocated,amountBefore);
+  assert.equal((await call({event:"deposit.swept.success",data:swept})).status,200);
+  assert.equal((await call({event:"deposit.swept.success",data:swept})).status,200,
+   "duplicate signed sweep is acknowledged without second settlement");
+  assert.equal((await db.user.findUniqueOrThrow({where:{id:userId}})).unallocated,amountBefore+micros,
+   "verified full sweep credits exactly once");
+  const deposit=await db.blockchainDeposit.findUniqueOrThrow({where:{providerTransactionId:providerTx}});
+  assert.equal(deposit.status,"CONFIRMED");
+  assert.ok(deposit.treasuryTransactionId);
+  assert.equal(await db.treasuryTransfer.count({where:{reference:providerTx}}),1);
+  assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).amount,treasuryBefore.amount+micros);
+ }finally{
+  await db.investorActivity.deleteMany({where:{userId}});
+  await db.blockchainDeposit.deleteMany({where:{providerTransactionId:providerTx}});
+  await db.treasuryTransfer.deleteMany({where:{reference:providerTx}});
+  await db.investorDepositWallet.deleteMany({where:{userId}});
+  await db.user.deleteMany({where:{id:userId}});
+  await db.treasury.update({where:{kind:"DEPOSIT"},data:{amount:treasuryBefore.amount}});
+  await db.$disconnect();
+ }
  console.log("Verified Blockradar queue processing: signature, configuration and custody safety checks passed");
 }finally{
  for(const name of names){if(previous[name]===undefined)delete process.env[name];else process.env[name]=previous[name];}
