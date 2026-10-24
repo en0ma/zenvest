@@ -1,4 +1,5 @@
 import { FileBarChart2 } from "lucide-react";
+import Link from "next/link";
 import {PortfolioValueChart} from "@/components/portfolio-value-chart";
 import {reconstructPortfolioPerformance, type PortfolioEvent} from "@/lib/portfolio-performance";
 import {PnlPerformanceChart} from "@/components/pnl-performance-chart";
@@ -7,7 +8,18 @@ import { requireUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { formatUsdc } from "@/lib/usdc-money";
 export const dynamic = "force-dynamic";
-export default async function Dashboard(){
+const TABLE_PAGE_SIZE=10;
+function pageParam(value:string|undefined){const n=Number(value??"1");return Number.isSafeInteger(n)&&n>0?Math.min(n,100000):1;}
+function TablePager({page,pages,name,otherPage,otherName}:{page:number;pages:number;name:string;otherPage:number;otherName:string}){
+ const link=(next:number)=>`/dashboard?${name}=${next}&${otherName}=${otherPage}`;
+ return <nav aria-label={`${name==="positionsPage"?"Position performance":"Settled trade history"} pagination`} className="mt-4 flex items-center justify-between gap-3 border-t border-[#EDF0F5] pt-4 text-sm">
+  <span className="text-[#64748B]">Page {page} of {pages}</span><div className="flex items-center gap-2">
+  {page>1?<Link className="rounded-lg border border-[#DCE3EC] px-3 py-2 font-medium" href={link(page-1)}>Previous</Link>:<span className="rounded-lg border border-[#DCE3EC] px-3 py-2 text-[#94A3B8]" aria-disabled="true">Previous</span>}
+  {page<pages?<Link className="rounded-lg border border-[#DCE3EC] px-3 py-2 font-medium" href={link(page+1)}>Next</Link>:<span className="rounded-lg border border-[#DCE3EC] px-3 py-2 text-[#94A3B8]" aria-disabled="true">Next</span>}
+  </div></nav>;
+}
+export default async function Dashboard({searchParams}:{searchParams:Promise<{positionsPage?:string;tradesPage?:string}>}){
+ const params=await searchParams;
  const session = await requireUser();
  const account=await prisma.user.findUniqueOrThrow({where:{id:session.id},select:{unallocated:true}});
  const positions=await prisma.investorPosition.findMany({where:{userId:session.id},include:{strategy:{select:{name:true}}},orderBy:{createdAt:"desc"}});
@@ -48,6 +60,12 @@ export default async function Dashboard(){
  const positionStats=await prisma.positionTradePnl.groupBy({by:["positionId"],where:{userId:session.id,status:"SETTLED"},
   _sum:{netPnlUsdcMicros:true,platformFeeUsdcMicros:true},_count:{_all:true}});
  const statsByPosition=new Map(positionStats.map(x=>[x.positionId,x]));
+ const positionPages=Math.max(1,Math.ceil(positions.length/TABLE_PAGE_SIZE));
+ const tradePages=Math.max(1,Math.ceil(settled.length/TABLE_PAGE_SIZE));
+ const positionsPage=Math.min(pageParam(params.positionsPage),positionPages);
+ const tradesPage=Math.min(pageParam(params.tradesPage),tradePages);
+ const pagedPositions=positions.slice((positionsPage-1)*TABLE_PAGE_SIZE,positionsPage*TABLE_PAGE_SIZE);
+ const pagedTrades=settled.slice().reverse().slice((tradesPage-1)*TABLE_PAGE_SIZE,tradesPage*TABLE_PAGE_SIZE);
  return <Shell><div className="mx-auto max-w-7xl space-y-6">
   <header><p className="text-sm leading-6 text-[#64748B]">Welcome back{session.name?", "+session.name:""}. Here's how your investment is performing.</p></header>
   <section aria-label="Investment overview" className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
@@ -106,17 +124,18 @@ export default async function Dashboard(){
   <section aria-label="Position performance" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <h2 className="text-lg font-semibold text-[#11263E]">Position performance</h2>
    <p className="mt-1 text-sm text-[#64748B]">Current invested balances include retained settled profits and losses.</p>
-   <div className="mt-5 overflow-x-auto"><table className="w-full text-sm">
+   <div role="region" aria-label="Scrollable position performance table" tabIndex={0} className="mt-5 max-w-full overflow-x-auto overscroll-x-contain"><table className="w-full min-w-[720px] border-collapse text-left text-sm">
     <thead className="text-left text-[#64748B]"><tr><th className="py-3">Strategy / Position</th><th>Status</th><th className="text-right">Allocated</th><th className="text-right">Settled events</th><th className="text-right">Lifetime net P&amp;L</th></tr></thead>
-    <tbody>{positions.map(p=>{const stats=statsByPosition.get(p.id);return <tr key={p.id} className="border-t border-[#EDF0F5]">
+    <tbody>{pagedPositions.map(p=>{const stats=statsByPosition.get(p.id);return <tr key={p.id} className="border-t border-[#EDF0F5]">
      <td className="py-3"><p className="font-semibold text-[#11263E]">{p.strategy.name}</p><p className="font-mono text-xs text-[#64748B]">{p.id}</p></td><td>{p.status}</td>
      <td className="text-right tabular-nums">{formatUsdc(p.allocatedUsdcMicros)}</td>
      <td className="text-right tabular-nums">{stats?stats._count._all:0}</td>
      <td className={"text-right tabular-nums font-semibold "+((stats?._sum.netPnlUsdcMicros??0n)<0n?"text-red-600":"text-emerald-700")}>{formatUsdc(stats?._sum.netPnlUsdcMicros??0n)}</td>
     </tr>})}</tbody>
    </table>{positions.length===0&&<p className="py-6 text-sm text-[#64748B]">No positions yet.</p>}</div>
+   <TablePager page={positionsPage} pages={positionPages} name="positionsPage" otherPage={tradesPage} otherName="tradesPage"/>
   </section>
-  <section aria-label="Trade P&L history" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8"><h2 className="text-lg font-semibold text-[#11263E]">Settled trade history</h2><div className="mt-5 overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-left text-[#64748B]"><th className="py-3">Event</th><th>Settled</th><th className="text-right">Eligible capital</th><th className="text-right">Gross P&amp;L</th><th className="text-right">Fee</th><th className="text-right">Net P&amp;L</th></tr></thead><tbody>{settled.slice(-30).reverse().map(p=><tr key={p.id} className="border-t border-[#E3E8EE]"><td className="py-3">{p.strategyTrade.marketTradeName}</td><td>{p.settledAt?.toLocaleDateString("en-US",{timeZone:"UTC"})}</td><td className="text-right">{formatUsdc(p.eligibleCapitalUsdcMicros)}</td><td className="text-right">{formatUsdc(p.grossPnlUsdcMicros??0n)}</td><td className="text-right">{formatUsdc(p.platformFeeUsdcMicros??0n)}</td><td className={"text-right font-semibold "+((p.netPnlUsdcMicros??0n)<0n?"text-red-600":"text-emerald-600")}>{formatUsdc(p.netPnlUsdcMicros??0n)}</td></tr>)}</tbody></table>{!settled.length&&<p className="py-6 text-sm text-[#64748B]">No verified settled event P&L yet.</p>}</div></section>
+  <section aria-label="Trade P&L history" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8"><h2 className="text-lg font-semibold text-[#11263E]">Settled trade history</h2><div role="region" aria-label="Scrollable settled trade history table" tabIndex={0} className="mt-5 max-w-full overflow-x-auto overscroll-x-contain"><table className="w-full min-w-[790px] border-collapse text-left text-sm"><thead><tr className="text-left text-[#64748B]"><th className="py-3">Event</th><th>Settled</th><th className="text-right">Eligible capital</th><th className="text-right">Gross P&amp;L</th><th className="text-right">Fee</th><th className="text-right">Net P&amp;L</th></tr></thead><tbody>{pagedTrades.map(p=><tr key={p.id} className="border-t border-[#E3E8EE]"><td className="py-3">{p.strategyTrade.marketTradeName}</td><td>{p.settledAt?.toLocaleDateString("en-US",{timeZone:"UTC"})}</td><td className="text-right">{formatUsdc(p.eligibleCapitalUsdcMicros)}</td><td className="text-right">{formatUsdc(p.grossPnlUsdcMicros??0n)}</td><td className="text-right">{formatUsdc(p.platformFeeUsdcMicros??0n)}</td><td className={"text-right font-semibold "+((p.netPnlUsdcMicros??0n)<0n?"text-red-600":"text-emerald-600")}>{formatUsdc(p.netPnlUsdcMicros??0n)}</td></tr>)}</tbody></table>{!settled.length&&<p className="py-6 text-sm text-[#64748B]">No verified settled event P&L yet.</p>}</div><TablePager page={tradesPage} pages={tradePages} name="tradesPage" otherPage={positionsPage} otherName="positionsPage"/></section>
   <section aria-labelledby="report-heading" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <div className="flex items-center gap-2"><FileBarChart2 size={18} className="text-[#635BFF]"/><h2 id="report-heading" className="text-lg font-semibold text-[#11263E]">Performance report</h2></div>
    <p className="mt-2 text-sm text-[#64748B]">A summary of verified portfolio accounting, without speculative returns.</p>
