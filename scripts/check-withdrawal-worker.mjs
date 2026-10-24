@@ -33,7 +33,7 @@ try{
   feeUsdcMicros:2000000n,destinationAddress:"11111111111111111111111111111111",
   status:"PENDING",createdAt:new Date(stamp),updatedAt:new Date(stamp)
  }});
- let mode="insufficient",transfers=0;
+ let mode="insufficient",transfers=0,providerReceiptId="ci-provider-accepted";
  globalThis.fetch=async(url,init)=>{
   assert.match(String(url),/^https:\/\/api\.blockradar\.co\/v1\/wallets\//);
   if(String(url).includes("/balance"))return new Response(JSON.stringify({
@@ -46,7 +46,7 @@ try{
    assert.equal(data.assetId,"ci-usdc");
    assert.equal(data.address,"11111111111111111111111111111111");
    if(mode==="timeout")throw Error("Simulated provider timeout after network call");
-   return new Response(JSON.stringify({data:{id:"ci-provider-accepted",hash:"ci-hash"}}),{status:200});
+   return new Response(JSON.stringify({data:{id:providerReceiptId,hash:"ci-hash"}}),{status:200});
   }
   throw Error("Unexpected external network request");
  };
@@ -163,6 +163,7 @@ try{
   status:"PENDING",createdAt:new Date("2001-01-01T00:00:00Z")
  }});
  mode="success";
+ providerReceiptId="ci-provider-competing";
  const beforeCompetingTransfers=transfers;
  const competing=await Promise.allSettled(Array.from({length:3},()=>processPendingWithdrawal()));
  for(const result of competing){
