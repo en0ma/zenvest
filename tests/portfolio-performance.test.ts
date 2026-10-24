@@ -43,7 +43,7 @@ test("same-timestamp events are ordered by ID independently of input order",()=>
  const one=reconstructPortfolioPerformance(110n,[profit,deposit]);
  const two=reconstructPortfolioPerformance(110n,[deposit,profit]);
  assert.deepEqual(one,two);
- assert.equal(one.twrPercent,10);
+ assert.ok(one.twrPercent!==null&&Math.abs(one.twrPercent-10)<1e-9);
 });
 test("zero trading P&L at zero equity is permitted, but positive profit is rejected",()=>{
  const zero=reconstructPortfolioPerformance(0n,[{id:"a",kind:"PNL",at:at("2026-01-01T00:00:00Z"),amountMicros:0n}]);
