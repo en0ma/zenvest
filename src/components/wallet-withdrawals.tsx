@@ -12,10 +12,10 @@ function Pager({page,pages,total,depositsPage}:{page:number;pages:number;total:n
  return <div className="flex items-center justify-between gap-3 border-t border-[#EDF0F5] px-4 py-4"><p className="text-xs text-[#64748B]">{total} results</p><nav aria-label="Withdrawals pages" className="flex gap-3">{page>1?<Link href={href(page-1)} className={cls}>Previous</Link>:null}<span>Page {page} of {pages}</span>{page<pages?<Link href={href(page+1)} className={cls}>Next</Link>:null}</nav></div>;
 }
 export async function WalletWithdrawals({userId,unallocated,pending,pendingAllocations,withdrawalsPage,depositsPage}:{userId:string;unallocated:bigint;pending:bigint;pendingAllocations:bigint;withdrawalsPage?:string;depositsPage:number}){
- const withdrawalCount=await prisma.investorWithdrawal.count({where:{userId}});
+ const withdrawalCount=await prisma.withdrawal.count({where:{userId}});
  const withdrawalPages=Math.max(1,Math.ceil(withdrawalCount/PAGE_SIZE));
  const wPage=Math.min(pageNumber(withdrawalsPage),withdrawalPages);
- const records=await prisma.investorWithdrawal.findMany({where:{userId},orderBy:[{createdAt:"desc"},{id:"desc"}],skip:(wPage-1)*PAGE_SIZE,take:PAGE_SIZE});
+ const records=await prisma.withdrawal.findMany({where:{userId},orderBy:[{createdAt:"desc"},{id:"desc"}],skip:(wPage-1)*PAGE_SIZE,take:PAGE_SIZE});
  const available=unallocated>pending+pendingAllocations?unallocated-pending-pendingAllocations:0n;
  const enabled=process.env.BLOCKRADAR_WITHDRAWALS_ENABLED==="true";
  const heading="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#64748B]";
