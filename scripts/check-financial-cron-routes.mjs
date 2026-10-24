@@ -16,6 +16,7 @@ try{
   "../src/app/api/internal/process-webhook-queue/route.ts",
   "../src/app/api/internal/process-withdrawals/route.ts",
   "../src/app/api/internal/process-position-allocations/route.ts",
+  "../src/app/api/internal/process-position-trade-pnl/route.ts",
  ];
  for(const path of paths){
   const {GET}=await import(path);
