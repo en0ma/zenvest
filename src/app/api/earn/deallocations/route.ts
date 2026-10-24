@@ -20,12 +20,12 @@ export async function POST(request:Request){
   return NextResponse.json({error:"Invalid position or reduction amount"},{status:400});
  try {
   const outcome=await prisma.$transaction(async tx=>{
-   const pos=await tx.investorPosition.findFirst({where:{id:positionId,userId:user.id,status:"ACTIVE"}});
+   const pos=await tx.investorPosition.findFirst({where:{id:positionId,userId:user.id,status:"OPEN"}});
    if(!pos)return "INVALID";
    // One unsettled reduction per position keeps principal ownership unambiguous.
    const other=await tx.positionAllocation.count({where:{positionId,kind:"DEALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}}});
    if(other)return "BUSY";
-   if(amount>pos.principalUsdcMicros)return "EXCEEDS";
+   if(amount>pos.allocatedUsdcMicros)return "EXCEEDS";
    const op=await tx.positionAllocation.create({data:{
     userId:user.id,positionId:pos.id,strategyId:pos.strategyId,kind:"DEALLOCATE",status:"PENDING",amountUsdcMicros:amount,
    }});
