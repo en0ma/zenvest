@@ -13,7 +13,7 @@ export default async function EarnPage(){
   prisma.positionAllocation.findMany({where:{userId:user.id,kind:"ALLOCATE"},orderBy:[{createdAt:"desc"},{id:"desc"}],take:100}),
   prisma.positionAllocation.findMany({where:{userId:user.id,kind:"DEALLOCATE"},orderBy:[{createdAt:"desc"},{id:"desc"}],take:100}),
   prisma.strategy.findMany({where:{isActive:true,isPublic:true},orderBy:{name:"asc"}}),
-  prisma.investorWithdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
+  prisma.withdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
   prisma.positionAllocation.aggregate({where:{userId:user.id,kind:"ALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
  ]);
  const u=account.unallocated,w=withdrawalReservations._sum.grossUsdcMicros??0n,a=allocationReservations._sum.amountUsdcMicros??0n;
