@@ -12,11 +12,11 @@ ALTER TABLE "positions" ALTER COLUMN "status" SET DEFAULT 'OPEN';
 DROP TYPE "PositionStatus_old";
 ALTER TABLE "positions" RENAME COLUMN "principal_usdc_micros" TO "allocated_usdc_micros";
 -- Never discard previously recognized investor earnings without a verified backfill.
-DO $ BEGIN
+DO $$ BEGIN
  IF EXISTS(SELECT 1 FROM "positions" WHERE "realized_pnl_usdc_micros" <> 0)
  THEN RAISE EXCEPTION 'Position realized P&L must be reconciled and backfilled before dropping the legacy aggregate';
  END IF;
-END $;
+END $$;
 ALTER TABLE "positions" DROP COLUMN "realized_pnl_usdc_micros";
 ALTER TABLE "positions" ADD COLUMN "last_pnl_updated" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "strategy_trades" ALTER COLUMN "status" SET DEFAULT 'AWAITING_ALLOCATION';
