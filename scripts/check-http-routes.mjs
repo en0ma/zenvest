@@ -6,7 +6,11 @@ if (!process.env.DATABASE_URL?.includes("zenvest_ci")) throw new Error("Refusing
 const port=33891;
 const base="http://127.0.0.1:"+port;
 const child=spawn(process.execPath,["node_modules/next/dist/bin/next","start","-p",String(port)],{
- env:{...process.env,NODE_ENV:"production",NEXTAUTH_URL:base},stdio:"ignore"
+ env:{...process.env,NODE_ENV:"production",NEXTAUTH_URL:base},stdio:["ignore","pipe","pipe"]
+});
+let startupLog="";
+for(const stream of [child.stdout,child.stderr])stream.on("data",chunk=>{
+ startupLog=(startupLog+String(chunk)).slice(-8000);
 });
 async function call(path,init){return fetch(base+path,{redirect:"manual",...init});}
 try{
@@ -16,7 +20,7 @@ try{
   try{const res=await call("/api/internal/process-position-trade-pnl");if(res.status===401){started=true;break;}}catch{}
   await sleep(500);
  }
- assert.equal(started,true,"Built application starts");
+ assert.equal(started,true,"Built application starts; diagnostic output: "+startupLog);
  for(const endpoint of ["earn/allocations","earn/deallocations","earn/positions/close","withdrawals"]){
   const res=await call("/api/"+endpoint,{method:"POST",headers:{"content-type":"application/json"},body:"{}"});
   assert.ok([302,303,307,308,401].includes(res.status),
