@@ -95,6 +95,16 @@ try{
   wallet:{id:deposit.walletId},type:"WITHDRAW",status:"SUCCESS",network:"testnet",
   asset:{symbol:"USDC",decimals:6,address:"ci-mint"},hash:"ci-verified-onchain-1",confirmed:true
  };
+ assert.equal(await handleAllocationWebhook("deposit.success",signedEvent,deposit.walletId),"ignored");
+ assert.equal(await handleAllocationWebhook("withdraw.success",{...signedEvent,reference:"withdrawal:unrelated"},deposit.walletId),"unrelated");
+ assert.equal(await handleAllocationWebhook("withdraw.success",{...signedEvent,amount:"1.500002"},deposit.walletId),"mismatch");
+ assert.equal(await handleAllocationWebhook("withdraw.success",{...signedEvent,recipientAddress:"different"},deposit.walletId),"mismatch");
+ assert.equal(await handleAllocationWebhook("withdraw.success",{...signedEvent,wallet:{id:"untrusted"}},deposit.walletId),"mismatch");
+ assert.equal(await handleAllocationWebhook("withdraw.success",{...signedEvent,status:"PENDING"},deposit.walletId),"unconfirmed");
+ assert.equal(await handleAllocationWebhook("withdraw.failed",{...signedEvent,status:"FAILED"},deposit.walletId),"requires_reconciliation",
+  "an unsuccessful transfer must not falsely confirm source custody");
+ assert.equal((await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).amount,originalDeposit);
+ assert.equal(await prisma.treasuryTransfer.count({where:{reference:"strategy_withdrawal:"+eventId}}),0);
  assert.equal(await handleAllocationWebhook("withdraw.success",signedEvent,deposit.walletId),
   "awaiting_kalshi_receipt","source provider confirmation must record custody movement");
  assert.equal(await handleAllocationWebhook("withdraw.success",signedEvent,deposit.walletId),
