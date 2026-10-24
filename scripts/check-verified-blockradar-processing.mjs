@@ -73,6 +73,18 @@ try{
    asset:{address:"ci-verified-mint",symbol:"USDC",decimals:6},
    address:{id:"ci-verified-address-id",address}
   };
+  // Provider wallet and address identity must match our durable wallet binding.
+  for(const altered of [
+   {...data,address:{id:"different-provider-address",address}},
+   {...data,wallet:{id:"untrusted-master",address:masterAddress}},
+   {...data,recipientAddress:"different-recipient"},
+  ]){
+   const rejected=await call({event:"deposit.success",data:altered});
+   assert.ok([200,422].includes(rejected.status),
+    "invalid provider identity must not create a settleable deposit");
+   assert.equal(await db.blockchainDeposit.count({where:{providerTransactionId:providerTx}}),0,
+    "mismatched custody identities must not persist a deposit");
+  }
   const amountBefore=(await db.user.findUniqueOrThrow({where:{id:userId}})).unallocated;
   assert.equal((await call({event:"deposit.success",data})).status,200);
   assert.equal((await db.blockchainDeposit.findUniqueOrThrow({where:{providerTransactionId:providerTx}})).status,"CONFIRMING");
