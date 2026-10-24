@@ -79,10 +79,10 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
      <span className="text-sm text-[#64748B]">Cumulative realized P&amp;L</span>
      <span className="text-lg font-semibold tabular-nums text-[#11263E]">{realized>0n?"+":""}{formatUsdc(realized)}</span>
     </div>
-    <p className="mt-4 text-xs leading-5 text-[#64748B]">Ledger-based portfolio estimate. Realized P&amp;L reflects recorded earnings, not a period return or live market valuation.</p>
+    
     <div className="mt-7 border-t border-[#DCE4F0] pt-6">
     <h2 className="text-base font-semibold text-[#11263E]">Capital allocation</h2>
-    <p className="mt-1 text-xs text-[#64748B]">Where your recorded capital is positioned.</p>
+    
     <div role="img" aria-label={capital>0n?`Allocated ${allocatedPct.toFixed(1)} percent; unallocated ${unallocatedPct.toFixed(1)} percent`:"No allocated or unallocated capital"} className="mt-7 flex h-3 overflow-hidden rounded-full bg-[#EDF0F7]">
      {capital>0n&&<><div className="h-full bg-[#635BFF]" style={{width:allocatedPct+"%"}}/><div className="h-full bg-[#C7D2FE]" style={{width:unallocatedPct+"%"}}/></>}
     </div>
