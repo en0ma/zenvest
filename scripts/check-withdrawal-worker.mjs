@@ -136,9 +136,23 @@ try{
   await prisma.treasury.update({where:{kind:"DEPOSIT"},data:{amount:depositBeforeInterrupted.amount>=7000001n?depositBeforeInterrupted.amount:7000001n}});
   await prisma.treasury.update({where:{kind:"DEALLOCATE"},data:{amount:deallocateBeforeInterrupted.amount}});
  }
- assert.equal(await handleWithdrawalWebhook("withdraw.success",interruptedData,deposit.walletId),"settled",
-  "corrected treasury state allows exactly one authenticated settlement");
- assert.equal(await handleWithdrawalWebhook("withdraw.success",interruptedData,deposit.walletId),"duplicate");
+ // Race first-time signed settlement deliveries, not merely duplicates after completion.
+ // PostgreSQL SERIALIZABLE may abort a contender with P2034; it must be retryable
+ // and must never produce an additional transfer or gross debit.
+ const raced=await Promise.allSettled(Array.from({length:4},()=>
+  handleWithdrawalWebhook("withdraw.success",interruptedData,deposit.walletId)));
+ for(const outcome of raced){
+  if(outcome.status==="rejected"){
+   assert.equal(outcome.reason?.code,"P2034",
+    "only a database serialization conflict is an acceptable concurrent failure");
+  }else{
+   assert.ok(["settled","duplicate"].includes(outcome.value));
+  }
+ }
+ assert.equal(raced.filter(x=>x.status==="fulfilled"&&x.value==="settled").length,1,
+  "exactly one first-time callback can settle the withdrawal");
+ assert.equal(await handleWithdrawalWebhook("withdraw.success",interruptedData,deposit.walletId),"duplicate",
+  "retry after concurrent serialization conflict must be idempotent");
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,beforeInterrupted-7000001n);
  assert.equal(await prisma.treasuryTransfer.count({where:{reference:interruptedReference}}),1);
  console.log("Withdrawal worker PostgreSQL lifecycle passed: custody preflight, successful provider acceptance, unknown response enters REVIEW, signed settlement, one ledger entry, replay-safe gross debit");
