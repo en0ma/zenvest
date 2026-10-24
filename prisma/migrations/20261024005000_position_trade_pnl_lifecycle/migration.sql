@@ -1,6 +1,9 @@
 -- Preserve the live invested amount; no historical P&L is inferred or backfilled.
-ALTER TYPE "StrategyTradeStatus" ADD VALUE IF NOT EXISTS 'AWAITING_ALLOCATION';
-ALTER TYPE "StrategyTradeStatus" ADD VALUE IF NOT EXISTS 'SETTLED';
+ALTER TYPE "StrategyTradeStatus" RENAME TO "StrategyTradeStatus_old";
+CREATE TYPE "StrategyTradeStatus" AS ENUM ('AWAITING_ALLOCATION','TRADING','SETTLED','ENDED','ERROR');
+ALTER TABLE "strategy_trades" ALTER COLUMN "status" DROP DEFAULT;
+ALTER TABLE "strategy_trades" ALTER COLUMN "status" TYPE "StrategyTradeStatus" USING ("status"::text)::"StrategyTradeStatus";
+DROP TYPE "StrategyTradeStatus_old";
 ALTER TYPE "PositionStatus" RENAME TO "PositionStatus_old";
 CREATE TYPE "PositionStatus" AS ENUM ('OPEN','CLOSING','CLOSED');
 ALTER TABLE "positions" ALTER COLUMN "status" DROP DEFAULT;
