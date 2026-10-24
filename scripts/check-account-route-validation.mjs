@@ -73,7 +73,7 @@ try{
  await prisma.actionToken.create({data:{userId,purpose:"VERIFY_EMAIL",hash:digest(recentVerify),expiresAt:new Date(Date.now()+600000)}});
  const tokensBeforeRegister=await prisma.actionToken.count({where:{userId,purpose:"VERIFY_EMAIL"}});
  const retryRegistration=await register(registerRequest(JSON.stringify({
-  name:"Account Validation",email:"ci-account-validation@example.invalid",password:"TestPass123!"
+  name:"CiAccount",email:"ci-account-validation@example.invalid",password:"TestPass123!"
  })));
  assert.equal(retryRegistration.status,202,"unverified account registration must offer verification rather than 409");
  assert.equal((await retryRegistration.json()).code,"CHECK_EMAIL");
