@@ -1,105 +1,27 @@
-# Per-trade (market event) P&L attribution — proposed design
+# Zenvest position trade P&L and invested equity
 
-**Status:** Design only; no P&L posting or Kalshi settlement integration implemented.
-**Terminology:** A *trade event* is a `strategy_trades` row (Kalshi market/trade event). This is NOT a `strategy_events` row, which batches capital allocations or deallocations.
+## Current implementation (draft PR #39)
 
-## Existing authoritative models
+- `positions.allocated_usdc_micros` is current investor equity held inside the strategy, including previously settled net P&L. `positions.realized_pnl_usdc_micros` has been removed. Nonzero historical values of that legacy column block the migration rather than being erased.
+- `users.unallocated` represents master-wallet investor capital; available for both withdrawals and allocations is `max(0, unallocated - active allocation reservations - active withdrawal reservations)`. Portfolio balance is `unallocated + sum(position allocated)`. Reservation funds remain part of unallocated until custody confirmation.
+- `positions.status` is `OPEN | CLOSING | CLOSED`; an ordinary deallocation never closes. CLOSED is read-only history. The only supported close transition is an explicit close API. `last_pnl_updated` flags complete final P&L for a CLOSING position.
+- `strategy_trades.status` is `AWAITING_ALLOCATION | TRADING | SETTLED | ENDED (legacy) | ERROR` with `is_pnl_calculated`. Bot creates `AWAITING_ALLOCATION`; it may trade only once P&L cron snapshots eligible OPEN positions and sets `TRADING`; the bot supplies the independently finalized event outcome, sets `SETTLED`, and fills `settled_at` / `realized_pnl_usdc_micros`. A settled trade with `is_pnl_calculated=false` is eligible for processing.
+- `position_trade_pnl` snapshots each participating OPEN position's allocated capital before the bot may trade. Snapshot is immutable, uniquely identified by `(strategy_trade_id, position_id)`. Gross, fee and net realized micros are populated once per settled event.
+- `/api/internal/process-position-trade-pnl` runs every minute. It processes settled uncalculated trades ordered by event end time and deterministic tie-breakers, using signed integer micro-USDC, stable largest-remainder allocation, an event-snapshotted profit-share rate, and a serializable transaction. It increments/decrements affected `positions.allocated_usdc_micros`, posts each investor event, sets `is_pnl_calculated=true`, and when possible snapshots the next waiting event. No event with no eligible invested equity is released for trading.
+- New verified allocation custody completion debits `users.unallocated` and increments `positions.allocated_usdc_micros` atomically. Verified future deallocation completion must reverse these movements atomically. P&L does **not** credit `users.unallocated`: gains remain reinvested.
+- The shared strategy-row `FOR UPDATE` lock is used by the P&L worker, verified funding settlement, and explicit close request. Any future authenticated Kalshi deallocation settlement **must** acquire that same lock before updating `positions.allocated_usdc_micros`, and use guarded increment/decrement. Status claims are not sufficient protection from competing balance changes.
+- A CLOSING position is excluded from next trade exposure. Once all previously snapshotted event P&L is settled, `last_pnl_updated` becomes true and the closing deallocation coordinator creates a final full-balance DEALLOCATE request. That coordinator is **monitor-only for transfer submission** until authenticated Kalshi-to-master return is integrated. It does not credit unallocated or prematurely close nonzero positions.
+- User dashboard includes capital overview, settled event analytics, cumulative net P&L visualization and per-event historical table; authenticated CSV report is available from `/api/earn/reports/trade-pnl.csv`. A true historical portfolio valuation chart requires a verified valuation series; invested cash flows must not be represented as investment gains.
 
-- `strategy_trades` currently carries `realized_pnl_usdc_micros`, `profit` and `platform_profit_share`, plus market identifiers, contract costs, market start/end and `settled_at`.
-- `positions` has investor `principal_usdc_micros` and cumulative `realized_pnl_usdc_micros`.
-- `strategies.platform_profit_percentage` configures profit participation.
-- Completed funding and deallocation must establish ownership before eligible exposure changes.
+## Settlement safeguards and pending provider work
 
-## Proposed new model: position_trade_pnl
+1. Do not treat `SETTLED` alone as independent proof of Kalshi cash custody. The bot/provider integration must authenticate and verify a final event result before setting the status and amount. The cron **does not** fetch or authenticate Kalshi settlement events.
+2. The current deallocation transfer worker has no authenticated Kalshi return rail. Automatic closure amounts can be queued but no funds are credited until a verified source and destination custody receipt is processed. Closing remains in progress until that integration.
+3. Platform share is computed at event settlement but the future treasury/revenue reconciliation and pull-of-fees from Kalshi are separate concerns; never assume a platform fee was actually transferred to the master wallet just because a percentage was computed.
+4. Do not backfill or fabricate earlier event-level history for historic `ENDED` trades. Historical aggregate P&L must be reconciled before applying the removal migration.
+5. New provider corrections to already posted events require explicit reversed adjustments rather than mutation of settled attribution rows. Do not reapply the same event twice.
+6. Settlement of partial deallocation and P&L of already-exposed trades must be coordinated to avoid funding shortfalls. All cash movements are subject to verified custody.
 
-Exactly one row per (`strategy_trade_id`, `position_id`). It is created as an immutable exposure snapshot when the strategy commits capital to a market event, and enriched exactly once on authenticated/verified outcome settlement.
+## Operational
 
-| Column | Type | Meaning |
-|---|---|---|
-| id | text PK | Record ID |
-| strategy_trade_id | text FK strategy_trades | Trade / market event |
-| position_id | text FK positions | Investor economic ownership |
-| user_id | text FK users | Owner at snapshot; never infer from later changes |
-| strategy_id | varchar(64) FK strategies | Strategy scope for checks/reporting |
-| eligible_capital_usdc_micros | bigint >= 0 | Frozen capital basis at exposure cutoff |
-| allocation_weight_numerator | bigint >= 0 | Numerator of investor's exact share (usually same as eligible capital) |
-| allocation_weight_denominator | bigint > 0 | Sum of eligible capital across the snapshot |
-| gross_pnl_usdc_micros | bigint signed | This position's share of market-event P&L before platform share |
-| platform_fee_usdc_micros | bigint >= 0 | Fee assigned from positive event profit only |
-| net_pnl_usdc_micros | bigint signed | Gross P&L minus platform share |
-| status | enum SNAPSHOTTED / SETTLED | Accounting state |
-| created_at | timestamp | Snapshot creation |
-| settled_at | nullable timestamp | Immutable finalization |
-
-Unique constraint `(strategy_trade_id, position_id)`; indexes on `(user_id, created_at)`, `(strategy_id, strategy_trade_id)`.
-
-**Separate from the user's allocation/deallocation request table**: `position_events` describes capital movements; `position_trade_pnl` describes economic market results.
-
-## Proposed strategy_trades additions
-
-- `eligible_capital_usdc_micros` (bigint): frozen total positive investor capital eligible for this event.
-- `gross_pnl_usdc_micros` (signed bigint): provider-verified realized event P&L, after any specified market transaction costs.
-- `platform_fee_usdc_micros` (nonnegative bigint): platform's event-level share.
-- `investor_net_pnl_usdc_micros` (signed bigint): gross minus platform share.
-- `applied_platform_profit_percentage` (decimal): snapshotted profit percentage; later strategy setting edits cannot reprice old trades.
-- `pnl_status` enum OPEN / SNAPSHOTTED / SETTLED (or reuse trade lifecycle with an explicit posting marker).
-- `settlement_external_id` unique nullable, plus verified settled timestamp/evidence link for authenticated Kalshi reconciliation. Exact external receipt schema TBD.
-
-Existing ambiguous decimal `profit` and `platform_profit_share` should NOT be assumed to represent micro-USDC. Deprecate only after reconciling their existing meaning and migrating historical rows.
-
-## Exposure snapshot
-
-1. At the trading event's *effective exposure cutoff* (before placing the order), atomically capture every eligible ACTIVE position for that strategy. Only already COMPLETED funding is eligible. Uncompleted ALLOCATE or DEALLOCATE transfers do not silently change historical ownership.
-2. Freeze each position's capital basis and the strategy's applied fee rate. Capital moves after this point affect **future** trade events only.
-3. If a deallocation overlaps an open trade, enforce a trading policy: either lock its eligible capital until exposure closes, or explicitly record the fraction still exposed. A simple balance read at settlement time is **not** valid.
-4. If the event has no eligible capital, do not allocate it to investors. Flag for operational reconciliation.
-
-**Open design choice:** For v1, use frozen settled principal as the proportional weight (not an unverified position balance). If profits are reinvested/compounded, the weight must instead be frozen *eligible equity* accounting for retained realized P&L and withdrawals, which requires a separate position equity ledger. Decide before production.
-
-## Accounting and exact arithmetic
-
-All money is signed integer micro-USDC, with no floats for postings. For a verified event gross P&L `G`:
-
-- `platformFee = floor(max(G,0) * snapshottedFeePercentage / 100)`.
-- `investorNet = G - platformFee`. Negative P&L is borne by investors; no platform performance fee on a loss.
-- Distribute `G`, `platformFee`, and/or `investorNet` deterministically by frozen weights. Use integer quotient-and-remainder with a stable tie-breaker (e.g., ascending position ID) so *sum of child postings exactly equals each event total*, including negative G.
-- For each position: `net = gross - fee`. After verifying complete sums, update `positions.realized_pnl_usdc_micros += net` and insert an `investor_activity` record with a deterministic unique reference `trade-pnl:<strategy_trade_id>:<position_id>`.
-- The entire event posting (children, `strategy_trades` settlement, position aggregates, activity, and any *verified* fee / treasury movements) is one serializable transaction. Guard with conditional `OPEN/SNAPSHOTTED -> SETTLED` and database uniqueness: a duplicate result cannot post twice.
-- Separate **economic P&L recognition** from **physical funds settlement**: a Kalshi-reported win is not proof USDC is back in the master wallet. Investor balances, withdrawability and `treasuries` must follow verified custody movements and the chosen payout/reinvestment policy.
-
-### Illustrative allocation
-
-Two frozen positions: A = 600 USDC, B = 400 USDC. Gross market profit = +100 USDC, platform share = 20%.
-
-| Position | Share | Gross P&L | Platform share | Net investor P&L |
-|---|---:|---:|---:|---:|
-| A | 60% | +60 | 12 | +48 |
-| B | 40% | +40 | 8 | +32 |
-| **Total** | **100%** | **+100** | **20** | **+80** |
-
-If gross event result is -50 USDC, fee = 0; A = -30 and B = -20, assuming the same frozen weights.
-
-## Invariants / tests
-
-- Every `position_trade_pnl` snapshot belongs to same strategy as parent trade and investor position; reject mismatched strategy IDs.
-- Unique (trade, position) and unique provider settlement identity.
-- Child eligible-capital sum equals snapshotted strategy eligible capital.
-- Child gross sum == verified event gross; child fees == event fee; child net == event investor net; for each row gross - fee == net.
-- All settled rows immutable; replay of verified result makes no additional aggregate or activity changes.
-- Test concurrent trade settlement, concurrent funding/deallocation, missing receipts, late corrections, negative P&L, zero profit, rounding remainders, zero-capital event and position already CLOSED at settlement.
-- Corrections after settlement should use explicit reversal/adjustment records rather than editing history.
-
-## UI/reporting
-
-- Strategy event performance: trade/market name, date, total realized P&L, platform share, net investor P&L and settlement status.
-- Position: principal, cumulative realized net P&L, derived equity where supported, and an event-by-event chronological attribution table (gross, fee, net).
-- Never label an unrealized trade return as settled or withdrawable.
-
-## Gating decisions before implementation
-
-1. Are profits retained/compounded in position equity, distributed to unallocated balance, or held at Kalshi until deallocation?
-2. What exact cutoff determines investor participation when positions change near order execution?
-3. Are market fees already included in the Kalshi result, and is the platform percentage taken from **positive net** realized market P&L?
-4. What authenticated Kalshi evidence proves final trade P&L, and how are corrections/voided markets handled?
-
-No production migrations, provider integrations, or trading behavior should be changed solely on this document.
+Changes committed to the draft feature branch. Do not merge, deploy production, migrate production DB or enable real-money Kalshi trades without explicit operational approval and verification. The worker may be scheduled every minute but is not a provider authentication boundary.
