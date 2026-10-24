@@ -91,7 +91,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
      <div className="min-w-0"><dt className="flex items-center gap-2 text-xs text-[#64748B]"><span className="h-2 w-2 rounded-full bg-[#C7D2FE]"/>Unallocated</dt><dd className="mt-2 break-words text-lg font-semibold tabular-nums text-[#11263E] sm:text-xl">{formatUsdc(unallocated)}</dd><p className="mt-1 text-xs text-[#94A3B8]">{unallocatedPct.toFixed(1)}% of capital</p></div>
     </dl>
     <p className="mt-6 border-t border-[#EDF0F5] pt-4 text-xs leading-5 text-[#64748B]">Reserved: {formatUsdc(reserved)} · Pending withdrawal and allocation requests reduce spendable unallocated funds.</p>
-    <p className="mt-2 text-xs leading-5 text-[#94A3B8]">Percentages use allocated + unallocated capital, including retained settled P&amp;L.</p>
+    
     </div>
    </article>
   </section>
