@@ -1,15 +1,12 @@
 import {NextResponse} from "next/server";
 import {requireUser} from "@/lib/access";
 import {isValidSolanaAddress} from "@/lib/solana-address";
-import {estimateWithdrawalNetworkFee} from "@/lib/blockradar-withdrawal-fee";
+import {validateBlockradarSolanaAddress} from "@/lib/blockradar-address-validation";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 
-// Blockradar has a documented authenticated network-fee quotation endpoint,
-// not a confirmed stand-alone address-verification endpoint. A successful
-// quotation is a provider preflight check, NOT proof of wallet ownership,
-// destination screening or eventual payout success.
+// Blockradar validates the Solana public-key format, not wallet ownership or AML status.
 export async function POST(request:Request){
  await requireUser();
  if(process.env.BLOCKRADAR_WITHDRAWALS_ENABLED!=="true")
@@ -22,10 +19,10 @@ export async function POST(request:Request){
  if(!isValidSolanaAddress(address))
   return NextResponse.json({valid:false,error:"Enter a valid Solana wallet address"},{status:400,headers:{"Cache-Control":"no-store"}});
  try{
-  // Preflight a small 1 USDC transfer through the actual Blockradar Solana USDC
-  // fee-quotation API. No transfer or funds reservation is created.
-  await estimateWithdrawalNetworkFee(address,1000000n);
-  return NextResponse.json({valid:true,address,network:"solana",providerCheck:"fee_quote_accepted"},
+  const valid=await validateBlockradarSolanaAddress(address);
+  if(!valid)return NextResponse.json({valid:false,error:"Blockradar rejected this Solana address"},
+   {status:200,headers:{"Cache-Control":"no-store"}});
+  return NextResponse.json({valid:true,address,network:"solana",providerCheck:"address_validated"},
    {headers:{"Cache-Control":"no-store"}});
  }catch{
   // Errors, bad credentials, timeouts and provider rejection all fail closed.
