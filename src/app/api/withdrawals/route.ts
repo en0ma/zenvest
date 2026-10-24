@@ -36,6 +36,8 @@ export async function POST(request: Request) {
     // Re-quote server-side: never trust the browser's fee preview.
     const networkFee=await estimateWithdrawalNetworkFee(address,amount-WITHDRAWAL_FEE_USDC_MICROS);
     const {total:totalFee,net}=withdrawalFeeBreakdown(amount,networkFee);
+    if (net <= 0n || totalFee < WITHDRAWAL_FEE_USDC_MICROS || amount !== net + totalFee)
+      return NextResponse.json({error:"Invalid withdrawal amount or fee calculation"},{status:400});
     // Do not charge above the fee accepted in the UI; require a fresh quote instead.
     const acceptedFee=input.maxTotalFeeMicros;
     if(typeof acceptedFee!=="string"||!/^\d+$/.test(acceptedFee)||totalFee>BigInt(acceptedFee))
