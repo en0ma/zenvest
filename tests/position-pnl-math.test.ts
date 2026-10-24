@@ -23,3 +23,16 @@ test("rejects zero or duplicate eligible capital",()=>{
  assert.throws(()=>distributeWeightedMicros(1n,[{id:"a",eligibleCapitalUsdcMicros:0n}]));
  assert.throws(()=>distributeWeightedMicros(1n,[{id:"a",eligibleCapitalUsdcMicros:1n},{id:"a",eligibleCapitalUsdcMicros:1n}]));
 });
+
+test("financial fee rate validates precision, sign and maximum",()=>{
+ for(const invalid of ["101","1.00001","-0.1","+1","1e2"," 1","1.",".5","NaN"]){
+  assert.throws(()=>platformProfitFee(1000n,invalid),invalid);
+ }
+ assert.equal(platformProfitFee(123_456n,"0"),0n);
+ assert.equal(platformProfitFee(123_456n,"100.0000"),123_456n);
+ assert.equal(platformProfitFee(0n,"30.0000"),0n);
+ assert.equal(platformProfitFee(-123_456n,"30.0000"),0n);
+});
+test("invalid negative investor weights cannot receive profits",()=>{
+ assert.throws(()=>distributeWeightedMicros(3n,[{id:"a",eligibleCapitalUsdcMicros:-1n},{id:"b",eligibleCapitalUsdcMicros:2n}]));
+});
