@@ -70,14 +70,28 @@ try{
   "unconfirmed allocation cannot move investor funds");
  assert.equal(await processPendingAllocations(),"empty","submitted transfer cannot be re-sent");
  assert.equal(transfers,1);
+ const timedOut=await prisma.positionAllocation.create({data:{
+  userId:"ci_test_user",positionId,strategyId,kind:"ALLOCATE",
+  amountUsdcMicros:1500001n,status:"PENDING"
+ }});
+ mode="timeout";
+ assert.equal(await processPendingAllocations(),"review_pending",
+  "uncertain transfer outcome must never be silently resubmitted");
+ const review=await prisma.positionAllocation.findUniqueOrThrow({where:{id:timedOut.id}});
+ assert.equal(review.status,"REVIEW");
+ assert.ok(review.strategyEventId);
+ assert.equal(transfers,2);
+ assert.equal(await processPendingAllocations(),"empty");
+ assert.equal(transfers,2,"ambiguous allocation must not be resent");
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:"ci_test_user"}})).unallocated,before.unallocated);
  console.log("Allocation worker PostgreSQL lifecycle passed: insufficient custody retry, successful provider acceptance, no premature settlement, no resubmission");
 }finally{
  globalThis.fetch=realFetch;
  for(const [name,value] of [["BLOCK_RADAR_API_KEY",originalEnv.key],["BLOCK_RADAR_MASTER_WALLET_ID",originalEnv.wallet],["BLOCKRADAR_SOLANA_USDC_ASSET_ID",originalEnv.asset]]){
   if(value===undefined)delete process.env[name];else process.env[name]=value;
  }
- if(allocationId)await prisma.positionAllocation.deleteMany({where:{id:allocationId}});
- if(eventId)await prisma.strategyEvent.deleteMany({where:{id:eventId}});
+ await prisma.positionAllocation.deleteMany({where:{strategyId}});
+ await prisma.strategyEvent.deleteMany({where:{strategyId}});
  if(positionId)await prisma.investorPosition.deleteMany({where:{id:positionId}});
  await prisma.strategy.deleteMany({where:{id:strategyId}});
  await prisma.$disconnect();
