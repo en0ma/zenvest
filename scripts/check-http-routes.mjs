@@ -6,7 +6,7 @@ if (!process.env.DATABASE_URL?.includes("zenvest_ci")) throw new Error("Refusing
 const port=33891;
 const base="http://127.0.0.1:"+port;
 const child=spawn(process.execPath,["node_modules/next/dist/bin/next","start","-p",String(port)],{
- env:{...process.env,NODE_ENV:"production",NEXTAUTH_URL:base},stdio:["ignore","pipe","pipe"]
+ env:{...process.env,NODE_ENV:"production",NEXTAUTH_URL:base,NEXTAUTH_SECRET:"local-ci-only-secret-value"},stdio:["ignore","pipe","pipe"]
 });
 let startupLog="";
 for(const stream of [child.stdout,child.stderr])stream.on("data",chunk=>{
