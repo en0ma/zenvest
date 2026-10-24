@@ -85,6 +85,21 @@ try{
    assert.equal(await db.blockchainDeposit.count({where:{providerTransactionId:providerTx}}),0,
     "mismatched custody identities must not persist a deposit");
   }
+  // Reject counterfeit mint, wrong precision, unsupported network and
+  // unconfirmed custody even when a registered address is supplied.
+  for(const bad of [
+   {...data,asset:{...data.asset,address:"foreign-mint"}},
+   {...data,asset:{...data.asset,decimals:9}},
+   {...data,network:"mainnet"},
+   {...data,confirmed:false},
+   {...data,status:"PENDING"},
+   {...data,amount:"0"},
+  ]){
+   assert.equal((await call({event:"deposit.success",data:bad})).status,200,
+    "ineligible signed events are safely ignored");
+   assert.equal(await db.blockchainDeposit.count({where:{providerTransactionId:providerTx}}),0,
+    "invalid custody evidence may not record a financial deposit");
+  }
   const amountBefore=(await db.user.findUniqueOrThrow({where:{id:userId}})).unallocated;
   assert.equal((await call({event:"deposit.success",data})).status,200);
   assert.equal((await db.blockchainDeposit.findUniqueOrThrow({where:{providerTransactionId:providerTx}})).status,"CONFIRMING");
