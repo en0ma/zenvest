@@ -88,7 +88,9 @@ try{
  assert.equal(ledger.amountUsdcMicros,5000001n);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,92999999n,
   "confirmed settlement must debit the gross amount including fixed fee exactly once");
- assert.equal(await handleWithdrawalWebhook("withdraw.success",signedData,deposit.walletId),"duplicate");
+ const parallelDuplicates=await Promise.all(Array.from({length:6},()=>handleWithdrawalWebhook("withdraw.success",signedData,deposit.walletId)));
+ assert.deepEqual(parallelDuplicates,Array(6).fill("duplicate"),
+  "simultaneous redelivery after settlement must remain idempotent");
  assert.equal(await prisma.treasuryTransfer.count({where:{reference:"withdrawal:"+successId}}),1);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,92999999n,
   "replayed trusted callback cannot debit funds again");
