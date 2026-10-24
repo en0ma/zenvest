@@ -61,6 +61,11 @@ try{
  await prisma.actionToken.create({data:{userId,purpose:"VERIFY_EMAIL",hash:digest(expired),expiresAt:new Date(Date.now()-60000)}});
  assert.equal((await confirm(request({token:expired,purpose:"VERIFY_EMAIL"}))).status,400,
   "expired verification token must never activate account");
+ const expiredReset="f".repeat(64);
+ await prisma.actionToken.create({data:{userId,purpose:"RESET_PASSWORD",hash:digest(expiredReset),expiresAt:new Date(Date.now()-60000)}});
+ const versionBeforeExpiry=(await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion;
+ assert.equal((await confirm(request({token:expiredReset,purpose:"RESET_PASSWORD",password:"NewPass123!"}))).status,400);
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion,versionBeforeExpiry);
  const reset="c".repeat(64);
  const sessionBefore=(await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion;
  await prisma.actionToken.create({data:{userId,purpose:"RESET_PASSWORD",hash:digest(reset),expiresAt:new Date(Date.now()+600000)}});
