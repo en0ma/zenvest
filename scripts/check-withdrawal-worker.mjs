@@ -194,19 +194,18 @@ try{
  assert.equal(transfers-beforeCompetingTransfers,1);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,beforeInterrupted-7000001n,
   "claiming or submitting must not debit investor capital before verified settlement");
- // A corrupt pending withdrawal must fail its claim before contacting the provider.
+ // PostgreSQL itself rejects inconsistent net/gross/fee rows, even if an
+ // upstream application validation regression were introduced.
  const invalidId="cworkerinvalidtotals00005";
- await prisma.investorWithdrawal.create({data:{
+ const transfersBeforeInvalid=transfers;
+ await assert.rejects(prisma.investorWithdrawal.create({data:{
   id:invalidId,userId,amountUsdcMicros:5000001n,grossUsdcMicros:7000002n,
   feeUsdcMicros:2000000n,destinationAddress:"11111111111111111111111111111111",
   status:"PENDING",createdAt:new Date("1991-01-01T00:00:00Z")
- }});
- const transfersBeforeInvalid=transfers;
- await assert.rejects(processPendingWithdrawal(),/Withdrawal totals mismatch/,
-  "worker must reject inconsistent gross, net and fee arithmetic");
- assert.equal(transfers,transfersBeforeInvalid,"invalid totals must not reach provider");
- assert.equal((await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:invalidId}})).status,"PENDING");
- await prisma.investorWithdrawal.delete({where:{id:invalidId}});
+ }}),/withdrawal_gross_net_fee/,
+  "DB constraint must reject impossible withdrawal arithmetic");
+ assert.equal(await prisma.investorWithdrawal.count({where:{id:invalidId}}),0);
+ assert.equal(transfers,transfersBeforeInvalid);
  // Reserved withdrawals must not claim an operation exceeding investor capital.
  const overdrawId="cworkeroverdraw00000006";
  await prisma.investorWithdrawal.create({data:{
@@ -214,10 +213,13 @@ try{
   feeUsdcMicros:2000000n,destinationAddress:"11111111111111111111111111111111",
   status:"PENDING",createdAt:new Date("1991-01-01T00:00:00Z")
  }});
- await assert.rejects(processPendingWithdrawal(),/User funds are not available/,
-  "reserved balance cannot be spent twice");
+ assert.equal(await processPendingWithdrawal(),"failed_validation",
+  "worker must terminally reject requests invalidated by subsequent balance holds");
  assert.equal(transfers,transfersBeforeInvalid,"insufficient available funds must not submit a payout");
- assert.equal((await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:overdrawId}})).status,"PENDING");
+ const overdraw=await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:overdrawId}});
+ assert.equal(overdraw.status,"FAILED");
+ assert.equal(overdraw.failureCode,"INSUFFICIENT_AVAILABLE_FUNDS");
+ assert.equal(await processPendingWithdrawal(),"empty","failed operation must not be retried");
  await prisma.investorWithdrawal.delete({where:{id:overdrawId}});
  console.log("Withdrawal worker PostgreSQL lifecycle passed: custody preflight, successful provider acceptance, unknown response enters REVIEW, signed settlement, one ledger entry, replay-safe gross debit");
 }finally{
