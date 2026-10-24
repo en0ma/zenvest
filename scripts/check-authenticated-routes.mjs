@@ -48,8 +48,13 @@ try{
   "investor cannot allocate into someone else's position");
  assert.equal(await prisma.positionAllocation.count({where:{userId}}),1,
   "failed requests cannot persist allocation records");
+ const outside=await prisma.investorPosition.create({data:{userId:"ci_test_user",strategyId,allocatedUsdcMicros:2500000n}});
  const pos=await prisma.investorPosition.create({data:{userId,strategyId,allocatedUsdcMicros:4000000n}});
  const call=(handler,payload)=>handler(new Request("http://ci.local/test",{method:"POST",body:typeof payload==="string"?payload:JSON.stringify(payload)}));
+ assert.equal((await call(deallocate,{positionId:outside.id,amount:"1.000000"})).status,409,
+  "another investor's position cannot be reduced");
+ assert.equal((await call(closePosition,{positionId:outside.id})).status,409,
+  "another investor's position cannot be closed");
  assert.equal((await call(deallocate,{positionId:pos.id,amount:"4.000001"})).status,409);
  const response=await call(deallocate,{positionId:pos.id,amount:"2.000001"});
  assert.equal(response.status,201);
@@ -76,6 +81,7 @@ try{
  console.log("Authenticated-context allocation API source integration passed: validation, real PostgreSQL creation, capacity/ownership rejection, no premature debit");
 }finally{
  await prisma.positionAllocation.deleteMany({where:{userId}});
+ await prisma.investorPosition.deleteMany({where:{strategyId,userId:"ci_test_user"}});
  await prisma.investorPosition.deleteMany({where:{userId}});
  await prisma.strategy.deleteMany({where:{id:strategyId}});
  await prisma.user.deleteMany({where:{id:userId}});
