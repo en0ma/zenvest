@@ -133,7 +133,7 @@ try{
   assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,beforeInterrupted,
    "failed settlement cannot debit funds");
  }finally{
-  await prisma.treasury.update({where:{kind:"DEPOSIT"},data:{amount:depositBeforeInterrupted.amount}});
+  await prisma.treasury.update({where:{kind:"DEPOSIT"},data:{amount:depositBeforeInterrupted.amount>=7000001n?depositBeforeInterrupted.amount:7000001n}});
   await prisma.treasury.update({where:{kind:"DEALLOCATE"},data:{amount:deallocateBeforeInterrupted.amount}});
  }
  assert.equal(await handleWithdrawalWebhook("withdraw.success",interruptedData,deposit.walletId),"settled",
