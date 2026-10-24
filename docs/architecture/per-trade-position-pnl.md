@@ -32,11 +32,9 @@ Changes committed to the draft feature branch. Do not merge, deploy production, 
 - Integration fixture verifies incorrect return amounts do not settle, full authenticated return closes CLOSING positions, and replayed receipts never credit users again.
 - Dashboard now reports settled event daily/weekly/monthly USDC net P&L, win rate (excluding zero-result events), per-position aggregate, platform fees, best and worst realized trade, cumulative realized P&L chart, and authenticated CSV. Percentage period returns and historical portfolio market valuations are intentionally **not** invented without time-weighted cash-flow / valuation evidence.
 
-## Hourly portfolio snapshots
 
-A separate `portfolio_snapshots` table records one observation per investor per UTC hour. The `position_trade_pnl` schema is unchanged.
+## Historical performance without periodic snapshots
 
-- Scheduled route: `/api/internal/snapshot-portfolios` at `0 * * * *`, authenticated with `CRON_SECRET`.
-- Captures settled invested equity (`sum(positions.allocated_usdc_micros)`), unallocated funds, pending withdrawal + allocation reservations, total portfolio value, and cumulative settled investor net P&L.
-- Serializable per-user reads and a unique `(user_id,snapshot_at)` enforce consistent, idempotent snapshots. Failed users are retried on another invocation within the same hour; past missed hours are not fabricated.
-- These are **hourly observations**, not exact cash-flow boundary valuations. They support portfolio value trends and clearly labeled approximate interval returns, but cannot alone establish exact time-weighted performance when external deposits/withdrawals occur between samples. Live unrealized value is not included until a verified live valuation source exists.
+No `portfolio_snapshots` table or hourly cron is used. Settled portfolio history is reconstructed from the investor's confirmed deposits (`credited_at`), completed gross withdrawals (`completed_at`), and settled `position_trade_pnl` records (`settled_at`). This is a settled-equity view; allocations/deallocations only move capital within the portfolio and are not external cash flows. The historical reconstruction checks that the complete event deltas reconcile to the current total allocated + unallocated equity with a zero opening balance, otherwise suppresses the curve and returns rather than silently fabricate historical values. Other financial adjustments must have corresponding traceable entries before historical analytics can cover them.
+
+The dashboard reports (1) settled-equity event-based time-weighted returns, excluding external cash flows and compounding investment P&L, and (2) a plainly labeled cumulative P&L / confirmed deposits ratio, which is **not** a time-weighted return. Event times are limited by available provider settlement timestamps; unobserved intratrade mark-to-market value and exact provider timing within same-timestamp transactions cannot be inferred. If a strategy later exposes reliable live unrealized valuation, that requires a separate valuation data source.
