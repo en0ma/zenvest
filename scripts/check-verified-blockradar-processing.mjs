@@ -74,14 +74,14 @@ try{
    address:{id:"ci-verified-address-id",address}
   };
   // Provider wallet and address identity must match our durable wallet binding.
-  for(const altered of [
-   {...data,address:{id:"different-provider-address",address}},
-   {...data,wallet:{id:"untrusted-master",address:masterAddress}},
-   {...data,recipientAddress:"different-recipient"},
+  for(const [altered,expectedStatus] of [
+   [{...data,address:{id:"different-provider-address",address}},422],
+   [{...data,wallet:{id:"untrusted-master",address:masterAddress}},200],
+   [{...data,recipientAddress:"different-recipient"},422],
   ]){
    const rejected=await call({event:"deposit.success",data:altered});
-   assert.ok([200,422].includes(rejected.status),
-    "invalid provider identity must not create a settleable deposit");
+   assert.equal(rejected.status,expectedStatus,
+    "invalid provider identity must be rejected by the proper route guard");
    assert.equal(await db.blockchainDeposit.count({where:{providerTransactionId:providerTx}}),0,
     "mismatched custody identities must not persist a deposit");
   }
