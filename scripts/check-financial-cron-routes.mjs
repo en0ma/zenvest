@@ -28,6 +28,33 @@ try{
   const invalid=await GET(new Request("https://ci.invalid/internal",{headers:{authorization:"Bearer wrong"}}));
   assert.equal(invalid.status,401,path+" must reject incorrect cron authorization");
  }
+ // Authenticated worker endpoint must execute the real worker against CI
+ // PostgreSQL and report its outcome without exposing cacheable responses.
+ const priorKey=process.env.BLOCK_RADAR_API_KEY;
+ const priorWallet=process.env.BLOCK_RADAR_MASTER_WALLET_ID;
+ const priorAsset=process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID;
+ const {PrismaClient}=await import("@prisma/client");
+ const db=new PrismaClient();
+ try{
+  const master=await db.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}});
+  process.env.BLOCK_RADAR_API_KEY="ci-worker-route";
+  process.env.BLOCK_RADAR_MASTER_WALLET_ID=master.walletId;
+  process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID="ci-usdc";
+  const {GET:processWithdrawals}=await import("../src/app/api/internal/process-withdrawals/route.ts");
+  const authorized=new Request("https://ci.invalid/internal/process-withdrawals",{
+   headers:{authorization:"Bearer ci-cron-route-secret"}});
+  const response=await processWithdrawals(authorized);
+  assert.equal(response.status,200);
+  assert.equal((await response.json()).outcome,"empty");
+  assert.equal(response.headers.get("cache-control"),"no-store");
+ }finally{
+  await db.$disconnect();
+  for(const [key,val] of [
+   ["BLOCK_RADAR_API_KEY",priorKey],
+   ["BLOCK_RADAR_MASTER_WALLET_ID",priorWallet],
+   ["BLOCKRADAR_SOLANA_USDC_ASSET_ID",priorAsset]
+  ]){if(val===undefined)delete process.env[key];else process.env[key]=val;}
+ }
  console.log("Financial worker cron route authentication passed");
 }finally{
  if(previous===undefined)delete process.env.CRON_SECRET;else process.env.CRON_SECRET=previous;
