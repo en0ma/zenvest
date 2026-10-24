@@ -20,7 +20,7 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
   prisma.investorPosition.findMany({where:{userId:user.id}}),
   prisma.investorDepositWallet.findUnique({where:{userId:user.id}}),
   prisma.blockchainDeposit.count({where:{wallet:{userId:user.id}}}),
-  prisma.investorWithdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
+  prisma.withdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
   prisma.positionAllocation.aggregate({where:{userId:user.id,kind:"ALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
  ]);
  const pages=Math.max(1,Math.ceil(depositCount/PAGE_SIZE));
