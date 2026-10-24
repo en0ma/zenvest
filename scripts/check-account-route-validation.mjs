@@ -145,6 +145,41 @@ try{
  assert.equal(await consumeToken(staleLink,"RESET_PASSWORD","ci-untrusted-password"),false,
   "an older reset link cannot change credentials after a successful reset");
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).passwordHash,"ci-raced-hashed-password");
+ // Exercise the production token issuer rather than only inserting fixtures.
+ // Reset issuance must replace every older reset token and roll back consumption
+ // if the caller fails to supply a new password hash.
+ const {issueToken,tokenLink}=await import("../src/lib/account-tokens.ts");
+ const resetIssued=await issueToken(userId,"RESET_PASSWORD");
+ assert.match(resetIssued,/^[a-f0-9]{64}$/);
+ assert.equal(await prisma.actionToken.count({where:{userId,purpose:"RESET_PASSWORD"}}),1);
+ const issuedRow=await prisma.actionToken.findUniqueOrThrow({where:{hash:digest(resetIssued)}});
+ assert.equal(issuedRow.purpose,"RESET_PASSWORD");
+ assert.ok(issuedRow.expiresAt.getTime()-Date.now()>29*60*1000);
+ const beforeMissingHash=(await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion;
+ await assert.rejects(consumeToken(resetIssued,"RESET_PASSWORD"),/Password hash required/);
+ assert.equal(await prisma.actionToken.count({where:{hash:digest(resetIssued)}}),1,
+  "reset token deletion must roll back when password hash is missing");
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion,beforeMissingHash);
+ assert.equal(await consumeToken(resetIssued,"RESET_PASSWORD","ci-issued-reset-hash"),true);
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion,beforeMissingHash+1);
+ assert.equal(await prisma.actionToken.count({where:{userId,purpose:"RESET_PASSWORD"}}),0);
+ const verifyIssued=await issueToken(userId,"VERIFY_EMAIL");
+ assert.match(verifyIssued,/^[a-f0-9]{64}$/);
+ const verifyRow=await prisma.actionToken.findUniqueOrThrow({where:{hash:digest(verifyIssued)}});
+ assert.ok(verifyRow.expiresAt.getTime()-Date.now()>23*60*60*1000,
+  "verification links should have a 24-hour lifetime");
+ assert.equal(await prisma.actionToken.count({where:{userId,purpose:"VERIFY_EMAIL",consumedAt:null,expiresAt:{gt:new Date()}}}),1,
+  "a new verification link expires all older unconsumed verification links");
+ const priorOrigin=process.env.NEXTAUTH_URL;
+ try{
+  process.env.NEXTAUTH_URL="https://ci.invalid";
+  const link=tokenLink("/account/activate",verifyIssued);
+  assert.equal(new URL(link).origin,"https://ci.invalid");
+  assert.equal(new URL(link).searchParams.get("token"),verifyIssued);
+ }finally{
+  if(priorOrigin===undefined)delete process.env.NEXTAUTH_URL;
+  else process.env.NEXTAUTH_URL=priorOrigin;
+ }
  console.log("Account token lifecycle passed: purpose isolation, single use and verified state");
 }finally{
  await prisma.actionToken.deleteMany({where:{userId}});
