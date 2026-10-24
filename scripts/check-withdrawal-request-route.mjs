@@ -28,6 +28,14 @@ try{
   assert.match(String(url),/\/withdraw\/network-fee$/);
   return Response.json({data:{networkFeeInUSD:"0.100000"}});
  };
+ const estimate=data=>estimateFee(new Request("http://ci.local/api/withdrawals/estimate-fee",{method:"POST",body:typeof data==="string"?data:JSON.stringify(data)}));
+ assert.equal((await estimate("{bad")).status,400);
+ assert.equal((await estimate({amount:"0",address})).status,400);
+ assert.equal((await estimate({amount:"5.000000",address:"invalid"})).status,400);
+ const quote=await estimate({amount:"5.000000",address});
+ assert.equal(quote.status,200);
+ assert.equal(quote.headers.get("cache-control"),"no-store");
+ assert.deepEqual(await quote.json(),{serviceFeeMicros:"2000000",networkFeeMicros:"100000",totalFeeMicros:"2100000",netMicros:"2900000"});
  assert.equal((await call("{bad")).status,400);
  assert.equal((await call({amount:"0",address})).status,400);
  assert.equal((await call({amount:"2.000000",address})).status,400);
