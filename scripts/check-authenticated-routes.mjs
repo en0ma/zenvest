@@ -74,6 +74,9 @@ try{
  assert.equal((await (await call(closePosition,{positionId:zero.id})).json()).status,"closed");
  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:zero.id}})).status,"CLOSED");
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,15000000n);
+ const cancelResponse=await cancelWithdrawal();
+ assert.equal(cancelResponse.status,410,"investor must not cancel reserved withdrawal");
+ assert.match((await cancelResponse.json()).error,/cannot be cancelled/);
  const csvResponse=await csvReport();
  assert.equal(csvResponse.status,200);
  assert.match(csvResponse.headers.get("content-type"),/text\/csv/);
