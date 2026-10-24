@@ -33,7 +33,7 @@ async function settleTrade(id:string){
   return withStrategyLock(tx,trade.strategyId,async()=>{
    const previous=await tx.strategyTrade.findFirst({where:{
     strategyId:trade.strategyId,id:{not:id},createdAt:{lt:trade.createdAt},
-    OR:[{status:{not:"SETTLED"}},{isPnlCalculated:false}]
+    OR:[{status:{in:["AWAITING_ALLOCATION","TRADING","ERROR"]}},{status:"SETTLED",isPnlCalculated:false}]
    }});
    if(previous)return "waiting_for_prior_event";
    if(trade.realizedPnlUsdcMicros===null||!trade.settledAt) return "awaiting_verified_result";
@@ -78,7 +78,7 @@ async function prepareTrade(id:string){
   if(!trade||trade.status!=="AWAITING_ALLOCATION")return "already_prepared";
   return withStrategyLock(tx,trade.strategyId,async()=>{
    const earlier=await tx.strategyTrade.findFirst({where:{strategyId:trade.strategyId,id:{not:id},
-    createdAt:{lt:trade.createdAt},OR:[{status:{not:"SETTLED"}},{isPnlCalculated:false}]}});
+    createdAt:{lt:trade.createdAt},OR:[{status:{in:["AWAITING_ALLOCATION","TRADING","ERROR"]}},{status:"SETTLED",isPnlCalculated:false}]}});
    if(earlier)return "waiting_for_prior_event";
    const positions=await tx.investorPosition.findMany({where:{strategyId:trade.strategyId,status:"OPEN",
     allocatedUsdcMicros:{gt:0}},orderBy:{id:"asc"}});
