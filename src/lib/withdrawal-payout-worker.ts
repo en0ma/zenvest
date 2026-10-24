@@ -35,15 +35,22 @@ export async function processPendingWithdrawal(){
  const claim=await prisma.$transaction(async tx=>{
   const current=await tx.investorWithdrawal.findUnique({where:{id:candidate.id}});
   if(!current||current.status!=="PENDING"||current.treasuryTransactionId)return false;
-  if(current.grossUsdcMicros!==current.amountUsdcMicros+current.feeUsdcMicros||current.feeUsdcMicros<WITHDRAWAL_FEE_USDC_MICROS)throw new Error("Withdrawal totals mismatch");
+  if(current.grossUsdcMicros!==current.amountUsdcMicros+current.feeUsdcMicros||current.feeUsdcMicros<WITHDRAWAL_FEE_USDC_MICROS){
+   await tx.investorWithdrawal.update({where:{id:current.id},data:{status:"FAILED",failureCode:"INVALID_WITHDRAWAL_TOTALS"}});
+   return "failed_validation";
+  }
   const balance=await tx.user.findUniqueOrThrow({where:{id:current.userId}});
   const pending=await tx.investorWithdrawal.aggregate({where:{userId:current.userId,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]},id:{not:current.id}},_sum:{grossUsdcMicros:true}});
   const allocations=await tx.positionAllocation.aggregate({where:{userId:current.userId,kind:"ALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}},_sum:{amountUsdcMicros:true}});
-  if(balance.unallocated-current.grossUsdcMicros-(pending._sum.grossUsdcMicros??0n)-(allocations._sum.amountUsdcMicros??0n)<0n)throw new Error("User funds are not available");
+  if(balance.unallocated-current.grossUsdcMicros-(pending._sum.grossUsdcMicros??0n)-(allocations._sum.amountUsdcMicros??0n)<0n){
+   await tx.investorWithdrawal.update({where:{id:current.id},data:{status:"FAILED",failureCode:"INSUFFICIENT_AVAILABLE_FUNDS"}});
+   return "failed_validation";
+  }
   const locked=await tx.investorWithdrawal.updateMany({where:{id:current.id,status:"PENDING",treasuryTransactionId:null},data:{status:"SUBMITTING"}});
   if(locked.count!==1)return false;
   return true;
  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
+ if(claim==="failed_validation")return "failed_validation";
  if(!claim)return "already_claimed";
  // Preflight uses the already-approved withdrawal fee. No additional quote here.
  // The master must hold at least the funds accounted for in DEPOSIT +
