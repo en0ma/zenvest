@@ -47,6 +47,14 @@ try{
   assert.equal(response.status,200);
   assert.equal((await response.json()).outcome,"empty");
   assert.equal(response.headers.get("cache-control"),"no-store");
+  // An empty, authenticated webhook queue may be polled safely without
+  // touching provider networks or posting any financial transfers.
+  const {GET:processWebhooks}=await import("../src/app/api/internal/process-webhook-queue/route.ts");
+  const webhookResponse=await processWebhooks(authorized);
+  assert.equal(webhookResponse.status,200);
+  assert.equal(webhookResponse.headers.get("cache-control"),"no-store");
+  assert.ok((await webhookResponse.json()).outcome!==undefined);
+
  }finally{
   await db.$disconnect();
   for(const [key,val] of [
