@@ -120,12 +120,15 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
   <section className="grid gap-4 sm:grid-cols-3" aria-label="Trade analytics">
   {[{label:"Settled events",value:String(settled.length)},{label:"Event win rate",value:winning+losing>0?(winning*100/(winning+losing)).toFixed(1)+"%":"—"},{label:"Last 30 days net P&L",value:formatUsdc(lastThirty)}].map(x=><article key={x.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5"><p className="text-sm text-[#64748B]">{x.label}</p><p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p></article>)}
   </section>
-  <section aria-label="Detailed trading statistics" className="grid gap-4 sm:grid-cols-2">
-   {[{label:"Best settled event",value:best===null?"—":formatUsdc(best)},
-     {label:"Worst settled event",value:worst===null?"—":formatUsdc(worst)}].map(x=>
-     <article key={x.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5">
-      <p className="text-sm text-[#64748B]">{x.label}</p><p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p>
-     </article>)}
+  <section aria-label="Detailed trading statistics" className="rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
+   <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
+    {[{label:"Best settled event",value:best===null?"—":formatUsdc(best)},
+      {label:"Worst settled event",value:worst===null?"—":formatUsdc(worst)}].map((x,index)=>
+     <div key={x.label} className={index===1?"border-t border-[#EDF0F5] pt-5 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0":""}>
+      <p className="text-sm text-[#64748B]">{x.label}</p>
+      <p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p>
+     </div>)}
+   </div>
   </section>
   <section aria-label="Position performance" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <h2 className="text-lg font-semibold text-[#11263E]">Position performance</h2>
