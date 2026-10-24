@@ -67,6 +67,12 @@ try{
  assert.equal((await (await call(closePosition,{positionId:zero.id})).json()).status,"closed");
  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:zero.id}})).status,"CLOSED");
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,15000000n);
+ assert.equal((await call(deallocate,"{malformed")).status,400);
+ assert.equal((await call(deallocate,{positionId:zero.id,amount:"0"})).status,400);
+ assert.equal((await call(deallocate,{positionId:zero.id,amount:"0.000001"})).status,409);
+ assert.equal((await call(closePosition,"{malformed")).status,400);
+ assert.equal((await call(closePosition,{positionId:zero.id})).status,409);
+ assert.equal((await (await call(closePosition,{positionId:pos.id})).json()).status,"already_closing");
  console.log("Authenticated-context allocation API source integration passed: validation, real PostgreSQL creation, capacity/ownership rejection, no premature debit");
 }finally{
  await prisma.positionAllocation.deleteMany({where:{userId}});
