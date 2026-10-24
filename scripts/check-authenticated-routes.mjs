@@ -73,6 +73,11 @@ try{
  assert.equal((await (await call(closePosition,{positionId:zero.id})).json()).status,"closed");
  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:zero.id}})).status,"CLOSED");
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,15000000n);
+ const csvResponse=await csvReport();
+ assert.equal(csvResponse.status,200);
+ assert.match(csvResponse.headers.get("content-type"),/text\/csv/);
+ assert.equal(csvResponse.headers.get("cache-control"),"private, no-store");
+ assert.match(await csvResponse.text(),/^settled_utc,position_id,trade_id,market_event,eligible_usdc,gross_pnl_usdc,platform_fee_usdc,net_pnl_usdc\n/);
  assert.equal((await call(deallocate,"{malformed")).status,400);
  assert.equal((await call(deallocate,{positionId:zero.id,amount:"0"})).status,400);
  assert.equal((await call(deallocate,{positionId:zero.id,amount:"0.000001"})).status,409);
