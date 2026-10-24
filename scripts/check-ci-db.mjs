@@ -8,7 +8,9 @@ try {
  assert.equal(user.unallocated,123_000_000n);
  const position=await prisma.investorPosition.findUniqueOrThrow({where:{id:"ci_test_position"},include:{strategy:true}});
  assert.equal(position.strategy.name,"CI Test Strategy");
- assert.equal(position.principalUsdcMicros,25_000_000n);
+ assert.equal(position.allocatedUsdcMicros,25_000_000n);
+ assert.equal(position.status,"OPEN");
+ assert.equal(position.lastPnlUpdated,false);
  const buckets=await prisma.treasury.findMany({orderBy:{kind:"asc"}});
  assert.equal(buckets.length,7);
  assert.deepEqual(buckets.map(x=>x.kind).sort(),["ALLOCATE","DEALLOCATE","DEPOSIT","DEPOSIT_FEE","K_BANK","M_BANK","WITHDRAWAL_FEE"].sort());
@@ -19,7 +21,7 @@ try {
  }
  const schemaTables=await prisma.$queryRawUnsafe(`SELECT tablename FROM pg_tables WHERE schemaname='public'`);
  const tableNames=new Set(schemaTables.map(x=>x.tablename));
- for(const name of ["users","deposits","user_wallets","withdrawals","positions","position_events","strategy_events","strategy_trades","strategies","treasuries","treasury_transactions","webhook_dead_later"])assert.ok(tableNames.has(name),name);
+ for(const name of ["users","deposits","user_wallets","withdrawals","positions","position_events","strategy_events","strategy_trades","position_trade_pnl","strategies","treasuries","treasury_transactions","webhook_dead_later"])assert.ok(tableNames.has(name),name);
  for(const obsolete of ["investor_portfolios","master_wallet_balances","bot_status","active_bot_trade","withdrawal_deallocations","position_allocations","position_deallocations","position_event_requests"])assert.ok(!tableNames.has(obsolete),obsolete);
  const nonWebhookKeys=await prisma.$queryRawUnsafe(`SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public' AND column_name='idempotency_key' AND table_name <> 'webhook_queue'`);
  assert.equal(nonWebhookKeys.length,0,"only webhook_queue may have an idempotency_key column");
@@ -264,7 +266,7 @@ try {
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,balanceBeforeSource);
  for(const {pos,operation} of children){
   assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:operation.id}})).status,"CONFIRMING");
-  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:pos.id}})).principalUsdcMicros,0n);
+  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:pos.id}})).allocatedUsdcMicros,0n);
  }
  assert.equal(await handleAllocationWebhook("withdraw.failed",{...data,status:"FAILED"},masterWalletId),"requires_reconciliation");
  assert.equal(await handleAllocationWebhook("withdraw.success",{...data,id:"wrong-provider"},masterWalletId),"mismatch");
@@ -288,7 +290,7 @@ try {
  assert.equal((await prisma.treasuryTransfer.findUniqueOrThrow({where:{id:source.treasuryTransactionId}})).destinationExternalId,verified.kalshiTransactionId);
  for(const {pos,operation} of children){
   assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:operation.id}})).status,"COMPLETED");
-  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:pos.id}})).principalUsdcMicros,operation.amountUsdcMicros);
+  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:pos.id}})).allocatedUsdcMicros,operation.amountUsdcMicros);
  }
  console.log("Strategy source-only confirmation, duplicate, mismatch, and financial conservation passed");
  console.log("CI PostgreSQL transaction rollback, uniqueness and idempotent settlement assertions passed");
