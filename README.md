@@ -1,5 +1,9 @@
 # Zenvest
 
+[![Zenvest CI](https://github.com/en0ma/zenvest/actions/workflows/ci.yml/badge.svg?branch=feat%2Fearn-investor-positions)](https://github.com/en0ma/zenvest/actions/workflows/ci.yml)
+
+**Test coverage:** CI calculates line, branch, function, and statement coverage on every PR and publishes the current percentages in a continuously updated PR comment and the run's **Summary** tab. Download the `zenvest-coverage` Actions artifact for LCOV data. The CI badge reports build/test status, not a coverage threshold; coverage is currently informational.
+
 Nigerian-naira-denominated investment operations portal (development prototype).
 
 ## Status
