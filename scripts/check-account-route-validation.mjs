@@ -42,6 +42,14 @@ try{
  assert.equal((await first.json()).ok,true);
  assert.ok((await prisma.user.findUniqueOrThrow({where:{id:userId}})).emailVerifiedAt);
  assert.equal((await confirm(request({token,purpose:"VERIFY_EMAIL"}))).status,400);
+ const {POST:requestLink}=await import("../src/app/api/account/request-link/route.ts");
+ const callLink=(payload)=>requestLink(new Request("https://ci.invalid/api/account/request-link",{method:"POST",body:JSON.stringify(payload)}));
+ const unknown=await callLink({email:"absent-ci-account@example.invalid",purpose:"RESET_PASSWORD"});
+ assert.equal(unknown.status,200);
+ const active=await callLink({email:"ci-account-validation@example.invalid",purpose:"VERIFY_EMAIL"});
+ assert.equal(active.status,200);
+ assert.deepEqual(await active.json(),await unknown.json(),"account existence must not leak");
+ assert.equal(await prisma.actionToken.count({where:{userId}}),1,"verified investor must not receive another verification token");
  const reset="c".repeat(64);
  const sessionBefore=(await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion;
  await prisma.actionToken.create({data:{userId,purpose:"RESET_PASSWORD",hash:digest(reset),expiresAt:new Date(Date.now()+600000)}});
