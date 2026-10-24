@@ -106,10 +106,16 @@ try{
  const reset="c".repeat(64);
  const sessionBefore=(await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion;
  await prisma.actionToken.create({data:{userId,purpose:"RESET_PASSWORD",hash:digest(reset),expiresAt:new Date(Date.now()+600000)}});
- const resetResponse=await confirm(request({token:reset,purpose:"RESET_PASSWORD",password:"NewPass123!"}));
- assert.equal(resetResponse.status,200);
+ const {consumeToken}=await import("../src/lib/account-tokens.ts");
+ const resetRace=await Promise.allSettled(Array.from({length:4},()=>
+  consumeToken(reset,"RESET_PASSWORD","ci-raced-hashed-password")));
+ assert.equal(resetRace.filter(result=>result.status==="fulfilled"&&result.value===true).length,1,
+  "concurrent password reset requests must consume token exactly once");
+ assert.ok(resetRace.every(result=>result.status==="fulfilled"||result.reason?.code==="P2034"),
+  "only retryable serialization conflicts may interrupt competing reset transactions");
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion,sessionBefore+1);
  assert.equal((await confirm(request({token:reset,purpose:"RESET_PASSWORD",password:"NewPass123!"}))).status,400);
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).passwordHash,"ci-raced-hashed-password");
  console.log("Account token lifecycle passed: purpose isolation, single use and verified state");
 }finally{
  await prisma.actionToken.deleteMany({where:{userId}});
