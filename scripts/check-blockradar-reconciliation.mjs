@@ -87,6 +87,57 @@ try{
  assert.deepEqual(await response.json(),{scanned:0,missing:0,replayRequested:0,complete:false,note:"Page limit reached; further backfill required"});
  assert.equal(urls.length,5);
  assert.deepEqual(urls.map(url=>new URL(url).searchParams.get("page")),["1","2","3","4","5"]);
+ // Real PostgreSQL wallet and deposit lookups; only the provider transport is mocked.
+ const {PrismaClient}=await import("@prisma/client");
+ const db=new PrismaClient();
+ const userId="ci_reconcile_user";
+ const txId="ci-reconcile-already-recorded";
+ const address="ci-reconcile-wallet-address";
+ try{
+  await db.user.create({data:{id:userId,email:"ci-reconcile@example.invalid",name:"CI Reconciliation",passwordHash:"ci-fixture"}});
+  const wallet=await db.investorDepositWallet.create({data:{
+   userId,masterWalletId:"ci-provider-wallet",address,status:"ACTIVE"
+  }});
+  const recognized=id=>({id,status:"SUCCESS",type:"DEPOSIT",asset:{address:mint,symbol:"USDC"},recipientAddress:address});
+  const unknown=recognized("ci-missing-deposit");
+  const recorded=recognized(txId);
+  const unrelated={...recognized("ci-unrelated"),recipientAddress:"unregistered-wallet"};
+  await db.blockchainDeposit.create({data:{
+   walletId:wallet.id,providerTransactionId:txId,transactionHash:"ci-known-hash",
+   assetAddress:mint,amountUsdcMicros:1000000n
+  }});
+  let requests=[];
+  globalThis.fetch=async(input,init)=>{
+   const url=String(input);
+   requests.push({url,method:init?.method??"GET"});
+   if(url.endsWith("/resend-webhook"))return Response.json({ok:true});
+   return Response.json({data:[recorded,unknown,unrelated]});
+  };
+  response=await call();
+  assert.equal(response.status,200);
+  assert.deepEqual(await response.json(),{
+   scanned:2,missing:1,replayRequested:1,complete:true,
+   note:"Scanned all returned pages"
+  });
+  assert.equal(requests.filter(x=>x.method==="POST").length,1);
+  assert.ok(requests.some(x=>x.url.endsWith("/ci-missing-deposit/resend-webhook")));
+  assert.equal(await db.blockchainDeposit.count({where:{providerTransactionId:"ci-missing-deposit"}}),0,
+   "Reconciliation must request authenticated webhook replay, not credit balances");
+  globalThis.fetch=async(input)=>{
+   if(String(input).endsWith("/resend-webhook"))return new Response("unavailable",{status:503});
+   return Response.json({data:[unknown]});
+  };
+  response=await call();
+  assert.equal(response.status,503);
+  assert.deepEqual(await response.json(),{
+   error:"Reconciliation failed; retry required",scanned:1,missing:1,replayRequested:0,complete:false
+  });
+ }finally{
+  await db.blockchainDeposit.deleteMany({where:{providerTransactionId:txId}});
+  await db.investorDepositWallet.deleteMany({where:{userId}});
+  await db.user.deleteMany({where:{id:userId}});
+  await db.$disconnect();
+ }
  console.log("Blockradar reconciliation route source coverage passed");
 }finally{
  globalThis.fetch=originalFetch;
