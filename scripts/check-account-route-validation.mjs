@@ -94,6 +94,17 @@ try{
   result.reason?.code==="P2034"),"only retryable serialization conflicts are acceptable");
  assert.ok((await prisma.user.findUniqueOrThrow({where:{id:userId}})).emailVerifiedAt);
  assert.ok((await prisma.actionToken.findUniqueOrThrow({where:{hash:digest(racingToken)}})).consumedAt);
+ const {POST:activateRoute}=await import("../src/app/api/account/activate/route.ts");
+ const activatedResponse=await activateRoute(request({token:racingToken}));
+ assert.equal(activatedResponse.status,200,"verified account has a working activation response");
+ assert.equal((await activatedResponse.json()).status,"already_active");
+ assert.equal(activatedResponse.headers.get("cache-control"),"no-store");
+ const cookies=activatedResponse.headers.get("set-cookie")??"";
+ assert.match(cookies,/zenvest_activation_status=already_active/);
+ assert.match(cookies,/zenvest_activation_name=/);
+ assert.match(cookies,/HttpOnly/i,"activation cookies must not be JavaScript accessible");
+ assert.match(cookies,/SameSite=Lax/i);
+ assert.match(cookies,/Path=\/welcome/);
  const replay=await activateEmailFromLink(racingToken);
  assert.equal(replay?.status,"already_active","already verified account receives explicit state");
  // Password reset tokens must be purpose-bound and never usable for email activation.
