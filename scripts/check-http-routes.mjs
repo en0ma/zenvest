@@ -13,7 +13,7 @@ try{
  let started=false;
  for(let i=0;i<90;i++){
   if(child.exitCode!==null)throw new Error("Next server exited before test");
-  try{const res=await call("/login");if(res.status===200){started=true;break;}}catch{}
+  try{const res=await call("/api/internal/process-position-trade-pnl");if(res.status===401){started=true;break;}}catch{}
   await sleep(500);
  }
  assert.equal(started,true,"Built application starts");
