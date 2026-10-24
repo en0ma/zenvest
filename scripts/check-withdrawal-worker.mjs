@@ -92,6 +92,21 @@ try{
  assert.equal(await prisma.treasuryTransfer.count({where:{reference:"withdrawal:"+successId}}),1);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,92999999n,
   "replayed trusted callback cannot debit funds again");
+ // A stale REVIEW must expire without contacting the provider or debiting funds.
+ const stale=await prisma.investorWithdrawal.create({data:{
+  id:"cworkerreviewexpired000001",userId,amountUsdcMicros:5000001n,
+  grossUsdcMicros:7000001n,feeUsdcMicros:2000000n,
+  destinationAddress:"11111111111111111111111111111111",
+  status:"REVIEW",createdAt:new Date("2000-01-01T00:00:00Z")
+ }});
+ const transfersBeforeExpiry=transfers;
+ assert.equal(await processPendingWithdrawal(),"review_expired");
+ const expired=await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:stale.id}});
+ assert.equal(expired.status,"FAILED");
+ assert.equal(expired.failureCode,"REVIEW_TIMEOUT");
+ assert.equal(expired.treasuryTransactionId,null);
+ assert.equal(transfers,transfersBeforeExpiry,"review expiration must not submit a payout");
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,92999999n);
  console.log("Withdrawal worker PostgreSQL lifecycle passed: custody preflight, successful provider acceptance, unknown response enters REVIEW, signed settlement, one ledger entry, replay-safe gross debit");
 }finally{
  globalThis.fetch=realFetch;
