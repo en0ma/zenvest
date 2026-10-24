@@ -1,4 +1,6 @@
-import { LineChart, FileBarChart2 } from "lucide-react";
+import { FileBarChart2 } from "lucide-react";
+import {PortfolioValueChart} from "@/components/portfolio-value-chart";
+import {reconstructPortfolioPerformance, type PortfolioEvent} from "@/lib/portfolio-performance";
 import {PnlPerformanceChart} from "@/components/pnl-performance-chart";
 import { Shell } from "@/components/shell";
 import { requireUser } from "@/lib/access";
@@ -12,12 +14,27 @@ export default async function Dashboard(){
  const allocated=positions.reduce((total,p)=>total+p.allocatedUsdcMicros,0n);
  const unallocated=account.unallocated;
  const settled=await prisma.positionTradePnl.findMany({where:{userId:session.id,status:"SETTLED"},orderBy:[{settledAt:"asc"},{id:"asc"}],include:{strategyTrade:{select:{marketTradeName:true}}}});
+ const [deposits,withdrawals]=await Promise.all([
+  prisma.blockchainDeposit.findMany({where:{wallet:{userId:session.id},status:"CONFIRMED",creditedAt:{not:null}},
+   select:{id:true,creditedAt:true,amountUsdcMicros:true}}),
+  prisma.investorWithdrawal.findMany({where:{userId:session.id,status:"COMPLETED",completedAt:{not:null}},
+   select:{id:true,completedAt:true,grossUsdcMicros:true}}),
+ ]);
+ const financialEvents:PortfolioEvent[]=[
+  ...deposits.filter(d=>d.creditedAt).map(d=>({id:"deposit:"+d.id,at:d.creditedAt!,kind:"DEPOSIT" as const,
+   amountMicros:d.amountUsdcMicros})),
+  ...withdrawals.filter(w=>w.completedAt).map(w=>({id:"withdrawal:"+w.id,at:w.completedAt!,kind:"WITHDRAWAL" as const,
+   amountMicros:-w.grossUsdcMicros})),
+  ...settled.filter(p=>p.settledAt).map(p=>({id:"pnl:"+p.id,at:p.settledAt!,kind:"PNL" as const,
+   amountMicros:p.netPnlUsdcMicros??0n})),
+ ];
  const realized=settled.reduce((total,p)=>total+(p.netPnlUsdcMicros??0n),0n);
  const winning=settled.filter(p=>(p.netPnlUsdcMicros??0n)>0n).length;
  const losing=settled.filter(p=>(p.netPnlUsdcMicros??0n)<0n).length;
  const lastThirty=settled.filter(p=>p.settledAt&&p.settledAt.getTime()>=Date.now()-30*86400000).reduce((n,p)=>n+(p.netPnlUsdcMicros??0n),0n);
  const equity=allocated+unallocated;
  const capital=allocated+unallocated;
+ const historical=reconstructPortfolioPerformance(capital,financialEvents);
  const allocatedPct=capital>0n?Number(allocated*10000n/capital)/100:0;
  const unallocatedPct=capital>0n?100-allocatedPct:0;
  const now=Date.now();
@@ -56,16 +73,15 @@ export default async function Dashboard(){
     <p className="mt-6 border-t border-[#EDF0F5] pt-4 text-xs leading-5 text-[#94A3B8]">Percentages use allocated + unallocated capital, including retained settled P&amp;L.</p>
    </article>
   </section>
-  <section aria-labelledby="trend-heading" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
-   <div className="flex flex-wrap items-start justify-between gap-4">
-    <div><h2 id="trend-heading" className="text-lg font-semibold text-[#11263E]">Portfolio value over time</h2><p className="mt-1 text-sm text-[#64748B]">Historical performance and growth.</p></div>
-    <p className="rounded-full bg-[#F1F3F9] px-3 py-1.5 text-xs font-medium text-[#7B8799]">History unavailable</p>
-   </div>
-   <div className="mt-6 flex min-h-[255px] flex-col items-center justify-center rounded-xl bg-[#F8FAFD] px-6 py-9 text-center">
-    <LineChart size={28} strokeWidth={1.5} className="text-[#8C85F5]" aria-hidden="true"/>
-    <p className="mt-4 text-sm font-semibold text-[#11263E]">Building your performance history</p>
-    <p className="mt-2 max-w-sm text-xs leading-5 text-[#64748B]">A verified historical valuation series is needed before charting investment growth. We won't draw an artificial return curve.</p>
-   </div>
+  {historical.completeHistory?<PortfolioValueChart points={historical.points}/>:<section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6"><h2 className="text-lg font-semibold">Historical portfolio value</h2><p className="mt-3 text-sm text-[#64748B]">Historical balances are unavailable until existing deposits, withdrawals, adjustments and trading entries reconcile with the current portfolio balance.</p></section>}
+  <section aria-label="Investment return calculations" className="grid gap-4 sm:grid-cols-2">
+   {[{label:"Settled-equity time-weighted return",value:historical.twrPercent,detail:"Compounds realized event returns, excluding deposits and withdrawals."},
+     {label:"Net P&L as % of deposits",value:historical.simplePnlPercent,detail:"Simple cumulative net P&L divided by confirmed deposits; not annualized."}].map(metric=>
+    <article key={metric.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5">
+     <p className="text-sm text-[#64748B]">{metric.label}</p>
+     <p className="mt-2 text-2xl font-semibold text-[#11263E]">{metric.value===null?"—":metric.value.toFixed(2)+"%"}</p>
+     <p className="mt-2 text-xs text-[#64748B]">{metric.detail}</p>
+    </article>)}
   </section>
   <PnlPerformanceChart rows={settled.filter(p=>p.settledAt).map(p=>({day:p.settledAt!.toISOString().slice(0,10),netMicros:(p.netPnlUsdcMicros??0n).toString()}))}/>
   <div className="flex justify-end"><a href="/api/earn/reports/trade-pnl.csv" className="rounded-xl border border-[#635BFF] px-4 py-2 text-sm font-semibold text-[#635BFF]">Export settled event report (CSV)</a></div>
