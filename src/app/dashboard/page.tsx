@@ -17,7 +17,7 @@ export default async function Dashboard(){
  const [deposits,withdrawals]=await Promise.all([
   prisma.blockchainDeposit.findMany({where:{wallet:{userId:session.id},status:"CONFIRMED",creditedAt:{not:null}},
    select:{id:true,creditedAt:true,amountUsdcMicros:true}}),
-  prisma.investorWithdrawal.findMany({where:{userId:session.id,status:"COMPLETED",completedAt:{not:null}},
+  prisma.withdrawal.findMany({where:{userId:session.id,status:"COMPLETED",completedAt:{not:null}},
    select:{id:true,completedAt:true,grossUsdcMicros:true}}),
  ]);
  const financialEvents:PortfolioEvent[]=[
