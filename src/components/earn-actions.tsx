@@ -44,10 +44,10 @@ export function EarnActions({available,positions,operations,strategies}:{availab
    {strategy?<div className="mt-4 rounded-xl bg-[#F8FAFD] p-4 text-sm text-[#425466]"><p>{strategy.description}</p><p className="mt-2">Minimum: {money(strategy.min)} · Maximum: {money(strategy.max)} · Available capacity: {money(strategy.capacity)}</p></div>:<p className="mt-4 text-xs text-[#64748B]">Choose an active public strategy to see its allocation limits.</p>}
   </section>
   <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
-   <h2 className="text-xl font-semibold text-[#11263E]">Active allocations</h2>
+   <h2 className="text-xl font-semibold text-[#11263E]">Positions</h2>
    <p className="mt-2 text-sm text-[#64748B]">Reduce part of a position or request its full closure. Returned USDC is not spendable until verified back in master custody.</p>
    {positions.filter(p=>p.status==="OPEN"||p.status==="CLOSING").length===0?<p className="mt-6 text-sm text-[#64748B]">No positions yet.</p>:
-    <div role="region" aria-label="Active allocations table" tabIndex={0} className="mt-5 overflow-x-auto rounded-xl border border-[#E7EDF4]">
+    <div role="region" aria-label="Positions table" tabIndex={0} className="mt-5 overflow-x-auto rounded-xl border border-[#E7EDF4]">
      <table className="w-full min-w-[800px]"><thead className="bg-[#F8FAFC]"><tr>{["Position ID","Allocated","Status","Created","Action"].map(h=><th key={h} className={heading}>{h}</th>)}</tr></thead>
      <tbody className="divide-y divide-[#EDF0F5]">{positions.filter(p=>p.status==="ACTIVE"||p.status==="PENDING").map(p=><tr key={p.id}>
       <td className={cell+" font-mono text-xs"}>{p.id}</td><td className={cell}>{money(p.principal)}</td><td className={cell}>{p.status}{p.pending?" · reduction pending":""}</td><td className={cell}>{p.created}</td>
