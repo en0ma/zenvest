@@ -12,7 +12,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
   const reference = data.reference;
   if (typeof reference !== "string" || !/^withdrawal:c[a-z0-9]{10,40}$/.test(reference)) return "unrelated";
   const id = reference.slice("withdrawal:".length);
-  const item = await prisma.investorWithdrawal.findUnique({where:{id},include:{treasuryTransaction:true}});
+  const item = await prisma.withdrawal.findUnique({where:{id},include:{treasuryTransaction:true}});
   if (!item) return "unknown_withdrawal";
   if(item.feeUsdcMicros<WITHDRAWAL_FEE_USDC_MICROS || item.grossUsdcMicros!==item.amountUsdcMicros+item.feeUsdcMicros)return "withdrawal_mismatch";
   if(item.treasuryTransaction && (item.treasuryTransaction.reference!==withdrawalReference(id)||item.treasuryTransaction.direction!=="WITHDRAWAL"||item.treasuryTransaction.amountUsdcMicros!==item.amountUsdcMicros))return "treasury_mismatch";
@@ -38,7 +38,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
     // Record a signed, verified success that arrives after a FAILED withdrawal.
     // The conditional settlement below cannot debit a FAILED withdrawal.
     const saveLateSuccess=async()=>{
-      const row=await tx.investorWithdrawal.findUnique({where:{id},select:{status:true}});
+      const row=await tx.withdrawal.findUnique({where:{id},select:{status:true}});
       if(event!=="withdraw.success" || row?.status!=="FAILED")return false;
       await tx.webhookDeadLater.createMany({data:[{
         kind:"withdrawal",userId:item.userId,reference:id,providerTransactionId:transactionId,
@@ -48,7 +48,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
     };
     if(await saveLateSuccess())return "dead_letter";
     // Conditional transition makes duplicate webhooks harmless.
-    const updated = await tx.investorWithdrawal.updateMany({
+    const updated = await tx.withdrawal.updateMany({
       where:{id,status:{in:["PROCESSING","SUBMITTING","REVIEW"]}},
       data:{status:targetStatus,providerTransactionId:transactionId,
         transactionHash:typeof data.hash === "string" ? data.hash : item.transactionHash,
@@ -70,7 +70,7 @@ export async function handleWithdrawalWebhook(event: string, data: Record<string
         reference:withdrawalReference(id),originExternalId:transactionId,
         destinationExternalId:item.destinationAddress,completedAt:new Date(),
       }});
-      await tx.investorWithdrawal.update({where:{id},data:{treasuryTransactionId:transfer.id}});
+      await tx.withdrawal.update({where:{id},data:{treasuryTransactionId:transfer.id}});
     }
 
     // Only verified payout success consumes the user balance; failed payouts release
