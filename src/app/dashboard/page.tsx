@@ -26,11 +26,13 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
  const allocated=positions.reduce((total,p)=>total+p.allocatedUsdcMicros,0n);
  const unallocated=account.unallocated;
  const settled=await prisma.positionTradePnl.findMany({where:{userId:session.id,status:"SETTLED"},orderBy:[{settledAt:"asc"},{id:"asc"}],include:{strategyTrade:{select:{marketTradeName:true}}}});
- const [deposits,withdrawals]=await Promise.all([
+ const [deposits,withdrawals,withdrawalReservations,allocationReservations]=await Promise.all([
   prisma.blockchainDeposit.findMany({where:{wallet:{userId:session.id},status:"CONFIRMED",creditedAt:{not:null}},
    select:{id:true,creditedAt:true,amountUsdcMicros:true}}),
   prisma.withdrawal.findMany({where:{userId:session.id,status:"COMPLETED",completedAt:{not:null}},
    select:{id:true,completedAt:true,grossUsdcMicros:true}}),
+  prisma.withdrawal.aggregate({where:{userId:session.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
+  prisma.positionAllocation.aggregate({where:{userId:session.id,kind:"ALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
  ]);
  const financialEvents:PortfolioEvent[]=[
   ...deposits.filter(d=>d.creditedAt).map(d=>({id:"deposit:"+d.id,at:d.creditedAt!,kind:"DEPOSIT" as const,
@@ -46,6 +48,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
  const lastThirty=settled.filter(p=>p.settledAt&&p.settledAt.getTime()>=Date.now()-30*86400000).reduce((n,p)=>n+(p.netPnlUsdcMicros??0n),0n);
  const equity=allocated+unallocated;
  const capital=allocated+unallocated;
+ const reserved=(withdrawalReservations._sum.grossUsdcMicros??0n)+(allocationReservations._sum.amountUsdcMicros??0n);
  const historical=reconstructPortfolioPerformance(capital,financialEvents);
  const allocatedPct=capital>0n?Number(allocated*10000n/capital)/100:0;
  const unallocatedPct=capital>0n?100-allocatedPct:0;
@@ -68,7 +71,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
  const pagedTrades=settled.slice().reverse().slice((tradesPage-1)*TABLE_PAGE_SIZE,tradesPage*TABLE_PAGE_SIZE);
  return <Shell><div className="mx-auto max-w-7xl space-y-6">
   <header><p className="text-sm leading-6 text-[#64748B]">Welcome back{session.name?", "+session.name:""}. Here's how your investment is performing.</p></header>
-  <section aria-label="Investment overview" className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+  <section aria-label="Investment overview" className="block">
    <article className="rounded-[24px] border border-[#E2E8F4] bg-gradient-to-br from-[#EEF2FF] via-[#F7F9FF] to-white p-6 sm:p-8">
     <p className="text-sm font-medium text-[#52647B]">Portfolio value</p>
     <p className="mt-5 break-words text-[clamp(2.4rem,4.6vw,4.5rem)] font-semibold leading-none tracking-tight tabular-nums text-[#11263E]">{formatUsdc(equity)}</p>
@@ -77,8 +80,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
      <span className="text-lg font-semibold tabular-nums text-[#11263E]">{realized>0n?"+":""}{formatUsdc(realized)}</span>
     </div>
     <p className="mt-4 text-xs leading-5 text-[#64748B]">Ledger-based portfolio estimate. Realized P&amp;L reflects recorded earnings, not a period return or live market valuation.</p>
-   </article>
-   <article className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
+    <div className="mt-7 border-t border-[#DCE4F0] pt-6">
     <h2 className="text-base font-semibold text-[#11263E]">Capital allocation</h2>
     <p className="mt-1 text-xs text-[#64748B]">Where your recorded capital is positioned.</p>
     <div role="img" aria-label={capital>0n?`Allocated ${allocatedPct.toFixed(1)} percent; unallocated ${unallocatedPct.toFixed(1)} percent`:"No allocated or unallocated capital"} className="mt-7 flex h-3 overflow-hidden rounded-full bg-[#EDF0F7]">
@@ -88,7 +90,9 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
      <div className="min-w-0"><dt className="flex items-center gap-2 text-xs text-[#64748B]"><span className="h-2 w-2 rounded-full bg-[#635BFF]"/>Allocated</dt><dd className="mt-2 break-words text-lg font-semibold tabular-nums text-[#11263E] sm:text-xl">{formatUsdc(allocated)}</dd><p className="mt-1 text-xs text-[#94A3B8]">{allocatedPct.toFixed(1)}% of capital</p></div>
      <div className="min-w-0"><dt className="flex items-center gap-2 text-xs text-[#64748B]"><span className="h-2 w-2 rounded-full bg-[#C7D2FE]"/>Unallocated</dt><dd className="mt-2 break-words text-lg font-semibold tabular-nums text-[#11263E] sm:text-xl">{formatUsdc(unallocated)}</dd><p className="mt-1 text-xs text-[#94A3B8]">{unallocatedPct.toFixed(1)}% of capital</p></div>
     </dl>
-    <p className="mt-6 border-t border-[#EDF0F5] pt-4 text-xs leading-5 text-[#94A3B8]">Percentages use allocated + unallocated capital, including retained settled P&amp;L.</p>
+    <p className="mt-6 border-t border-[#EDF0F5] pt-4 text-xs leading-5 text-[#64748B]">Reserved: {formatUsdc(reserved)} · Pending withdrawal and allocation requests reduce spendable unallocated funds.</p>
+    <p className="mt-2 text-xs leading-5 text-[#94A3B8]">Percentages use allocated + unallocated capital, including retained settled P&amp;L.</p>
+    </div>
    </article>
   </section>
   {historical.completeHistory?<PortfolioValueChart points={historical.points}/>:<section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6"><h2 className="text-lg font-semibold">Historical portfolio value</h2><p className="mt-3 text-sm text-[#64748B]">Historical balances are unavailable until existing deposits, withdrawals, adjustments and trading entries reconcile with the current portfolio balance.</p></section>}
