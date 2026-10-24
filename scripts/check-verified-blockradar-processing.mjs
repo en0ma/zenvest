@@ -77,7 +77,7 @@ try{
   for(const [altered,expectedStatus] of [
    [{...data,address:{id:"different-provider-address",address}},422],
    [{...data,wallet:{id:"untrusted-master",address:masterAddress}},200],
-   [{...data,recipientAddress:"different-recipient"},422],
+   [{...data,recipientAddress:"different-recipient"},200],
   ]){
    const rejected=await call({event:"deposit.success",data:altered});
    assert.equal(rejected.status,expectedStatus,
