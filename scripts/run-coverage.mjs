@@ -7,6 +7,7 @@ for(const [command,args] of [
  ["node",["scripts/check-ci-db.mjs"]],
  ["node",["--conditions=react-server","scripts/check-financial-workers.mjs"]],
  ["node",["scripts/check-payout-workers.mjs"]],
+ ["node",["scripts/check-withdrawal-worker.mjs"]],
  ["node",["--experimental-strip-types","--test",...readdirSync("tests").filter(x=>x.endsWith(".test.ts")).sort().map(x=>"tests/"+x)]],
 ]){
  const result=spawnSync(command,args,{stdio:"inherit",env:process.env});
