@@ -57,7 +57,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
  const periods=[{label:"24-hour P&L",value:sumSince(1),window:"Past 24 hours"},
   {label:"7-day P&L",value:sumSince(7),window:"Past 7 days"},
   {label:"30-day P&L",value:sumSince(30),window:"Past 30 days"}];
- const feePaid=settled.reduce((n,p)=>n+(p.platformFeeUsdcMicros??0n),0n);
+ 
  const best=settled.reduce<bigint|null>((v,p)=>v===null||(p.netPnlUsdcMicros??0n)>v?(p.netPnlUsdcMicros??0n):v,null);
  const worst=settled.reduce<bigint|null>((v,p)=>v===null||(p.netPnlUsdcMicros??0n)<v?(p.netPnlUsdcMicros??0n):v,null);
  const positionStats=await prisma.positionTradePnl.groupBy({by:["positionId"],where:{userId:session.id,status:"SETTLED"},
@@ -120,9 +120,8 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
   <section className="grid gap-4 sm:grid-cols-3" aria-label="Trade analytics">
   {[{label:"Settled events",value:String(settled.length)},{label:"Event win rate",value:winning+losing>0?(winning*100/(winning+losing)).toFixed(1)+"%":"—"},{label:"Last 30 days net P&L",value:formatUsdc(lastThirty)}].map(x=><article key={x.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5"><p className="text-sm text-[#64748B]">{x.label}</p><p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p></article>)}
   </section>
-  <section aria-label="Detailed trading statistics" className="grid gap-4 sm:grid-cols-3">
-   {[{label:"Platform fees paid",value:formatUsdc(feePaid)},
-     {label:"Best settled event",value:best===null?"—":formatUsdc(best)},
+  <section aria-label="Detailed trading statistics" className="grid gap-4 sm:grid-cols-2">
+   {[{label:"Best settled event",value:best===null?"—":formatUsdc(best)},
      {label:"Worst settled event",value:worst===null?"—":formatUsdc(worst)}].map(x=>
      <article key={x.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5">
       <p className="text-sm text-[#64748B]">{x.label}</p><p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p>
