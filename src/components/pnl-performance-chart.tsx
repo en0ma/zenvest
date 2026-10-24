@@ -32,7 +32,7 @@ export function PnlPerformanceChart({rows}:{rows:Point[]}){
    <line x1="40" x2="760" y1="124" y2="124" stroke="#E9EEF6" strokeDasharray="4 5"/>
    <line x1="40" x2="760" y1="36" y2="36" stroke="#E9EEF6" strokeDasharray="4 5"/>
    <line x1="40" x2="760" y1={212-(0-low)/span*176} y2={212-(0-low)/span*176} stroke="#64748B" strokeDasharray="3 6"/>
-   <polyline points={polyline} fill="none" stroke={values.at(-1)!<0?"#E25656":"#10A984"} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+   <polyline points={polyline} fill="none" stroke={(values.at(-1)??0)<0?"#E25656":"#10A984"} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
    {path.length===1&&<circle cx={path[0][0]} cy={path[0][1]} r="5" fill="#10A984"/>}
    <text x="40" y="243" fontSize="13" fill="#64748B">{points[0].day}</text>
    <text x="760" y="243" textAnchor="end" fontSize="13" fill="#64748B">{points.at(-1)?.day}</text>
