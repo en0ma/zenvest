@@ -1,4 +1,5 @@
 import { LineChart, FileBarChart2 } from "lucide-react";
+import {PnlPerformanceChart} from "@/components/pnl-performance-chart";
 import { Shell } from "@/components/shell";
 import { requireUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
@@ -56,6 +57,8 @@ export default async function Dashboard(){
     <p className="mt-2 max-w-sm text-xs leading-5 text-[#64748B]">A verified historical valuation series is needed before charting investment growth. We won't draw an artificial return curve.</p>
    </div>
   </section>
+  <PnlPerformanceChart rows={settled.filter(p=>p.settledAt).map(p=>({day:p.settledAt!.toISOString().slice(0,10),netMicros:(p.netPnlUsdcMicros??0n).toString()}))}/>
+  <div className="flex justify-end"><a href="/api/earn/reports/trade-pnl.csv" className="rounded-xl border border-[#635BFF] px-4 py-2 text-sm font-semibold text-[#635BFF]">Export settled event report (CSV)</a></div>
   <section aria-labelledby="period-heading">
    <h2 id="period-heading" className="mb-3 text-lg font-semibold text-[#11263E]">Period returns</h2>
    <div className="grid grid-cols-3 gap-3">{periods.map(period=><article key={period.label} className="rounded-xl border border-[#E3E8EE] bg-white px-4 py-4">
