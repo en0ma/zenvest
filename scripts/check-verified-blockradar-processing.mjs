@@ -111,6 +111,11 @@ try{
   assert.equal((await call({event:"deposit.swept.success",data:{...swept,assetSweptAmount:"1.500000"}})).status,422,
    "partial sweep must not settle");
   assert.equal((await db.user.findUniqueOrThrow({where:{id:userId}})).unallocated,amountBefore);
+  // A failed sweep must preserve a previously observed CONFIRMING deposit.
+  assert.equal((await call({event:"deposit.swept.failed",data:{...data}})).status,200);
+  assert.equal((await db.blockchainDeposit.findUniqueOrThrow({where:{providerTransactionId:providerTx}})).status,"CONFIRMING");
+  assert.equal((await db.user.findUniqueOrThrow({where:{id:userId}})).unallocated,amountBefore,
+   "a failed sweep can never release funds to an investor");
   assert.equal((await call({event:"deposit.swept.success",data:swept})).status,200);
   assert.equal((await call({event:"deposit.swept.success",data:swept})).status,200,
    "duplicate signed sweep is acknowledged without second settlement");
