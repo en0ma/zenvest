@@ -194,8 +194,31 @@ try{
   if(priorOrigin===undefined)delete process.env.NEXTAUTH_URL;
   else process.env.NEXTAUTH_URL=priorOrigin;
  }
+ // Registration must create an account with a salted password hash and
+ // activation token even when transactional email is unavailable in CI.
+ const newEmail="ci-new-registration@example.invalid";
+ const registered=await register(registerRequest(JSON.stringify({
+  name:"NewUser",email:newEmail,password:"TestPass123!"
+ })));
+ assert.equal(registered.status,201,"valid registration creates a new account");
+ const created=await prisma.user.findUniqueOrThrow({where:{email:newEmail}});
+ assert.notEqual(created.passwordHash,"TestPass123!","password must never be stored in plaintext");
+ const bcrypt=(await import("bcryptjs")).default;
+ assert.equal(await bcrypt.compare("TestPass123!",created.passwordHash),true);
+ assert.equal(created.emailVerifiedAt,null,"new registrations require email confirmation");
+ assert.equal(await prisma.actionToken.count({where:{userId:created.id,purpose:"VERIFY_EMAIL"}}),1);
+ const replayRegistration=await register(registerRequest(JSON.stringify({
+  name:"NewUser",email:newEmail,password:"TestPass123!"
+ })));
+ assert.equal(replayRegistration.status,202);
+ assert.equal(await prisma.user.count({where:{email:newEmail}}),1,"re-registration cannot duplicate identity");
  console.log("Account token lifecycle passed: purpose isolation, single use and verified state");
 }finally{
+ const newRegistrant=await prisma.user.findUnique({where:{email:"ci-new-registration@example.invalid"}});
+ if(newRegistrant){
+  await prisma.actionToken.deleteMany({where:{userId:newRegistrant.id}});
+  await prisma.user.delete({where:{id:newRegistrant.id}});
+ }
  await prisma.actionToken.deleteMany({where:{userId}});
  await prisma.user.deleteMany({where:{id:userId}});
  await prisma.$disconnect();
