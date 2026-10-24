@@ -17,6 +17,8 @@ try{
   "../src/app/api/internal/process-withdrawals/route.ts",
   "../src/app/api/internal/process-position-allocations/route.ts",
   "../src/app/api/internal/process-position-trade-pnl/route.ts",
+  "../src/app/api/internal/blockradar-deposit-finder/route.ts",
+  "../src/app/api/internal/blockradar-sweep-assets/route.ts",
  ];
  for(const path of paths){
   const {GET}=await import(path);
