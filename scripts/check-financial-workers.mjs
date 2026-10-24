@@ -1,5 +1,15 @@
 import assert from "node:assert/strict";
 import {PrismaClient} from "@prisma/client";
+import {registerHooks} from "node:module";
+registerHooks({
+ resolve(specifier,context,nextResolve){
+  if(specifier.startsWith("@/lib/")){
+   const target=new URL("../src/lib/"+specifier.slice(6)+(specifier.endsWith(".ts")?"":".ts"),import.meta.url);
+   return nextResolve(target.href,context);
+  }
+  return nextResolve(specifier,context);
+ }
+});
 
 if(!process.env.DATABASE_URL?.includes("zenvest_ci"))throw new Error("CI database required");
 const prisma=new PrismaClient();
