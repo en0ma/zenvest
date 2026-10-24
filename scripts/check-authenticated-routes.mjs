@@ -17,6 +17,7 @@ const {POST:deallocate}=await import("../src/app/api/earn/deallocations/route.ts
 const {POST:closePosition}=await import("../src/app/api/earn/positions/close/route.ts");
 const {GET:csvReport}=await import("../src/app/api/earn/reports/trade-pnl.csv/route.ts");
 const {POST:cancelWithdrawal}=await import("../src/app/api/withdrawals/cancel/route.ts");
+const {POST:manualPayout}=await import("../src/app/api/admin/withdrawals/execute/route.ts");
 function request(body){return new Request("http://ci.local/api/earn/allocations",{method:"POST",headers:{"content-type":"application/json"},body:typeof body==="string"?body:JSON.stringify(body)});}
 async function post(body){return allocate(request(body));}
 try{
@@ -74,6 +75,9 @@ try{
  assert.equal((await (await call(closePosition,{positionId:zero.id})).json()).status,"closed");
  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:zero.id}})).status,"CLOSED");
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,15000000n);
+ const payoutResponse=await manualPayout();
+ assert.equal(payoutResponse.status,410,"manual payout broadcasting must remain disabled");
+ assert.match((await payoutResponse.json()).error,/disabled/);
  const cancelResponse=await cancelWithdrawal();
  assert.equal(cancelResponse.status,410,"investor must not cancel reserved withdrawal");
  assert.match((await cancelResponse.json()).error,/cannot be cancelled/);
