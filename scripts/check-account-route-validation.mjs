@@ -22,3 +22,29 @@ for(const path of routes){
  }
 }
 console.log("Account route validation coverage passed");
+
+const {PrismaClient}=await import("@prisma/client");
+const {digest}=await import("../src/lib/account-tokens.ts");
+const prisma=new PrismaClient();
+const userId="ci_account_validation";
+const token="a".repeat(64);
+const confirm=(await import("../src/app/api/account/confirm/route.ts")).POST;
+const request=(payload)=>new Request("https://ci.invalid/api/account/confirm",{method:"POST",body:JSON.stringify(payload)});
+try{
+ await prisma.user.create({data:{id:userId,email:"ci-account-validation@example.invalid",name:"Account Validation",passwordHash:"fixture"}});
+ assert.equal((await confirm(request({token,purpose:"RESET_PASSWORD"}))).status,400);
+ assert.equal((await confirm(request({token,purpose:"VERIFY_EMAIL",password:"TestPassword123!"}))).status,400);
+ assert.equal((await confirm(request({token,purpose:"VERIFY_EMAIL"}))).status,400);
+ await prisma.actionToken.create({data:{userId,purpose:"VERIFY_EMAIL",hash:digest(token),expiresAt:new Date(Date.now()+600000)}});
+ assert.equal((await confirm(request({token,purpose:"RESET_PASSWORD",password:"TestPassword123!"}))).status,400);
+ const first=await confirm(request({token,purpose:"VERIFY_EMAIL"}));
+ assert.equal(first.status,200);
+ assert.equal((await first.json()).ok,true);
+ assert.ok((await prisma.user.findUniqueOrThrow({where:{id:userId}})).emailVerifiedAt);
+ assert.equal((await confirm(request({token,purpose:"VERIFY_EMAIL"}))).status,400);
+ console.log("Account token lifecycle passed: purpose isolation, single use and verified state");
+}finally{
+ await prisma.actionToken.deleteMany({where:{userId}});
+ await prisma.user.deleteMany({where:{id:userId}});
+ await prisma.$disconnect();
+}
