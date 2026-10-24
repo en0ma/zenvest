@@ -12,6 +12,7 @@ registerHooks({resolve(specifier,context,nextResolve){
 if(!process.env.DATABASE_URL?.includes("zenvest_ci"))throw Error("CI database required");
 const prisma=new PrismaClient();
 const {POST}=await import("../src/app/api/withdrawals/route.ts");
+const {POST:estimateFee}=await import("../src/app/api/withdrawals/estimate-fee/route.ts");
 const previous={enabled:process.env.BLOCKRADAR_WITHDRAWALS_ENABLED,asset:process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID,key:process.env.BLOCK_RADAR_API_KEY,wallet:process.env.BLOCK_RADAR_MASTER_WALLET_ID};
 const nativeFetch=globalThis.fetch;
 const owner="ci_route_investor";
