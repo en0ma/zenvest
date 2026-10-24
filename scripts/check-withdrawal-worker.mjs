@@ -109,6 +109,38 @@ try{
  assert.equal(expired.treasuryTransactionId,null);
  assert.equal(transfers,transfersBeforeExpiry,"review expiration must not submit a payout");
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,92999999n);
+ // Interrupted settlement must roll back ALL journal writes and remain retryable.
+ const interruptedId="cworkerinterrupted0000003";
+ const interruptedReference="withdrawal:"+interruptedId;
+ await prisma.investorWithdrawal.create({data:{
+  id:interruptedId,userId,amountUsdcMicros:5000001n,grossUsdcMicros:7000001n,
+  feeUsdcMicros:2000000n,destinationAddress:"11111111111111111111111111111111",
+  status:"PROCESSING",providerTransactionId:"ci-provider-interrupted"
+ }});
+ const beforeInterrupted=(await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated;
+ const depositBeforeInterrupted=await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}});
+ const deallocateBeforeInterrupted=await prisma.treasury.findUniqueOrThrow({where:{kind:"DEALLOCATE"}});
+ await prisma.treasury.update({where:{kind:"DEPOSIT"},data:{amount:0n}});
+ await prisma.treasury.update({where:{kind:"DEALLOCATE"},data:{amount:0n}});
+ const interruptedData={...signedData,id:"ci-provider-interrupted",reference:interruptedReference,hash:"ci-interrupted-hash"};
+ try{
+  await assert.rejects(handleWithdrawalWebhook("withdraw.success",interruptedData,deposit.walletId),
+   /Insufficient master treasury balance/);
+  assert.equal((await prisma.investorWithdrawal.findUniqueOrThrow({where:{id:interruptedId}})).status,"PROCESSING",
+   "failed settlement must roll back status transition");
+  assert.equal(await prisma.treasuryTransfer.count({where:{reference:interruptedReference}}),0,
+   "failed settlement cannot leave a completed treasury transfer");
+  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,beforeInterrupted,
+   "failed settlement cannot debit funds");
+ }finally{
+  await prisma.treasury.update({where:{kind:"DEPOSIT"},data:{amount:depositBeforeInterrupted.amount}});
+  await prisma.treasury.update({where:{kind:"DEALLOCATE"},data:{amount:deallocateBeforeInterrupted.amount}});
+ }
+ assert.equal(await handleWithdrawalWebhook("withdraw.success",interruptedData,deposit.walletId),"settled",
+  "corrected treasury state allows exactly one authenticated settlement");
+ assert.equal(await handleWithdrawalWebhook("withdraw.success",interruptedData,deposit.walletId),"duplicate");
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,beforeInterrupted-7000001n);
+ assert.equal(await prisma.treasuryTransfer.count({where:{reference:interruptedReference}}),1);
  console.log("Withdrawal worker PostgreSQL lifecycle passed: custody preflight, successful provider acceptance, unknown response enters REVIEW, signed settlement, one ledger entry, replay-safe gross debit");
 }finally{
  globalThis.fetch=realFetch;
@@ -117,7 +149,7 @@ try{
  }
  await prisma.investorWithdrawal.deleteMany({where:{userId}});
  await prisma.investorActivity.deleteMany({where:{userId}});
- await prisma.treasuryTransfer.deleteMany({where:{reference:"withdrawal:"+successId}});
+ await prisma.treasuryTransfer.deleteMany({where:{reference:{in:["withdrawal:"+successId,"withdrawal:cworkerinterrupted0000003"]}}});
  if(treasuryStart)for(const entry of treasuryStart)await prisma.treasury.update({where:{kind:entry.kind},data:{amount:entry.amount}});
  if(priorMint===undefined)delete process.env.BLOCKRADAR_SOLANA_USDC_MINT;else process.env.BLOCKRADAR_SOLANA_USDC_MINT=priorMint;
  if(createdUser)await prisma.user.deleteMany({where:{id:userId}});
