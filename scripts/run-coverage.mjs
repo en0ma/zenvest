@@ -17,6 +17,7 @@ for(const [command,args] of [
  ["node",["scripts/check-verified-blockradar-processing.mjs"]],
  ["node",["scripts/check-wallet-activation-lifecycle.mjs"]],
  ["node",["scripts/check-account-route-validation.mjs"]],
+ ["node",["scripts/check-transactional-email.mjs"]],
  ["node",["--experimental-strip-types","--test",...readdirSync("tests").filter(x=>x.endsWith(".test.ts")).sort().map(x=>"tests/"+x)]],
 ]){
  const result=spawnSync(command,args,{stdio:"inherit",env:process.env});
