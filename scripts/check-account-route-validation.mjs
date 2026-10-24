@@ -81,6 +81,21 @@ try{
  const versionBeforeExpiry=(await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion;
  assert.equal((await confirm(request({token:expiredReset,purpose:"RESET_PASSWORD",password:"NewPass123!"}))).status,400);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).sessionVersion,versionBeforeExpiry);
+ // Multiple successful-looking activation attempts against the same token
+ // must produce exactly one durable activation and consume the token once.
+ await prisma.user.update({where:{id:userId},data:{emailVerifiedAt:null}});
+ const racingToken="2".repeat(64);
+ await prisma.actionToken.create({data:{userId,purpose:"VERIFY_EMAIL",hash:digest(racingToken),expiresAt:new Date(Date.now()+600000)}});
+ const {POST:activate}=await import("../src/app/api/account/activate/route.ts");
+ const raced=await Promise.all(Array.from({length:4},()=>activate(request({token:racingToken}))));
+ assert.ok(raced.some(response=>response.status===200),"one activation must succeed");
+ assert.ok(raced.every(response=>[200,400,503].includes(response.status)),
+  "transaction conflicts must not be reported as successful account activations");
+ assert.ok((await prisma.user.findUniqueOrThrow({where:{id:userId}})).emailVerifiedAt);
+ assert.ok((await prisma.actionToken.findUniqueOrThrow({where:{hash:digest(racingToken)}})).consumedAt);
+ const replay=await activate(request({token:racingToken}));
+ assert.equal(replay.status,200,"already verified account uses explicit already_active state");
+ assert.equal((await replay.json()).status,"already_active");
  const fresh="1".repeat(64);
  await prisma.actionToken.create({data:{userId,purpose:"RESET_PASSWORD",hash:digest(fresh),expiresAt:new Date(Date.now()+600000)}});
  const throttled=await callLink({email:"ci-account-validation@example.invalid",purpose:"RESET_PASSWORD"});
