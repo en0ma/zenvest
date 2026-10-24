@@ -61,6 +61,13 @@ try{
   assert.equal(pnlResponse.status,200);
   assert.equal(pnlResponse.headers.get("cache-control"),"no-store");
   assert.ok(Object.hasOwn(await pnlResponse.json(),"results"));
+  // Allocation cron has its own worker and must also handle an empty queue.
+  const {GET:processAllocations}=await import("../src/app/api/internal/process-position-allocations/route.ts");
+  const allocationResponse=await processAllocations(authorized);
+  assert.equal(allocationResponse.status,200);
+  assert.equal(allocationResponse.headers.get("cache-control"),"no-store");
+  assert.ok(Object.hasOwn(await allocationResponse.json(),"outcome"));
+
 
 
  }finally{
