@@ -96,14 +96,17 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
    </article>
   </section>
   {historical.completeHistory?<PortfolioValueChart points={historical.points}/>:<section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6"><h2 className="text-lg font-semibold">Historical portfolio value</h2><p className="mt-3 text-sm text-[#64748B]">Historical balances are unavailable until existing deposits, withdrawals, adjustments and trading entries reconcile with the current portfolio balance.</p></section>}
-  <section aria-label="Investment return calculations" className="grid gap-4 sm:grid-cols-2">
-   {[{label:"Settled-equity time-weighted return",value:historical.twrPercent,detail:"Compounds realized event returns, excluding deposits and withdrawals."},
-     {label:"Net P&L as % of deposits",value:historical.simplePnlPercent,detail:"Simple cumulative net P&L divided by confirmed deposits; not annualized."}].map(metric=>
-    <article key={metric.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5">
-     <p className="text-sm text-[#64748B]">{metric.label}</p>
-     <p className="mt-2 text-2xl font-semibold text-[#11263E]">{metric.value===null?"—":metric.value.toFixed(2)+"%"}</p>
-     <p className="mt-2 text-xs text-[#64748B]">{metric.detail}</p>
-    </article>)}
+  <section aria-label="Investment return calculations" className="rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
+   <h2 className="text-lg font-semibold text-[#11263E]">Investment returns</h2>
+   <div className="mt-4 grid gap-5 sm:grid-cols-2 sm:gap-6">
+    {[{label:"Settled-equity time-weighted return",value:historical.twrPercent,detail:"Compounds realized event returns, excluding deposits and withdrawals."},
+      {label:"Net P&L as % of deposits",value:historical.simplePnlPercent,detail:"Simple cumulative net P&L divided by confirmed deposits; not annualized."}].map((metric,index)=>
+     <div key={metric.label} className={index===1?"border-t border-[#EDF0F5] pt-5 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0":""}>
+      <p className="text-sm text-[#64748B]">{metric.label}</p>
+      <p className="mt-2 text-2xl font-semibold text-[#11263E]">{metric.value===null?"—":metric.value.toFixed(2)+"%"}</p>
+      <p className="mt-2 text-xs leading-5 text-[#64748B]">{metric.detail}</p>
+     </div>)}
+   </div>
   </section>
   <PnlPerformanceChart rows={settled.filter(p=>p.settledAt).map(p=>({day:p.settledAt!.toISOString().slice(0,10),netMicros:(p.netPnlUsdcMicros??0n).toString()}))}/>
   <div className="flex justify-end"><a href="/api/earn/reports/trade-pnl.csv" className="rounded-xl border border-[#635BFF] px-4 py-2 text-sm font-semibold text-[#635BFF]">Export settled event report (CSV)</a></div>
