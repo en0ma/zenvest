@@ -372,11 +372,21 @@ try {
   masterReceiptId:"ci-master-credit-1",kalshiWalletAddress:strategyWallet,
   masterWalletAddress:(await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).walletAddress,
   amountUsdcMicros:finalValue,asset:"USDC",network:"solana"};
+ assert.equal(await settleVerifiedStrategyReturn({...receipt,asset:"USDT"}),"invalid_receipt");
+ assert.equal(await settleVerifiedStrategyReturn({...receipt,network:"ethereum"}),"invalid_receipt");
+ assert.equal(await settleVerifiedStrategyReturn({...receipt,kalshiWithdrawalId:""}),"invalid_receipt");
+ assert.equal(await settleVerifiedStrategyReturn({...receipt,masterReceiptId:""}),"invalid_receipt");
+ assert.equal(await settleVerifiedStrategyReturn({...receipt,kalshiWalletAddress:"WRONG_STRATEGY_WALLET"}),"mismatch");
+ assert.equal(await settleVerifiedStrategyReturn({...receipt,masterWalletAddress:"WRONG_MASTER_WALLET"}),"mismatch");
+ assert.equal(await settleVerifiedStrategyReturn({...receipt,amountUsdcMicros:0n}),"invalid_receipt");
+ assert.equal(await settleVerifiedStrategyReturn({...receipt,strategyEventId:"nonexistent"}),"unrelated");
  assert.equal(await settleVerifiedStrategyReturn({...receipt,amountUsdcMicros:finalValue+1n}),"mismatch");
  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:closing.id}})).status,"CLOSING");
  const userBeforeReturn=(await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated;
  assert.equal(await settleVerifiedStrategyReturn(receipt),"settled");
  assert.equal(await settleVerifiedStrategyReturn(receipt),"duplicate");
+ assert.equal(await settleVerifiedStrategyReturn({...receipt,masterReceiptId:"different"}),"mismatch");
+ assert.equal(await settleVerifiedStrategyReturn({...receipt,kalshiWithdrawalId:"different"}),"mismatch");
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,userBeforeReturn+finalValue);
  const closedPosition=await prisma.investorPosition.findUniqueOrThrow({where:{id:closing.id}});
  assert.equal(closedPosition.status,"CLOSED");
