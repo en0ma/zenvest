@@ -31,10 +31,6 @@
     {
       "path": "/api/internal/process-position-trade-pnl",
       "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/internal/snapshot-portfolios",
-      "schedule": "0 * * * *"
     }
   ]
 }
