@@ -35,7 +35,29 @@ try {
  }finally{
   await prisma.webhookQueue.deleteMany({where:{id:record.id}});
  }
- console.log("Financial worker integration tests passed: failed webhook durable retry");
+ // A future retry must not be reprocessed early and cannot be double claimed.
+ assert.equal(await processPendingWebhook(),"empty","retry backoff must hide future events");
+ const leaseKey="ci-worker-active-lease";
+ const locked=await prisma.webhookQueue.create({data:{
+  source:"BLOCKRADAR",eventType:"deposit.success",idempotencyKey:leaseKey,
+  payload:{notAValidEnvelope:true},status:"PENDING",
+  createdAt:new Date("2001-01-01T00:00:00Z"),
+  nextAttemptAt:new Date("2001-01-01T00:00:00Z"),
+  leaseUntil:new Date(Date.now()+120000)
+ }});
+ try{
+  assert.equal(await processPendingWebhook(),"empty","leased item must be skipped");
+  assert.equal((await prisma.webhookQueue.findUniqueOrThrow({where:{id:locked.id}})).attempts,0);
+  await prisma.webhookQueue.update({where:{id:locked.id},data:{leaseUntil:new Date("2001-01-01T00:00:00Z")}});
+  assert.equal(await processPendingWebhook(),"retry_pending","expired lease must be recoverable");
+  const recovered=await prisma.webhookQueue.findUniqueOrThrow({where:{id:locked.id}});
+  assert.equal(recovered.attempts,1);
+  assert.equal(recovered.leaseUntil,null);
+  assert.equal(recovered.status,"PENDING");
+ }finally{
+  await prisma.webhookQueue.deleteMany({where:{id:locked.id}});
+ }
+ console.log("Financial worker integration tests passed: durable webhook retry, backoff, and lease recovery");
 }finally{
  await prisma.$disconnect();
 }
