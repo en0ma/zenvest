@@ -29,7 +29,6 @@ model User {
   positions InvestorPosition[]
   positionAllocations PositionAllocation[]
   tradePnls PositionTradePnl[]
-  portfolioSnapshots PortfolioSnapshot[]
   activity InvestorActivity[]
   tokens       ActionToken[]
   createdAt    DateTime @default(now()) @map("created_at")
@@ -464,19 +463,3 @@ model PositionTradePnl {
   @@map("position_trade_pnl")
 }
 
-/** Hourly recorded investor equity; external deposits/withdrawals are not investment P&L. */
-model PortfolioSnapshot {
-  id String @id @default(cuid())
-  userId String @map("user_id")
-  user User @relation(fields:[userId],references:[id],onDelete:Restrict)
-  snapshotAt DateTime @map("snapshot_at")
-  unallocatedUsdcMicros BigInt @map("unallocated_usdc_micros")
-  allocatedUsdcMicros BigInt @map("allocated_usdc_micros")
-  reservedUsdcMicros BigInt @map("reserved_usdc_micros")
-  portfolioValueUsdcMicros BigInt @map("portfolio_value_usdc_micros")
-  cumulativeRealizedPnlUsdcMicros BigInt @map("cumulative_realized_pnl_usdc_micros")
-  createdAt DateTime @default(now()) @map("created_at")
-  @@unique([userId,snapshotAt])
-  @@index([snapshotAt])
-  @@map("portfolio_snapshots")
-}
