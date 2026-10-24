@@ -1,19 +1,8 @@
 import {Prisma} from "@prisma/client";
 import {prisma} from "./db.ts";
+import {distributeWeightedMicros,platformProfitFee} from "./position-pnl-math.ts";
 
 const SERIALIZABLE=Prisma.TransactionIsolationLevel.Serializable;
-type Weight={id:string;eligibleCapitalUsdcMicros:bigint};
-function distribute(amount:bigint, rows:Weight[]):Map<string,bigint>{
- const total=rows.reduce((n,r)=>n+r.eligibleCapitalUsdcMicros,0n);
- if(total<=0n)throw new Error("Trade has no eligible investor exposure");
- const sign=amount<0n?-1n:1n,abs=amount<0n?-amount:amount;
- const items=rows.map(r=>({id:r.id,base:abs*r.eligibleCapitalUsdcMicros/total,
-  remainder:abs*r.eligibleCapitalUsdcMicros%total}));
- let left=abs-items.reduce((n,r)=>n+r.base,0n);
- items.sort((a,b)=>a.remainder===b.remainder?a.id.localeCompare(b.id):a.remainder>b.remainder?-1:1);
- for(const item of items){if(left===0n)break;item.base++;left--;}
- return new Map(items.map(x=>[x.id,x.base*sign]));
-}
 function percentageUnits(value:Prisma.Decimal):bigint{
  const s=value.toFixed(4),m=/^(\d+)\.(\d{4})$/.exec(s);
  if(!m)throw new Error("Invalid platform percentage");
@@ -43,9 +32,9 @@ async function settleTrade(id:string){
    if(total!==trade.eligibleCapitalUsdcMicros||total<=0n)throw new Error("Trade exposure mismatch");
    if(!trade.appliedPlatformProfitPercentage)throw new Error("Missing frozen platform fee rate");
    const gross=trade.realizedPnlUsdcMicros;
-   const fee=gross>0n?gross*percentageUnits(trade.appliedPlatformProfitPercentage)/1000000n:0n;
-   const grossShares=distribute(gross,rows.map(p=>({id:p.id,eligibleCapitalUsdcMicros:p.eligibleCapitalUsdcMicros})));
-   const feeShares=distribute(fee,rows.map(p=>({id:p.id,eligibleCapitalUsdcMicros:p.eligibleCapitalUsdcMicros})));
+   const fee=platformProfitFee(gross,trade.appliedPlatformProfitPercentage.toFixed(4));
+   const grossShares=distributeWeightedMicros(gross,rows.map(p=>({id:p.id,eligibleCapitalUsdcMicros:p.eligibleCapitalUsdcMicros})));
+   const feeShares=distributeWeightedMicros(fee,rows.map(p=>({id:p.id,eligibleCapitalUsdcMicros:p.eligibleCapitalUsdcMicros})));
    for(const row of rows.sort((a,b)=>a.positionId.localeCompare(b.positionId))){
     const g=grossShares.get(row.id)??0n,f=feeShares.get(row.id)??0n,net=g-f;
     const updated=await tx.positionTradePnl.updateMany({where:{id:row.id,status:"SNAPSHOTTED"},
