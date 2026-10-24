@@ -87,6 +87,8 @@ try{
   assert.equal((await call({event:"deposit.swept.success",data:swept})).status,200);
   assert.equal((await call({event:"deposit.swept.success",data:swept})).status,200,
    "duplicate signed sweep is acknowledged without second settlement");
+  assert.equal((await db.user.findUniqueOrThrow({where:{id:userId}})).unallocated,amountBefore+micros,
+   "verified full sweep credits exactly once");
   // Competing first-time signed sweep deliveries must never mint duplicate equity.
   const racingId="ci-verified-deposit-racing";
   const racingData={...data,id:racingId,hash:"ci-racing-hash"};
@@ -102,8 +104,6 @@ try{
   assert.equal(await db.treasuryTransfer.count({where:{reference:racingId}}),1);
   assert.equal((await db.user.findUniqueOrThrow({where:{id:userId}})).unallocated,amountBefore+micros*2n,
    "racing sweeps must credit one additional deposit, never more");
-  assert.equal((await db.user.findUniqueOrThrow({where:{id:userId}})).unallocated,amountBefore+micros,
-   "verified full sweep credits exactly once");
   const deposit=await db.blockchainDeposit.findUniqueOrThrow({where:{providerTransactionId:providerTx}});
   assert.equal(deposit.status,"CONFIRMED");
   assert.ok(deposit.treasuryTransactionId);
