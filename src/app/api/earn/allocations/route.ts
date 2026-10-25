@@ -43,9 +43,11 @@ export async function POST(request: Request) {
         capacity:strategy.availableCapacityUsdcMicros,pendingStrategy:outstanding._sum.amountUsdcMicros??0n,
         availableUser,active:strategy.isActive,isPublic:strategy.isPublic}))return null;
       const existingId=typeof body.positionId==="string"?body.positionId:null;
-      const existing=existingId?await tx.investorPosition.findFirst({where:{id:existingId,userId:user.id,strategyId,status:"OPEN"}}):null;
-      if(existingId&&!existing)return null;
-      const position=existing??await tx.investorPosition.create({data:{userId:user.id,strategyId,status:"OPEN"}});
+      // The strategy is the market: automatically reuse the one open position.
+      // CLOSING positions retain custody exposure and prohibit fresh allocation.
+      const active=await tx.investorPosition.findFirst({where:{userId:user.id,strategyId,status:{in:["OPEN","CLOSING"]}}});
+      if(active?.status==="CLOSING"||(existingId&&active?.id!==existingId))return null;
+      const position=active??await tx.investorPosition.create({data:{userId:user.id,strategyId,status:"OPEN"}});
       const op=await tx.positionAllocation.create({data:{
         userId:user.id,positionId:position.id,strategyId,
         status:"PENDING",amountUsdcMicros:amount,
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
     return result ? NextResponse.json(result,{status:201}) : NextResponse.json({error:"Unavailable strategy or Kalshi wallet address, invalid allocation limits, insufficient strategy capacity or insufficient unallocated USDC"},{status:409});
   }catch(error){
-    if(error instanceof Prisma.PrismaClientKnownRequestError && error.code==="P2034")return NextResponse.json({error:"Concurrent request; retry"},{status:409});
+    if(error instanceof Prisma.PrismaClientKnownRequestError && ["P2034","P2002"].includes(error.code))return NextResponse.json({error:"Concurrent request; retry"},{status:409});
     return NextResponse.json({error:"Unable to request allocation"},{status:503});
   }
 }
