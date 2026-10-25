@@ -22,7 +22,9 @@ export async function POST(request:Request){
  const handle=typeof body.handle==="string"?body.handle.trim().replace(/^@/,"").toLowerCase():"";
  const key=typeof body.idempotencyKey==="string"?body.idempotencyKey:"";
  const save=body.saveRecipient===true;
+ const note=typeof body.note==="string"?body.note.trim():"";
  const name=typeof body.recipientName==="string"?body.recipientName.trim():"";
+ if(note.length>250)return NextResponse.json({error:"Note is too long"},{status:400});
  if(!amount||!/^[a-z0-9]{8}$/.test(handle)||!/^[0-9a-f-]{36}$/i.test(key)||(save&&(name.length<1||name.length>120)))
    return NextResponse.json({error:"Valid amount, recipient handle and request key required"},{status:400});
  const existing=await prisma.send.findUnique({where:{idempotencyKey:key}});
@@ -43,7 +45,7 @@ export async function POST(request:Request){
    const debited=await tx.user.updateMany({where:{id:sender.id,unallocated:{gte:amount+held}},data:{unallocated:{decrement:amount}}});
    if(debited.count!==1)return {error:"Balance changed; retry",status:409};
    await tx.user.update({where:{id:recipient.id},data:{unallocated:{increment:amount}}});
-   const send=await tx.send.create({data:{senderUserId:sender.id,recipientUserId:recipient.id,senderHandle:sender.handle,recipientHandle:recipient.handle,amount,status:"COMPLETED",idempotencyKey:key}});
+   const send=await tx.send.create({data:{senderUserId:sender.id,recipientUserId:recipient.id,senderHandle:sender.handle,recipientHandle:recipient.handle,amount,note:note||null,status:"COMPLETED",idempotencyKey:key}});
    if(save)await tx.userRecipient.create({data:{userId:sender.id,kind:"SEND",name,handle:recipient.handle,status:"COMPLETED"}});
    return {id:send.id,status:send.status};
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,timeout:10000});
