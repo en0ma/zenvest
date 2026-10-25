@@ -62,9 +62,25 @@ export function EarnActions({available,positions,operations,strategies}:{availab
      <option value="">Select a market</option>{strategies.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
     </select>
    </label>
-   <div className="mt-5 min-h-[130px] rounded-xl border border-[#E7EDF4] bg-[#FAFBFD] px-4 py-5">
-    <h3 className="text-sm font-semibold text-[#334155]">Strategy performance</h3>
-    <p className="mt-3 text-sm text-[#64748B]">A verified historical strategy performance chart is not available yet. No simulated prices or returns are shown.</p>
+   <div className="mt-5 overflow-hidden rounded-xl border border-[#E7EDF4] bg-white">
+    <div className="flex items-center justify-between gap-3 border-b border-[#EDF0F5] px-4 py-3">
+     <h3 className="text-sm font-semibold text-[#334155]">Strategy performance</h3>
+     <span className="text-xs text-[#64748B]">USDC · Historical</span>
+    </div>
+    <div role="img" aria-label="Empty historical strategy performance chart. No verified data is available yet." className="relative h-56 w-full sm:h-72">
+     <svg viewBox="0 0 700 240" preserveAspectRatio="none" className="h-full w-full" aria-hidden="true">
+      {[40,85,130,175,220].map(y=><line key={y} x1="18" x2="680" y1={y} y2={y} stroke="#E8EDF4" strokeWidth="1"/>)}
+      {[120,240,360,480,600].map(x=><line key={x} x1={x} x2={x} y1="16" y2="220" stroke="#F0F3F8" strokeWidth="1"/>)}
+      <line x1="18" x2="680" y1="220" y2="220" stroke="#CBD5E1" strokeWidth="1.5"/>
+      <line x1="18" x2="18" y1="16" y2="220" stroke="#CBD5E1" strokeWidth="1.5"/>
+     </svg>
+     <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6">
+      <div className="rounded-lg bg-white/90 px-4 py-3 text-center shadow-sm ring-1 ring-[#E7EDF4]">
+       <p className="text-sm font-medium text-[#475569]">No performance data yet</p>
+       <p className="mt-1 text-xs text-[#94A3B8]">Verified strategy results will appear here</p>
+      </div>
+     </div>
+    </div>
    </div>
    <div role="group" aria-label="Position action" className="mt-5 grid grid-cols-2 gap-3">
     <button type="button" aria-pressed={side==="ALLOCATE"} onClick={()=>{setSide("ALLOCATE");setAmount("");}} className={"rounded-lg px-4 py-3 text-sm font-semibold transition "+(side==="ALLOCATE"?"bg-emerald-600 text-white shadow-sm":"border border-[#DCE3EC] bg-[#F4F6FA] text-[#64748B] hover:bg-[#E9EEF5]")}>Allocate</button>
@@ -85,20 +101,16 @@ export function EarnActions({available,positions,operations,strategies}:{availab
   </section>
 
   <section aria-label="Market positions and trades" className="overflow-hidden rounded-[24px] border border-[#E3E8EE] bg-white">
-   <div role="tablist" aria-label="Market activity" className="flex border-b border-[#E3E8EE] px-5 sm:px-7">
-    <button type="button" id="positions-tab" role="tab" aria-selected={activityTab==="POSITIONS"} aria-controls="market-activity-panel" onClick={()=>setActivityTab("POSITIONS")} className={"mr-6 border-b-[3px] py-5 text-sm font-semibold transition-colors "+(activityTab==="POSITIONS"?"border-[#635BFF] text-[#11263E]":"border-transparent text-[#64748B] hover:text-[#11263E]")}>Positions <span className="ml-1 text-xs text-[#94A3B8]">({marketPositions.filter(p=>p.status!=="CLOSED").length})</span></button>
+   <div role="tablist" aria-label="Market activity" className="flex items-center justify-between gap-3 border-b border-[#E3E8EE] px-5 sm:px-7">
+    <div className="flex min-w-0 items-center gap-6">
+    <button type="button" id="positions-tab" role="tab" aria-selected={activityTab==="POSITIONS"} aria-controls="market-activity-panel" onClick={()=>setActivityTab("POSITIONS")} className={"border-b-[3px] py-5 text-sm font-semibold transition-colors "+(activityTab==="POSITIONS"?"border-[#635BFF] text-[#11263E]":"border-transparent text-[#64748B] hover:text-[#11263E]")}>Positions <span className="ml-1 text-xs text-[#94A3B8]">({marketPositions.filter(p=>p.status!=="CLOSED").length})</span></button>
     <button type="button" id="trades-tab" role="tab" aria-selected={activityTab==="TRADES"} aria-controls="market-activity-panel" onClick={()=>setActivityTab("TRADES")} className={"border-b-[3px] py-5 text-sm font-semibold transition-colors "+(activityTab==="TRADES"?"border-[#635BFF] text-[#11263E]":"border-transparent text-[#64748B] hover:text-[#11263E]")}>Trades <span className="ml-1 text-xs text-[#94A3B8]">({marketOperations.length})</span></button>
+    </div>
+    {activityTab==="POSITIONS"&&<select aria-label="Filter market positions" value={positionFilter} onChange={e=>{setPositionFilter(e.target.value as "OPEN"|"ALL");setPositionsPage(1);}} className="w-auto max-w-[130px] shrink-0 rounded-lg border border-[#DCE3EC] bg-white px-2 py-1.5 text-xs text-[#334155]"><option value="OPEN">Open</option><option value="ALL">All</option></select>}
    </div>
    <div id="market-activity-panel" role="tabpanel" aria-labelledby={activityTab==="POSITIONS"?"positions-tab":"trades-tab"} className="p-5 sm:p-7">
     {activityTab==="POSITIONS"?<>
-     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <div><h2 className="text-base font-semibold text-[#11263E]">Positions</h2><p className="mt-1 text-xs text-[#64748B]">{strategy?strategy.name:"Select a market to view positions"}</p></div>
-      <label className="flex items-center gap-2 text-xs font-medium text-[#64748B]">Status
-       <select aria-label="Filter market positions" value={positionFilter} onChange={e=>{setPositionFilter(e.target.value as "OPEN"|"ALL");setPositionsPage(1);}} className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm text-[#11263E]">
-        <option value="OPEN">Open</option><option value="ALL">All (open and closed)</option>
-       </select>
-      </label>
-     </div>
+     <div className="mb-4"><h2 className="text-base font-semibold text-[#11263E]">Positions</h2><p className="mt-1 text-xs text-[#64748B]">{strategy?strategy.name:"Select a market to view positions"}</p></div>
      <div role="region" aria-label="Positions for selected market" tabIndex={0} className="max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
       <table className="w-full min-w-[800px] border-collapse text-left">
        <thead className="bg-[#F8FAFC]"><tr>{["Position ID","Allocated","Status","Created","Action"].map(h=><th key={h} scope="col" className={heading}>{h}</th>)}</tr></thead>
