@@ -162,12 +162,12 @@ export function EarnActions({available,positions,operations,strategies}:{availab
   {selected&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0A2540]/60 p-4" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setSelected(null);}}>
    <div role="dialog" aria-modal="true" aria-labelledby="deallocate-title" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
     <h2 id="deallocate-title" className="text-xl font-semibold text-[#11263E]">Deallocate position</h2>
-    <p className="mt-2 break-all text-xs text-[#64748B]">Allocation ID: {selected.id}</p>
-    <p className="mt-3 text-sm text-[#64748B]">Current allocated balance: {money(selected.principal)}. A deallocation never closes the position. Use the separate Close Position action to close it.</p>
-    <form className="mt-5 space-y-4" onSubmit={e=>{e.preventDefault();if(valid(reduceAmount))void submit("/api/earn/deallocations",{positionId:selected.id,amount:reduceAmount});}}>
+    <p className="mt-2 break-all text-xs text-[#64748B]">Position ID: {selected.id}</p>
+    <p className="mt-3 text-sm text-[#64748B]">Available to deallocate: {money((BigInt(selected.principal)>BigInt(selected.reserved)?BigInt(selected.principal)-BigInt(selected.reserved):0n).toString())}. A deallocation never closes the position. Use the separate Close Position action to close it.</p>
+    <form className="mt-5 space-y-4" onSubmit={e=>{e.preventDefault();if(valid(reduceAmount)&&BigInt(reduceAmount.split(".")[0])*1000000n+BigInt((reduceAmount.split(".")[1]??"").padEnd(6,"0"))<=BigInt(selected.principal)-BigInt(selected.reserved))void submit("/api/earn/deallocations",{positionId:selected.id,amount:reduceAmount});}}>
      <label className="flex flex-col gap-2 text-sm font-semibold">Amount to deallocate (USDC)<input autoFocus required inputMode="decimal" value={reduceAmount} onChange={e=>setReduceAmount(e.target.value)} className="rounded-xl border border-[#CBD5E1] px-4 py-3 font-normal" placeholder="0.00"/></label>
-     <button type="button" onClick={()=>setReduceAmount((BigInt(selected.principal)/1000000n).toString()+"."+(BigInt(selected.principal)%1000000n).toString().padStart(6,"0"))} className="text-sm font-semibold text-[#635BFF]">Use full position amount</button>
-     <div className="flex justify-end gap-3"><button type="button" onClick={()=>setSelected(null)} className="rounded-lg border px-4 py-2">Cancel</button><button disabled={working||!valid(reduceAmount)||Number(reduceAmount)>Number(selected.principal)/1e6} className="rounded-lg bg-[#635BFF] px-4 py-2 font-semibold text-white disabled:opacity-40">Request deallocation</button></div>
+     <button type="button" onClick={()=>setReduceAmount((BigInt(selected.principal)>BigInt(selected.reserved)?BigInt(selected.principal)-BigInt(selected.reserved):0n).toString().replace(/^(.+)$/,(micros)=>{const n=BigInt(micros);return (n/1000000n).toString()+"."+(n%1000000n).toString().padStart(6,"0");}))} className="text-sm font-semibold text-[#635BFF]">Use full position amount</button>
+     <div className="flex justify-end gap-3"><button type="button" onClick={()=>setSelected(null)} className="rounded-lg border px-4 py-2">Cancel</button><button disabled={working||!valid(reduceAmount)||Number(reduceAmount)>Number(BigInt(selected.principal)-BigInt(selected.reserved))/1e6} className="rounded-lg bg-[#635BFF] px-4 py-2 font-semibold text-white disabled:opacity-40">Request deallocation</button></div>
     </form>
    </div>
   </div>}
