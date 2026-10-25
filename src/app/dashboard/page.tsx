@@ -109,16 +109,22 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
   </section>
   <PnlPerformanceChart rows={settled.filter(p=>p.settledAt).map(p=>({day:p.settledAt!.toISOString().slice(0,10),netMicros:(p.netPnlUsdcMicros??0n).toString()}))}/>
   <div className="flex justify-end"><a href="/api/earn/reports/trade-pnl.csv" className="rounded-xl border border-[#635BFF] px-4 py-2 text-sm font-semibold text-[#635BFF]">Export settled event report (CSV)</a></div>
-  <section aria-labelledby="period-heading" className="rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
-   <h2 id="period-heading" className="text-lg font-semibold text-[#11263E]">Realized P&amp;L by period</h2>
-   <div className="mt-5 grid gap-5 sm:grid-cols-3 sm:gap-6">
-    {periods.map((period,index)=><div key={period.label} className={index>0?"border-t border-[#EDF0F5] pt-5 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0":""}>
+  <section aria-labelledby="period-heading" className="overflow-hidden rounded-[24px] border border-[#E3E8EE] bg-white">
+   <div className="border-b border-[#EDF0F5] px-5 py-5 sm:px-7 sm:py-6">
+    <h2 id="period-heading" className="text-lg font-semibold tracking-tight text-[#11263E]">Realized P&amp;L</h2>
+    <p className="mt-1 text-sm text-[#64748B]">Settled investment results</p>
+    <div className="mt-5">
+     <p className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">Lifetime net P&amp;L</p>
+     <p className={"mt-2 break-words text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl "+(realized<0n?"text-red-600":realized>0n?"text-emerald-700":"text-[#11263E]")}>{realized>0n?"+":""}{formatUsdc(realized)}</p>
+    </div>
+   </div>
+   <div className="grid grid-cols-1 sm:grid-cols-3">
+    {periods.map((period,index)=><div key={period.label} className={"min-w-0 px-5 py-5 sm:px-7 sm:py-6 "+(index>0?"border-t border-[#EDF0F5] sm:border-l sm:border-t-0":"")}>
      <p className="text-sm font-medium text-[#64748B]">{period.label}</p>
-     <p className={"mt-2 break-words text-xl font-semibold tabular-nums "+(period.value<0n?"text-red-600":"text-emerald-700")}>{period.value>0n?"+":""}{formatUsdc(period.value)}</p>
-     <p className="mt-1 text-xs text-[#94A3B8]">{period.window}</p>
+     <p className={"mt-2 break-words text-xl font-semibold tabular-nums "+(period.value<0n?"text-red-600":period.value>0n?"text-emerald-700":"text-[#11263E]")}>{period.value>0n?"+":""}{formatUsdc(period.value)}</p>
     </div>)}
    </div>
-   <p className="mt-5 border-t border-[#EDF0F5] pt-4 text-xs leading-5 text-[#64748B]">These figures are realized profit or loss in USDC, not percentage investment returns.</p>
+   <p className="border-t border-[#EDF0F5] bg-[#FAFBFD] px-5 py-3 text-xs leading-5 text-[#64748B] sm:px-7">Values are realized net USDC profit or loss from settled trades. Deposits and withdrawals are excluded; these are not percentage returns.</p>
   </section>
   <section aria-label="Trade analytics" className="rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
    <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
