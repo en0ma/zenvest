@@ -408,6 +408,10 @@ try {
  const {reservePendingDeallocationsBeforeSnapshots}=await import("../src/lib/position-capital-application.ts");
  const reservePosition=await prisma.investorPosition.create({data:{
   userId:user.id,strategyId:strategy.id,status:"OPEN",allocatedUsdcMicros:2000000n}});
+ const secondPosition=await prisma.investorPosition.create({data:{
+  userId:user.id,strategyId:strategy.id,status:"OPEN",allocatedUsdcMicros:1000000n}});
+ assert.notEqual(secondPosition.id,reservePosition.id,"one investor may own multiple OPEN positions per strategy");
+ assert.equal(await prisma.investorPosition.count({where:{userId:user.id,strategyId:strategy.id,status:"OPEN"}})>=2,true);
  const tooLarge=await prisma.positionAllocation.create({data:{
   userId:user.id,positionId:reservePosition.id,strategyId:strategy.id,
   kind:"DEALLOCATE",amountUsdcMicros:3000000n}});
