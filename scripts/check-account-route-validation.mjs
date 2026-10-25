@@ -25,10 +25,10 @@ const {POST:register}=await import("../src/app/api/register/route.ts");
 const registerRequest=body=>new Request("https://ci.invalid/api/register",{method:"POST",body});
 assert.equal((await register(registerRequest("{bad"))).status,400,"malformed registration JSON rejected");
 assert.equal((await register(registerRequest(JSON.stringify({
- name:"CI",email:"bad-email",password:"TestPass123!"
+ handle:"ci",email:"bad-email",password:"TestPass123!"
 })))).status,400,"invalid registration fields rejected");
 assert.equal((await register(registerRequest(JSON.stringify({
- name:"Account Validation",email:"ci-account-validation@example.invalid",
+ handle:"ciuser",email:"ci-account-validation@example.invalid",
  password:"TestPass123!",role:"ADMIN"
 })))).status,400,"role injection rejected");
 console.log("Account route validation coverage passed");
@@ -53,7 +53,7 @@ try{
  assert.equal((await first.json()).ok,true);
  assert.ok((await prisma.user.findUniqueOrThrow({where:{id:userId}})).emailVerifiedAt);
  const existingRegistration=await register(registerRequest(JSON.stringify({
-  name:"CiAccount",email:"ci-account-validation@example.invalid",password:"TestPass123!"
+  handle:"ciuser",email:"ci-account-validation@example.invalid",password:"TestPass123!"
  })));
  assert.equal(existingRegistration.status,409,"verified account registration cannot overwrite an existing identity");
 
@@ -73,7 +73,7 @@ try{
  await prisma.actionToken.create({data:{userId,purpose:"VERIFY_EMAIL",hash:digest(recentVerify),expiresAt:new Date(Date.now()+600000)}});
  const tokensBeforeRegister=await prisma.actionToken.count({where:{userId,purpose:"VERIFY_EMAIL"}});
  const retryRegistration=await register(registerRequest(JSON.stringify({
-  name:"CiAccount",email:"ci-account-validation@example.invalid",password:"TestPass123!"
+  handle:"ciuser",email:"ci-account-validation@example.invalid",password:"TestPass123!"
  })));
  assert.equal(retryRegistration.status,202,"unverified account registration must offer verification rather than 409");
  assert.equal((await retryRegistration.json()).code,"CHECK_EMAIL");
@@ -198,7 +198,7 @@ try{
  // activation token even when transactional email is unavailable in CI.
  const newEmail="ci-new-registration@example.invalid";
  const registered=await register(registerRequest(JSON.stringify({
-  name:"NewUser",email:newEmail,password:"TestPass123!"
+  handle:"newuser",email:newEmail,password:"TestPass123!"
  })));
  assert.equal(registered.status,201,"valid registration creates a new account");
  const created=await prisma.user.findUniqueOrThrow({where:{email:newEmail}});
@@ -208,7 +208,7 @@ try{
  assert.equal(created.emailVerifiedAt,null,"new registrations require email confirmation");
  assert.equal(await prisma.actionToken.count({where:{userId:created.id,purpose:"VERIFY_EMAIL"}}),1);
  const replayRegistration=await register(registerRequest(JSON.stringify({
-  name:"NewUser",email:newEmail,password:"TestPass123!"
+  handle:"newuser",email:newEmail,password:"TestPass123!"
  })));
  assert.equal(replayRegistration.status,202);
  assert.equal(await prisma.user.count({where:{email:newEmail}}),1,"re-registration cannot duplicate identity");
@@ -222,7 +222,7 @@ try{
   delete process.env.RESEND_API_KEY;
   delete process.env.EMAIL_FROM;
   const retried=await register(registerRequest(JSON.stringify({
-   name:"NewUser",email:newEmail,password:"TestPass123!"
+   handle:"newuser",email:newEmail,password:"TestPass123!"
   })));
   assert.equal(retried.status,202,"registration remains accepted when activation delivery is unavailable");
  }finally{

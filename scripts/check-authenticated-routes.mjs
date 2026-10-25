@@ -53,11 +53,12 @@ try{
  assert.equal(await prisma.positionAllocation.count({where:{userId}}),1,
   "failed requests cannot persist allocation records");
  const increase=await post({strategyId,amount:"1.000000"});
- assert.equal(increase.status,201,"a second allocation to the same market must reuse the open position");
- assert.equal((await increase.json()).positionId,body.positionId,"allocation must not create a second open position");
- assert.equal(await prisma.investorPosition.count({where:{userId,strategyId,status:"OPEN"}}),1);
- await assert.rejects(prisma.investorPosition.create({data:{userId,strategyId,status:"OPEN"}}),
-  e=>e.code==="P2002","database uniqueness prevents duplicate open position");
+ assert.equal(increase.status,201,"a second allocation can create its own position");
+ assert.notEqual((await increase.json()).positionId,body.positionId,"new allocation creates a distinct position");
+ assert.equal(await prisma.investorPosition.count({where:{userId,strategyId,status:"OPEN"}}),2);
+ const topUp=await post({strategyId,amount:"1.000000",positionId:body.positionId});
+ assert.equal(topUp.status,201,"explicitly selected existing position can be topped up");
+ assert.equal((await topUp.json()).positionId,body.positionId);
 
  // Settle the fixture reservations before testing separate deallocation and close workflows.
  await prisma.positionAllocation.updateMany({where:{userId,kind:"ALLOCATE",status:"PENDING"},data:{status:"CANCELLED"}});
@@ -75,17 +76,27 @@ try{
  assert.equal(op.userId,userId);
  assert.equal(op.kind,"DEALLOCATE");
  assert.equal(op.amountUsdcMicros,2000001n);
- assert.equal((await call(deallocate,{positionId:pos.id,amount:"1"})).status,409);
+ const second=await call(deallocate,{positionId:pos.id,amount:"1.000000"});
+ assert.equal(second.status,201,"multiple reductions may reserve remaining principal");
+ const secondId=(await second.json()).operationId;
+ assert.equal((await call(deallocate,{positionId:pos.id,amount:"1.000000"})).status,409,
+  "reductions cannot exceed equity after existing reservations");
+ const increaseDuringReduction=await post({strategyId,amount:"1.000000",positionId:pos.id});
+ assert.equal(increaseDuringReduction.status,201,
+  "allocations and reductions may coexist on an open position");
+ await prisma.positionAllocation.update({where:{id:(await increaseDuringReduction.json()).operationId},data:{status:"CANCELLED"}});
+
  assert.equal((await call(closePosition,{positionId:pos.id})).status,409);
- await prisma.positionAllocation.update({where:{id:op.id},data:{status:"CANCELLED"}});
+ await prisma.positionAllocation.updateMany({where:{id:{in:[op.id,secondId]}},data:{status:"CANCELLED"}});
  const closing=await call(closePosition,{positionId:pos.id});
  assert.equal((await closing.json()).status,"closing");
  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:pos.id}})).status,"CLOSING");
- const blockedWhileClosing=await post({strategyId,amount:"1.000000"});
+ assert.equal((await call(deallocate,{positionId:pos.id,amount:"1.000000"})).status,409,"closing positions reject reductions");
+ const blockedWhileClosing=await post({strategyId,amount:"1.000000",positionId:pos.id});
  assert.equal(blockedWhileClosing.status,409,"backend must reject allocations while active position is CLOSING");
  assert.match((await blockedWhileClosing.json()).error,/closing/i);
- assert.equal(await prisma.investorPosition.count({where:{userId,strategyId}}),1,
-  "rejected request must not create a second position");
+ assert.equal(await prisma.investorPosition.count({where:{userId,strategyId}}),2,
+  "rejected request must not create another position");
 
  const zeroStrategyId="ci_route_zero_strategy";
  await prisma.strategy.create({data:{id:zeroStrategyId,name:"CI Route Zero Strategy",description:"Fixture",isActive:true,isPublic:true,kalshiWalletAddress:"11111111111111111111111111111111",minAllocationUsdcMicros:1000000n,maxAllocationUsdcMicros:10000000n,availableCapacityUsdcMicros:12000000n}});

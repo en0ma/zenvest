@@ -15,10 +15,10 @@ export async function POST(request:Request){
   if(pos.status==="CLOSING")return "already_closing";
   await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${pos.strategyId} FOR UPDATE`;
   const pendingAllocations=await tx.positionAllocation.count({where:{positionId:id,kind:"ALLOCATE",
-   status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}}});
+   status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","AWAITING_ALLOCATION","AWAITING_DEALLOCATION","DEALLOCATING","AWAITING_WITHDRAWAL","REVIEW"]}}});
   if(pendingAllocations)return "allocation_pending";
   const pendingDeallocations=await tx.positionAllocation.count({where:{positionId:id,kind:"DEALLOCATE",
-   status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}}});
+   status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","AWAITING_ALLOCATION","AWAITING_DEALLOCATION","DEALLOCATING","AWAITING_WITHDRAWAL","REVIEW"]}}});
   if(pendingDeallocations)return "deallocation_pending";
   const exposure=await tx.positionTradePnl.count({where:{positionId:id,status:"SNAPSHOTTED"}});
   const ready=exposure===0;

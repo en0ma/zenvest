@@ -17,7 +17,7 @@ try {
  // Verify the real PostgreSQL enum values after migration.
  for(const name of ['WithdrawalStatus','PositionTransferStatus']){
   const rows=await prisma.$queryRawUnsafe('SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid WHERE t.typname=$1',name);
-  assert.deepEqual(rows.map(r=>r.enumlabel).sort(),[...['PENDING','SUBMITTING','PROCESSING','REVIEW','COMPLETED','FAILED','CANCELLED'],...(name==='PositionTransferStatus'?['CONFIRMING']:[])].sort());
+  assert.deepEqual(rows.map(r=>r.enumlabel).sort(),[...['PENDING','SUBMITTING','PROCESSING','REVIEW','COMPLETED','FAILED','CANCELLED'],...(name==='PositionTransferStatus'?['CONFIRMING','AWAITING_ALLOCATION','AWAITING_DEALLOCATION','AWAITING_WITHDRAWAL','DEALLOCATING']:[])].sort());
  }
  const schemaTables=await prisma.$queryRawUnsafe(`SELECT tablename FROM pg_tables WHERE schemaname='public'`);
  const tableNames=new Set(schemaTables.map(x=>x.tablename));
@@ -59,6 +59,15 @@ try {
  assert.equal(reduction.kind,"DEALLOCATE");
  assert.equal(reduction.strategyEventId,null);
  assert.equal(await prisma.positionAllocation.count({where:{kind:"DEALLOCATE",userId:user.id}}),1);
+ // Handles and symbols are unique, compact and database validated.
+ const primary=await prisma.user.findUniqueOrThrow({where:{id:user.id}});
+ assert.match(primary.handle,/^[a-z0-9]{1,8}$/);
+ await assert.rejects(()=>prisma.user.create({data:{
+  email:"ci-duplicate-handle@example.invalid",name:"duplicate",handle:primary.handle,passwordHash:"fixture"
+ }}),e=>e.code==="P2002","duplicate handle rejected");
+ await assert.rejects(()=>prisma.user.create({data:{
+  email:"ci-invalid-handle@example.invalid",name:"invalid",handle:"Bad Name",passwordHash:"fixture"
+ }}),e=>/users_handle_format/.test(String(e)),"invalid handles rejected in database");
  // Webhook intake commits one durable message per source-scoped key.
  const enqueued=await prisma.webhookQueue.create({data:{
   source:"BLOCKRADAR",eventType:"deposit.swept.success",
@@ -80,6 +89,8 @@ try {
  assert.equal((await prisma.webhookQueue.findUniqueOrThrow({where:{id:enqueued.id}})).status,"PROCESSED");
  // Real PostgreSQL uniqueness and ownership constraints.
  const strategy=await prisma.strategy.findUniqueOrThrow({where:{id:"ci_test_strategy"}});
+ await prisma.strategy.update({where:{id:strategy.id},data:{symbol:"CI123",logo:"/strategy-logos/ci.png"}});
+ assert.equal((await prisma.strategy.findUniqueOrThrow({where:{id:strategy.id}})).symbol,"CI123");
  assert.equal(strategy.platformProfitPercentage.toString(),"0");
  await prisma.strategyTrade.create({data:{
   id:"ci_trade_1",strategyId:strategy.id,marketTradeId:"CI_15M_EVENT_1",
@@ -234,6 +245,7 @@ try {
   kind:"ALLOCATE",strategyId:strategy.id,amountUsdcMicros:7_000_000n,
  }});
  await prisma.investorPosition.update({where:{id:position.id},data:{status:"CLOSED",closedAt:new Date()}});
+ await prisma.positionAllocation.update({where:{id:reduction.id},data:{status:"CANCELLED"}}); // Fixture is not part of following trade scenarios.
  const children=[];
  const sharedPosition=await prisma.investorPosition.create({data:{userId:user.id,strategyId:strategy.id}});
  for(const [i,n] of [3_000_000n,4_000_000n].entries()){
@@ -280,7 +292,11 @@ try {
   asset:"USDC",network:"solana"};
  assert.equal(await settleVerifiedStrategyFunding({...verified,amountUsdcMicros:8_000_000n}),"mismatch");
  assert.equal((await prisma.strategyEvent.findUniqueOrThrow({where:{id:evt.id}})).destinationConfirmed,false);
- assert.equal(await settleVerifiedStrategyFunding(verified),"settled");
+ assert.equal(await settleVerifiedStrategyFunding(verified),"awaiting_allocation");
+ assert.equal((await prisma.positionAllocation.findFirstOrThrow({where:{strategyEventId:evt.id}})).status,"AWAITING_ALLOCATION");
+ const {applyVerifiedCapitalEvent}=await import("../src/lib/position-capital-application.ts");
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,balanceBeforeSource,"capital must not change at receipt confirmation");
+ assert.equal(await applyVerifiedCapitalEvent(evt.id),"applied");
  assert.equal(await settleVerifiedStrategyFunding(verified),"duplicate");
  assert.equal(await settleVerifiedStrategyFunding({...verified,kalshiTransactionId:"different"}),"mismatch");
  const finalized=await prisma.strategyEvent.findUniqueOrThrow({where:{id:evt.id}});
@@ -340,9 +356,10 @@ try {
   if(attempts[i].status==="rejected"){
    const error=attempts[i].reason;
    assert.ok(error?.code==="P2034"||(error?.code==="P2010"&&["40001","40P01"].includes(String(error?.meta?.code))),"only serializable write conflicts may retry");
-   if(i===0)await processPositionTradePnl();else assert.equal(await funding(),"settled");
+   if(i===0)await processPositionTradePnl();else assert.equal(await funding(),"awaiting_allocation");
   }
  }
+ await processPositionTradePnl(); // Pick up a confirmed funding receipt if it raced the earlier P&L cycle.
  const eventRows=await prisma.positionTradePnl.findMany({where:{strategyTradeId:start.id}});
  assert.ok(eventRows.every(x=>x.status==="SETTLED"));
  assert.equal(eventRows.reduce((n,x)=>n+(x.grossPnlUsdcMicros??0n),0n),7_000_000n);
@@ -360,7 +377,7 @@ try {
  const {settleVerifiedStrategyReturn}=await import("../src/lib/strategy-return-settlement.ts");
  const closing=children[1].pos;
  const finalValue=(await prisma.investorPosition.findUniqueOrThrow({where:{id:closing.id}})).allocatedUsdcMicros;
- await prisma.investorPosition.update({where:{id:closing.id},data:{status:"CLOSING",lastPnlUpdated:true}});
+ await prisma.investorPosition.update({where:{id:closing.id},data:{status:"CLOSING",lastPnlUpdated:true,allocatedUsdcMicros:0n}});
  const returnEvent=await prisma.strategyEvent.create({data:{
   strategyId:strategy.id,kind:"DEALLOCATE",status:"CONFIRMING",
   amountUsdcMicros:finalValue,
@@ -384,8 +401,12 @@ try {
  assert.equal(await settleVerifiedStrategyReturn({...receipt,strategyEventId:"nonexistent"}),"unrelated");
  assert.equal(await settleVerifiedStrategyReturn({...receipt,amountUsdcMicros:finalValue+1n}),"mismatch");
  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:closing.id}})).status,"CLOSING");
+ // Simulate independently authenticated Kalshi withdraw.success, never a mock 200.
+ await prisma.strategyEvent.update({where:{id:returnEvent.id},data:{sourceConfirmed:true,
+  kalshiWithdrawalId:receipt.kalshiWithdrawalId}});
  const userBeforeReturn=(await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated;
- assert.equal(await settleVerifiedStrategyReturn(receipt),"settled");
+ assert.equal(await settleVerifiedStrategyReturn(receipt),"completed");
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,userBeforeReturn+finalValue);
  assert.equal(await settleVerifiedStrategyReturn(receipt),"duplicate");
  assert.equal(await settleVerifiedStrategyReturn({...receipt,masterReceiptId:"different"}),"mismatch");
  assert.equal(await settleVerifiedStrategyReturn({...receipt,kalshiWithdrawalId:"different"}),"mismatch");
@@ -395,6 +416,35 @@ try {
  assert.equal(closedPosition.allocatedUsdcMicros,0n);
  assert.ok(closedPosition.closedAt);
  assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:returnChild.id}})).status,"COMPLETED");
+ const {reservePendingDeallocationsBeforeSnapshots}=await import("../src/lib/position-capital-application.ts");
+ const reservePosition=await prisma.investorPosition.create({data:{
+  userId:user.id,strategyId:strategy.id,status:"OPEN",allocatedUsdcMicros:2000000n}});
+ const secondPosition=await prisma.investorPosition.create({data:{
+  userId:user.id,strategyId:strategy.id,status:"OPEN",allocatedUsdcMicros:1000000n}});
+ assert.notEqual(secondPosition.id,reservePosition.id,"one investor may own multiple OPEN positions per strategy");
+ assert.equal(await prisma.investorPosition.count({where:{userId:user.id,strategyId:strategy.id,status:"OPEN"}})>=2,true);
+ const tooLarge=await prisma.positionAllocation.create({data:{
+  userId:user.id,positionId:reservePosition.id,strategyId:strategy.id,
+  kind:"DEALLOCATE",amountUsdcMicros:3000000n}});
+ await reservePendingDeallocationsBeforeSnapshots();
+ assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:tooLarge.id}})).status,"FAILED");
+ const payable=await prisma.positionAllocation.create({data:{
+  userId:user.id,positionId:reservePosition.id,strategyId:strategy.id,
+  kind:"DEALLOCATE",amountUsdcMicros:1000000n}});
+ await reservePendingDeallocationsBeforeSnapshots();
+ assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:payable.id}})).status,"AWAITING_DEALLOCATION");
+ assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:reservePosition.id}})).allocatedUsdcMicros,1000000n);
+ await reservePendingDeallocationsBeforeSnapshots();
+ assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:reservePosition.id}})).allocatedUsdcMicros,1000000n,
+  "deallocation replay must not debit capital twice");
+ const resumed=await prisma.positionAllocation.create({data:{
+  userId:user.id,positionId:reservePosition.id,strategyId:strategy.id,
+  kind:"DEALLOCATE",status:"SUBMITTING",amountUsdcMicros:500000n}});
+ await reservePendingDeallocationsBeforeSnapshots();
+ assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:resumed.id}})).status,"AWAITING_DEALLOCATION",
+  "interrupted pre-custody claim should resume");
+ assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:reservePosition.id}})).allocatedUsdcMicros,500000n);
+
  console.log("Position P&L concurrency, replay and authenticated-return closure passed");
  console.log("Strategy source-only confirmation, duplicate, mismatch, and financial conservation passed");
  console.log("CI PostgreSQL transaction rollback, uniqueness and idempotent settlement assertions passed");

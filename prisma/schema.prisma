@@ -16,7 +16,8 @@ enum TokenPurpose {
 model User {
   id           String   @id @default(cuid())
   email        String   @unique @db.VarChar(254)
-  name         String   @db.VarChar(120)
+  name         String   @db.VarChar(120) // Legacy account label while existing consumers migrate to handle.
+  handle       String   @unique @default(dbgenerated("substr(md5(random()::text || clock_timestamp()::text), 1, 8)")) @db.VarChar(8)
   passwordHash String   @map("password_hash") @db.VarChar(255)
   role         Role     @default(USER)
   isActive     Boolean  @default(true) @map("is_active")
@@ -65,6 +66,8 @@ enum MarketType {
 model Strategy {
   id String @id @db.VarChar(64)
   name String @unique @db.VarChar(120)
+  symbol String? @unique @db.VarChar(8)
+  logo String? @db.VarChar(500)
   description String @db.VarChar(500)
   note String? @db.VarChar(1000)
   minCapacityUsdcMicros BigInt @default(0) @map("min_capacity_usdc_micros")
@@ -80,6 +83,8 @@ model Strategy {
   marketId String? @map("market_id") @db.VarChar(200)
   marketName String? @map("market_name") @db.VarChar(200)
   kalshiWalletAddress String? @map("kalshi_wallet_address") @db.VarChar(128)
+  blockRadarAddress String? @unique @map("block_radar_address") @db.VarChar(128)
+  blockRadarAddressId String? @unique @map("block_radar_address_id") @db.VarChar(160)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   positions InvestorPosition[]
@@ -276,8 +281,12 @@ enum PositionStatus {
 enum PositionTransferStatus {
   PENDING
   SUBMITTING
+  DEALLOCATING
   PROCESSING
   CONFIRMING
+  AWAITING_ALLOCATION
+  AWAITING_DEALLOCATION
+  AWAITING_WITHDRAWAL
   REVIEW
   COMPLETED
   FAILED
@@ -343,6 +352,7 @@ model StrategyEvent {
   treasuryTransactionId String? @unique @map("treasury_transaction_id")
   treasuryTransaction TreasuryTransfer? @relation(fields:[treasuryTransactionId],references:[id],onDelete:Restrict)
   positionEvents PositionAllocation[]
+  kalshiWithdrawalId String? @unique @map("kalshi_withdrawal_id") @db.VarChar(200)
   sourceConfirmed Boolean @default(false) @map("source_confirmed")
   destinationConfirmed Boolean @default(false) @map("destination_confirmed")
   createdAt DateTime @default(now()) @map("created_at")

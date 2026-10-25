@@ -39,8 +39,8 @@ export async function settleVerifiedStrategyReturn(receipt:VerifiedStrategyRetur
    event.positionEvents.reduce((sum,row)=>sum+row.amountUsdcMicros,0n)!==receipt.amountUsdcMicros||
    event.positionEvents.some(row=>row.kind!=="DEALLOCATE"||
     row.strategyId!==event.strategyId||row.status!=="CONFIRMING"))return "mismatch";
-  if(event.treasuryTransactionId||event.sourceConfirmed||event.destinationConfirmed||
-   event.status!=="CONFIRMING")return "not_ready";
+  if(event.treasuryTransactionId||!event.sourceConfirmed||event.destinationConfirmed||
+   event.status!=="CONFIRMING"||event.kalshiWithdrawalId!==receipt.kalshiWithdrawalId)return "not_ready";
   // The IDs supplied by the independently authenticated caller must be globally unique.
   const prior=await tx.treasuryTransfer.findFirst({where:{direction:"DEALLOCATE",
    OR:[{originExternalId:receipt.kalshiWithdrawalId},
@@ -53,12 +53,9 @@ export async function settleVerifiedStrategyReturn(receipt:VerifiedStrategyRetur
    const pos=byId.get(row.positionId);
    if(!pos||pos.userId!==row.userId||pos.strategyId!==event.strategyId||
     (pos.status!=="OPEN"&&pos.status!=="CLOSING")||
-    (pos.status==="CLOSING"&&!pos.lastPnlUpdated)||
-    pos.allocatedUsdcMicros<row.amountUsdcMicros)return "mismatch";
+    (pos.status==="CLOSING"&&!pos.lastPnlUpdated))return "mismatch";
   }
-  // Don't remove capital while previously snapshotted trades still carry risk.
-  const exposed=await tx.positionTradePnl.count({where:{positionId:{in:rows.map(x=>x.positionId)},status:"SNAPSHOTTED"}});
-  if(exposed)return "awaiting_pnl";
+  // Verification records custody; P&L exposure is checked before capital application.
   const transfer=await tx.treasuryTransfer.create({data:{
    direction:"DEALLOCATE",status:"COMPLETE",asset:"USDC",network:"solana",
    amountUsdcMicros:event.amountUsdcMicros,feeUsdcMicros:0n,
@@ -67,41 +64,35 @@ export async function settleVerifiedStrategyReturn(receipt:VerifiedStrategyRetur
    destinationExternalId:receipt.masterReceiptId,
    reference:`strategy_return:${event.id}`,completedAt:new Date(),
   }});
+  // Custody is independently confirmed, but the position's capital stays
+  // unchanged until all earlier frozen trade exposure has settled.
   const changed=await tx.strategyEvent.updateMany({where:{id:event.id,status:"CONFIRMING",
-   sourceConfirmed:false,destinationConfirmed:false,treasuryTransactionId:null},
-   data:{status:"COMPLETED",sourceConfirmed:true,destinationConfirmed:true,
-    treasuryTransactionId:transfer.id}});
+   sourceConfirmed:true,destinationConfirmed:false,treasuryTransactionId:null},
+   data:{destinationConfirmed:true,treasuryTransactionId:transfer.id,status:"COMPLETED"}});
   if(changed.count!==1)throw new Error("Concurrent strategy return settlement");
-  const completed=await tx.positionAllocation.updateMany({where:{
+  const queued=await tx.positionAllocation.updateMany({where:{
    strategyEventId:event.id,kind:"DEALLOCATE",status:"CONFIRMING"},
    data:{status:"COMPLETED"}});
-  if(completed.count!==rows.length)throw new Error("Return batch changed");
+  if(queued.count!==rows.length)throw new Error("Return batch changed");
   for(const row of rows){
-   const debited=await tx.investorPosition.updateMany({where:{id:row.positionId,
-    status:{in:["OPEN","CLOSING"]},allocatedUsdcMicros:{gte:row.amountUsdcMicros}},
-    data:{allocatedUsdcMicros:{decrement:row.amountUsdcMicros}}});
-   if(debited.count!==1)throw new Error("Position equity race");
-   await tx.user.update({where:{id:row.userId},
-    data:{unallocated:{increment:row.amountUsdcMicros}}});
+   await tx.user.update({where:{id:row.userId},data:{unallocated:{increment:row.amountUsdcMicros}}});
    await tx.investorActivity.create({data:{userId:row.userId,type:"DEALLOCATION",
     amountKobo:0n,amountUsdcMicros:row.amountUsdcMicros,
-    reference:`deallocation:${row.id}:completed`,
+    reference:"deallocation:"+row.id+":completed",
     description:"Verified Kalshi withdrawal and master-wallet return"}});
-   const pos=byId.get(row.positionId)!;
-   if(pos.status==="CLOSING"){
-    if(pos.allocatedUsdcMicros!==row.amountUsdcMicros)throw new Error("Closing return must cover final equity");
-    const closed=await tx.investorPosition.updateMany({where:{id:row.positionId,
-     status:"CLOSING",allocatedUsdcMicros:0n,lastPnlUpdated:true},
-     data:{status:"CLOSED",closedAt:new Date()}});
-    if(closed.count!==1)throw new Error("Closing position not ready");
-   }
   }
   await tx.strategy.update({where:{id:event.strategyId},
    data:{availableCapacityUsdcMicros:{increment:event.amountUsdcMicros}}});
   await tx.treasury.upsert({where:{kind:"DEALLOCATE"},
-   create:{walletAddress:master.walletAddress,walletId:master.walletId,source:"MASTER_WALLET",
-    kind:"DEALLOCATE",amount:event.amountUsdcMicros},
+   create:{walletAddress:master.walletAddress,walletId:master.walletId,
+    source:"MASTER_WALLET",kind:"DEALLOCATE",amount:event.amountUsdcMicros},
    update:{amount:{increment:event.amountUsdcMicros}}});
-  return "settled";
+  for(const pos of positions){
+   if(pos.status==="CLOSING"&&pos.allocatedUsdcMicros===0n&&pos.lastPnlUpdated)
+    await tx.investorPosition.updateMany({where:{id:pos.id,status:"CLOSING",
+     allocatedUsdcMicros:0n,lastPnlUpdated:true},data:{status:"CLOSED",closedAt:new Date()}});
+  }
+  return "completed";
+
  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,timeout:20000});
 }

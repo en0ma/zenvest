@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { blockradarConfig } from "@/lib/blockradar";
 import { handleWithdrawalWebhook } from "@/lib/withdrawal-webhook";
 import {handleAllocationWebhook} from "@/lib/allocation-webhook";
+import {handleStrategySweptDeposit} from "@/lib/strategy-blockradar-sweep";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,9 +47,11 @@ export async function processVerifiedBlockradarQueueItem(request: Request) {
       return NextResponse.json({error:"Withdrawal processing unavailable"},{status:503});
     }
   }
-  if (process.env.BLOCKRADAR_DEPOSITS_ENABLED !== "true") {
-    log("deposit_processing_disabled", 503);
-    return NextResponse.json({ error: "Deposit processing disabled" }, { status: 503 });
+  const eventData=event.data&&typeof event.data==="object"?event.data:{};
+  const eventMetadata=eventData.metadata&&typeof eventData.metadata==="object"?eventData.metadata as Record<string,unknown>:{};
+  if(process.env.BLOCKRADAR_DEPOSITS_ENABLED!=="true"&&eventMetadata.source_type!=="strategy"){
+    log("deposit_processing_disabled",503);
+    return NextResponse.json({error:"Deposit processing disabled"},{status:503});
   }
 
   if (!["deposit.success","deposit.swept.success","deposit.swept.failed"].includes(String(event.event))) {
@@ -81,6 +84,32 @@ export async function processVerifiedBlockradarQueueItem(request: Request) {
     log("deposit_not_eligible",200);
     return NextResponse.json({message:"success"});
   }
+  // Blockradar strategy deposits must not be mistaken for investor deposits.
+  // Only an authenticated, fully swept master-wallet receipt may advance them.
+  const metadata=data.metadata&&typeof data.metadata==="object"?data.metadata as Record<string,unknown>:{};
+  if(metadata.source_type==="strategy"){
+    // Only a verified deposit.swept.success may confirm strategy return custody.
+    // deposit.success alone never advances the deallocation status.
+    if(!isSwept)return NextResponse.json({message:"awaiting_strategy_sweep"});
+    try{
+      const result=await handleStrategySweptDeposit(data,mint,masterWalletId);
+      if(result==="completed"||result==="duplicate"){
+        log("strategy_deallocation_"+result,200);
+        return NextResponse.json({message:"success"});
+      }
+      if(result==="unmatched_withdrawal"||result==="not_ready"){
+        log("strategy_sweep_awaiting_matching_kalshi_withdrawal",503);
+        return NextResponse.json({error:"Strategy sweep awaiting authenticated Kalshi withdrawal"}, {status:503});
+      }
+      log("strategy_sweep_"+result,422);
+      return NextResponse.json({error:"Invalid or unmatched strategy sweep"}, {status:422});
+    }catch(error){
+      journeyLog("error","deposit_webhook","strategy_sweep_processing_error",{requestId,errorType:error instanceof Error?error.name:"unknown"});
+      return NextResponse.json({error:"Strategy sweep reconciliation unavailable"},{status:503});
+    }
+  }
+  if(metadata.source_type&&metadata.source_type!=="user")
+    return NextResponse.json({error:"Unknown deposit source type"},{status:422});
   const wallet=await prisma.investorDepositWallet.findUnique({where:{address:recipient}});
   if (!wallet || wallet.status!=="ACTIVE" || wallet.masterWalletId!==masterWalletId ||
       (addr.id && addr.id!==wallet.addressId)) {

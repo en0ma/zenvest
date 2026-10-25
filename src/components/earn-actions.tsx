@@ -1,8 +1,8 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-type Strategy = {id:string;name:string;description:string;min:string;max:string;capacity:string};
-type Position = {id:string;strategyId:string;principal:string;status:string;created:string;pending:boolean};
+type Strategy = {id:string;name:string;symbol:string|null;logo:string|null;description:string;min:string;max:string;capacity:string};
+type Position = {id:string;strategyId:string;principal:string;reserved:string;status:string;created:string;pending:boolean};
 type Operation = {id:string;positionId:string;type:string;amount:string;status:string;created:string;completed:string|null};
 const money=(raw:string)=> (Number(raw)/1e6).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:6})+" USDC";
 export function EarnActions({available,positions,operations,strategies}:{available:string;positions:Position[];operations:Operation[];strategies:Strategy[]}){
@@ -10,10 +10,12 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const [amount,setAmount]=useState("");
  const [strategyId,setStrategyId]=useState("");
  const [side,setSide]=useState<"ALLOCATE"|"DEALLOCATE">("ALLOCATE");
+ const [targetPositionId,setTargetPositionId]=useState("");
  const [chartRange,setChartRange]=useState("1M");
  const strategy=strategies.find(x=>x.id===strategyId);
- const existingPosition=positions.find(p=>p.strategyId===strategyId&&(p.status==="OPEN"||p.status==="CLOSING"));
- const deallocationBalance=existingPosition?.status==="OPEN"?BigInt(existingPosition.principal):0n;
+ const strategyPositions=positions.filter(p=>p.strategyId===strategyId&&p.status==="OPEN");
+ const existingPosition=strategyPositions.find(p=>p.id===targetPositionId);
+ const deallocationBalance=existingPosition?.status==="OPEN"?(()=>{const remaining=BigInt(existingPosition.principal)-BigInt(existingPosition.reserved);return remaining>0n?remaining:0n;})():0n;
  const availableBalance=side==="ALLOCATE"?BigInt(available):deallocationBalance;
  const amountIsValid=/^(0|[1-9]\d*)(\.\d{1,6})?$/.test(amount);
  const amountMicros=amountIsValid?(()=>{const [w,f=""]=amount.split(".");return BigInt(w)*1000000n+BigInt(f.padEnd(6,"0"));})():0n;
@@ -23,8 +25,8 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
  const canConfirm=!!strategy&&!working&&amountMicros>0n&&amountMicros<=availableBalance&&(
-  side==="ALLOCATE"?(existingPosition?.status!=="CLOSING"&&amountMicros>=BigInt(strategy.min)&&amountMicros<=BigInt(strategy.max)&&amountMicros<=BigInt(strategy.capacity)):
-  (existingPosition?.status==="OPEN"&&!existingPosition.pending));
+  side==="ALLOCATE"?(amountMicros>=BigInt(strategy.min)&&amountMicros<=BigInt(strategy.max)&&amountMicros<=BigInt(strategy.capacity)):
+  (existingPosition?.status==="OPEN"));
 
  const [activityTab,setActivityTab]=useState<"POSITIONS"|"TRADES">("POSITIONS");
  const [positionFilter,setPositionFilter]=useState<"OPEN"|"ALL">("OPEN");
@@ -57,11 +59,25 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const pageControls=(label:string,page:number,pages:number,setPage:(page:number)=>void)=> <nav aria-label={label+" pagination"} className="mt-4 flex items-center justify-between gap-3 text-sm"><span className="text-[#64748B]">Page {page} of {pages}</span><div className="flex gap-2"><button type="button" onClick={()=>setPage(Math.max(1,page-1))} disabled={page<=1} className="rounded-lg border border-[#DEE5EE] px-3 py-2 font-medium disabled:opacity-40">Previous</button><button type="button" onClick={()=>setPage(Math.min(pages,page+1))} disabled={page>=pages} className="rounded-lg border border-[#DEE5EE] px-3 py-2 font-medium disabled:opacity-40">Next</button></div></nav>;
  return <div className="space-y-8">
   <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
-   <label className="block text-sm font-semibold text-[#334155]">Strategy
-    <select aria-label="Select strategy" value={strategyId} onChange={e=>{setStrategyId(e.target.value);setAmount("");setSide("ALLOCATE");setPositionFilter("OPEN");setPositionsPage(1);setTradesPage(1);}} className="mt-2 w-full rounded-xl border border-[#CBD5E1] bg-white px-4 py-3 font-normal">
+   <div>
+    <select aria-label="Select strategy" value={strategyId} onChange={e=>{setStrategyId(e.target.value);setTargetPositionId("");setAmount("");setSide("ALLOCATE");setPositionFilter("OPEN");setPositionsPage(1);setTradesPage(1);}} className="w-full rounded-xl border border-[#CBD5E1] bg-white px-4 py-3 font-normal">
      <option value="">Select a strategy</option>{strategies.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
     </select>
-   </label>
+   </div>
+   {strategies.length>0&&<div aria-label="Available strategies" className="mt-4 overflow-hidden rounded-xl border border-[#E3E8EE] bg-white">
+    {strategies.map(item=><button key={item.id} type="button" aria-pressed={strategyId===item.id}
+      onClick={()=>{setStrategyId(item.id);setTargetPositionId("");setAmount("");setSide("ALLOCATE");setPositionFilter("OPEN");setPositionsPage(1);setTradesPage(1);}}
+      className={"flex w-full items-center gap-3 border-b border-[#EDF0F5] px-4 py-3 text-left last:border-b-0 hover:bg-[#F8FAFC] "+(strategyId===item.id?"bg-[#EEF2FF]":"")}>
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#E8ECF5] text-sm font-bold text-[#14253D]">
+       {item.logo&&(/^https:\/\//.test(item.logo)||item.logo.startsWith("/"))?<img src={item.logo} alt="" className="h-full w-full object-cover"/>:(item.symbol??item.name).slice(0,2).toUpperCase()}
+      </span>
+      <span className="min-w-0 flex-1">
+       <span className="block truncate font-semibold text-[#14253D]">{item.symbol??item.name}</span>
+       <span className="block truncate text-xs text-[#64748B]">{item.name}</span>
+      </span>
+      <span className="text-xs font-medium text-[#64748B]">{strategyId===item.id?"Selected":"Select"}</span>
+    </button>)}
+   </div>}
    <div className="mt-5 overflow-hidden rounded-xl border border-[#293341] bg-[#1F2632] text-[#E9EDF3]">
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#35404E] px-4 py-3">
      <div><h3 className="text-sm font-semibold">Strategy chart</h3><p className="mt-0.5 text-xs text-[#91A0B2]">{strategy?.name??"Select a strategy"} · Performance</p></div>
@@ -95,10 +111,18 @@ export function EarnActions({available,positions,operations,strategies}:{availab
     </div>
    </div>
    <div role="group" aria-label="Position action" className="mt-5 grid grid-cols-2 gap-3">
-    <button type="button" aria-pressed={side==="ALLOCATE"} onClick={()=>{setSide("ALLOCATE");setAmount("");}} className={"rounded-lg border-2 px-4 py-3 text-sm font-semibold transition-colors "+(side==="ALLOCATE"?"border-emerald-600 bg-emerald-600 text-white shadow-sm":"border-[#94A3B8] bg-white text-[#475569] hover:border-[#64748B] hover:bg-[#F8FAFC]")}>Allocate</button>
-    <button type="button" aria-pressed={side==="DEALLOCATE"} onClick={()=>{setSide("DEALLOCATE");setAmount("");}} className={"rounded-lg border-2 px-4 py-3 text-sm font-semibold transition-colors "+(side==="DEALLOCATE"?"border-red-600 bg-red-600 text-white shadow-sm":"border-[#94A3B8] bg-white text-[#475569] hover:border-[#64748B] hover:bg-[#F8FAFC]")}>Deallocate</button>
+    <button type="button" aria-pressed={side==="ALLOCATE"} onClick={()=>{setSide("ALLOCATE");setTargetPositionId("");setAmount("");}} className={"rounded-lg border-2 px-4 py-3 text-sm font-semibold transition-colors "+(side==="ALLOCATE"?"border-emerald-600 bg-emerald-600 text-white shadow-sm":"border-[#94A3B8] bg-white text-[#475569] hover:border-[#64748B] hover:bg-[#F8FAFC]")}>Allocate</button>
+    <button type="button" aria-pressed={side==="DEALLOCATE"} onClick={()=>{setSide("DEALLOCATE");setTargetPositionId("");setAmount("");}} className={"rounded-lg border-2 px-4 py-3 text-sm font-semibold transition-colors "+(side==="DEALLOCATE"?"border-red-600 bg-red-600 text-white shadow-sm":"border-[#94A3B8] bg-white text-[#475569] hover:border-[#64748B] hover:bg-[#F8FAFC]")}>Deallocate</button>
    </div>
-   {strategy&&<p className="mt-3 text-xs text-[#64748B]">{existingPosition?.status==="OPEN"?"Existing open position: "+existingPosition.id:existingPosition?.status==="CLOSING"?"Position closing; allocations and reductions are blocked until closure is verified.":"No open position in this strategy; allocating creates one."}</p>}
+   {strategy&&<div className="mt-4">
+    <label className="block text-sm font-semibold text-[#334155]">{side==="ALLOCATE"?"Allocate to":"Deallocate from"}
+     <select aria-label="Select position" className="mt-2 w-full rounded-xl border border-[#CBD5E1] bg-white px-4 py-3 font-normal"
+      value={targetPositionId} onChange={e=>{setTargetPositionId(e.target.value);setAmount("");}}>
+      <option value="">{side==="ALLOCATE"?"Create a new position":"Select an open position"}</option>
+      {strategyPositions.map(p=><option key={p.id} value={p.id}>{p.id} · {money(p.principal)}</option>)}
+     </select>
+    </label>
+   </div>}
    <form className="mt-4 space-y-4" onSubmit={e=>{e.preventDefault();if(!canConfirm||!strategy)return;
     if(side==="ALLOCATE")void submit("/api/earn/allocations",{amount,strategyId:strategy.id,...(existingPosition?{positionId:existingPosition.id}:{})});
     else if(existingPosition)void submit("/api/earn/deallocations",{amount,positionId:existingPosition.id});
@@ -133,7 +157,7 @@ export function EarnActions({available,positions,operations,strategies}:{availab
          <td className={cell}>{p.status}{p.pending?" · reduction pending":""}</td>
          <td className={cell}>{p.created}</td>
          <td className={cell}>{p.status==="CLOSED"?<span className="text-xs text-[#64748B]">Closed</span>:<>
-          <button type="button" disabled={working||p.status!=="OPEN"||p.pending||BigInt(p.principal)<=0n} onClick={()=>{setSelected(p);setReduceAmount("");setError("");}} className="rounded-lg border border-[#635BFF] px-3 py-2 font-semibold text-[#635BFF] disabled:opacity-40">Reduce</button>
+          <button type="button" disabled={working||p.status!=="OPEN"||BigInt(p.principal)<=BigInt(p.reserved)} onClick={()=>{setSelected(p);setReduceAmount("");setError("");}} className="rounded-lg border border-[#635BFF] px-3 py-2 font-semibold text-[#635BFF] disabled:opacity-40">Reduce</button>
           <button type="button" disabled={working||p.status!=="OPEN"} onClick={()=>void submit("/api/earn/positions/close",{positionId:p.id})} className="ml-2 rounded-lg border px-3 py-2 font-semibold disabled:opacity-40">Close</button>
          </>}</td>
         </tr>)}
@@ -162,12 +186,12 @@ export function EarnActions({available,positions,operations,strategies}:{availab
   {selected&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0A2540]/60 p-4" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setSelected(null);}}>
    <div role="dialog" aria-modal="true" aria-labelledby="deallocate-title" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
     <h2 id="deallocate-title" className="text-xl font-semibold text-[#11263E]">Deallocate position</h2>
-    <p className="mt-2 break-all text-xs text-[#64748B]">Allocation ID: {selected.id}</p>
-    <p className="mt-3 text-sm text-[#64748B]">Current allocated balance: {money(selected.principal)}. A deallocation never closes the position. Use the separate Close Position action to close it.</p>
-    <form className="mt-5 space-y-4" onSubmit={e=>{e.preventDefault();if(valid(reduceAmount))void submit("/api/earn/deallocations",{positionId:selected.id,amount:reduceAmount});}}>
+    <p className="mt-2 break-all text-xs text-[#64748B]">Position ID: {selected.id}</p>
+    <p className="mt-3 text-sm text-[#64748B]">Available to deallocate: {money((BigInt(selected.principal)>BigInt(selected.reserved)?BigInt(selected.principal)-BigInt(selected.reserved):0n).toString())}. A deallocation never closes the position. Use the separate Close Position action to close it.</p>
+    <form className="mt-5 space-y-4" onSubmit={e=>{e.preventDefault();if(valid(reduceAmount)&&BigInt(reduceAmount.split(".")[0])*1000000n+BigInt((reduceAmount.split(".")[1]??"").padEnd(6,"0"))<=BigInt(selected.principal)-BigInt(selected.reserved))void submit("/api/earn/deallocations",{positionId:selected.id,amount:reduceAmount});}}>
      <label className="flex flex-col gap-2 text-sm font-semibold">Amount to deallocate (USDC)<input autoFocus required inputMode="decimal" value={reduceAmount} onChange={e=>setReduceAmount(e.target.value)} className="rounded-xl border border-[#CBD5E1] px-4 py-3 font-normal" placeholder="0.00"/></label>
-     <button type="button" onClick={()=>setReduceAmount((BigInt(selected.principal)/1000000n).toString()+"."+(BigInt(selected.principal)%1000000n).toString().padStart(6,"0"))} className="text-sm font-semibold text-[#635BFF]">Use full position amount</button>
-     <div className="flex justify-end gap-3"><button type="button" onClick={()=>setSelected(null)} className="rounded-lg border px-4 py-2">Cancel</button><button disabled={working||!valid(reduceAmount)||Number(reduceAmount)>Number(selected.principal)/1e6} className="rounded-lg bg-[#635BFF] px-4 py-2 font-semibold text-white disabled:opacity-40">Request deallocation</button></div>
+     <button type="button" onClick={()=>setReduceAmount((BigInt(selected.principal)>BigInt(selected.reserved)?BigInt(selected.principal)-BigInt(selected.reserved):0n).toString().replace(/^(.+)$/,(micros)=>{const n=BigInt(micros);return (n/1000000n).toString()+"."+(n%1000000n).toString().padStart(6,"0");}))} className="text-sm font-semibold text-[#635BFF]">Use full position amount</button>
+     <div className="flex justify-end gap-3"><button type="button" onClick={()=>setSelected(null)} className="rounded-lg border px-4 py-2">Cancel</button><button disabled={working||!valid(reduceAmount)||Number(reduceAmount)>Number(BigInt(selected.principal)-BigInt(selected.reserved))/1e6} className="rounded-lg bg-[#635BFF] px-4 py-2 font-semibold text-white disabled:opacity-40">Request deallocation</button></div>
     </form>
    </div>
   </div>}
