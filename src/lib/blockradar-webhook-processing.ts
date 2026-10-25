@@ -47,6 +47,13 @@ export async function processVerifiedBlockradarQueueItem(request: Request) {
       return NextResponse.json({error:"Withdrawal processing unavailable"},{status:503});
     }
   }
+  const eventData=event.data&&typeof event.data==="object"?event.data:{};
+  const eventMetadata=eventData.metadata&&typeof eventData.metadata==="object"?eventData.metadata as Record<string,unknown>:{};
+  if(process.env.BLOCKRADAR_DEPOSITS_ENABLED!=="true"&&eventMetadata.source_type!=="strategy"){
+    log("deposit_processing_disabled",503);
+    return NextResponse.json({error:"Deposit processing disabled"},{status:503});
+  }
+
   if (!["deposit.success","deposit.swept.success","deposit.swept.failed"].includes(String(event.event))) {
     log("ignored_event", 200);
     return NextResponse.json({message:"success"});
@@ -101,11 +108,6 @@ export async function processVerifiedBlockradarQueueItem(request: Request) {
   }
   if(metadata.source_type&&metadata.source_type!=="user")
     return NextResponse.json({error:"Unknown deposit source type"},{status:422});
-  if (process.env.BLOCKRADAR_DEPOSITS_ENABLED !== "true") {
-    log("deposit_processing_disabled", 503);
-    return NextResponse.json({ error: "Deposit processing disabled" }, { status: 503 });
-  }
-
   const wallet=await prisma.investorDepositWallet.findUnique({where:{address:recipient}});
   if (!wallet || wallet.status!=="ACTIVE" || wallet.masterWalletId!==masterWalletId ||
       (addr.id && addr.id!==wallet.addressId)) {
