@@ -117,8 +117,14 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
    </article>)}</div>
    <p className="mt-3 text-xs leading-5 text-[#64748B]">These figures are realized profit or loss in USDC, not percentage investment returns.</p>
   </section>
-  <section className="grid gap-4 sm:grid-cols-3" aria-label="Trade analytics">
-  {[{label:"Settled events",value:String(settled.length)},{label:"Event win rate",value:winning+losing>0?(winning*100/(winning+losing)).toFixed(1)+"%":"—"},{label:"Last 30 days net P&L",value:formatUsdc(lastThirty)}].map(x=><article key={x.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5"><p className="text-sm text-[#64748B]">{x.label}</p><p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p></article>)}
+  <section aria-label="Trade analytics" className="rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
+   <div className="grid gap-5 sm:grid-cols-3 sm:gap-6">
+    {[{label:"Settled events",value:String(settled.length)},{label:"Event win rate",value:winning+losing>0?(winning*100/(winning+losing)).toFixed(1)+"%":"—"},{label:"Last 30 days net P&L",value:formatUsdc(lastThirty)}].map((x,index)=>
+     <div key={x.label} className={index>0?"border-t border-[#EDF0F5] pt-5 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0":""}>
+      <p className="text-sm text-[#64748B]">{x.label}</p>
+      <p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p>
+     </div>)}
+   </div>
   </section>
   <section aria-label="Detailed trading statistics" className="rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
    <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
