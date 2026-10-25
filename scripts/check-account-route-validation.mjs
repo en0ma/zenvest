@@ -25,10 +25,10 @@ const {POST:register}=await import("../src/app/api/register/route.ts");
 const registerRequest=body=>new Request("https://ci.invalid/api/register",{method:"POST",body});
 assert.equal((await register(registerRequest("{bad"))).status,400,"malformed registration JSON rejected");
 assert.equal((await register(registerRequest(JSON.stringify({
- name:"CI",email:"bad-email",password:"TestPass123!"
+ handle:"ci",email:"bad-email",password:"TestPass123!"
 })))).status,400,"invalid registration fields rejected");
 assert.equal((await register(registerRequest(JSON.stringify({
- name:"Account Validation",email:"ci-account-validation@example.invalid",
+ handle:"ciuser",email:"ci-account-validation@example.invalid",
  password:"TestPass123!",role:"ADMIN"
 })))).status,400,"role injection rejected");
 console.log("Account route validation coverage passed");
@@ -53,7 +53,7 @@ try{
  assert.equal((await first.json()).ok,true);
  assert.ok((await prisma.user.findUniqueOrThrow({where:{id:userId}})).emailVerifiedAt);
  const existingRegistration=await register(registerRequest(JSON.stringify({
-  name:"CiAccount",email:"ci-account-validation@example.invalid",password:"TestPass123!"
+  handle:"ciuser",email:"ci-account-validation@example.invalid",password:"TestPass123!"
  })));
  assert.equal(existingRegistration.status,409,"verified account registration cannot overwrite an existing identity");
 
