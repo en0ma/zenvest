@@ -37,7 +37,7 @@ export function WalletActions({balanceMicros,unallocatedMicros,pendingMicros,con
   inFlight.current=true;setBusy(true);setError("");
   key.current??=crypto.randomUUID();
   try{
-   const response=await fetch("/api/wallet/sends",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({handle:target.trim(),amount,idempotencyKey:key.current,saveRecipient:manual&&save,recipientName:label})});
+   const response=await fetch("/api/wallet/sends",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({handle:target.trim(),amount,idempotencyKey:key.current,saveRecipient:manual&&save,recipientName:label,note})});
    const data:{error?:string;id?:string}=await response.json();
    if(!response.ok)throw new Error(data.error||"Unable to send USDC");
    key.current=null;setReview(false);setAmount("");setHandle("");setLabel("");setNote("");setSuccess("Transfer completed. The recipient's available balance has been credited.");router.refresh();
