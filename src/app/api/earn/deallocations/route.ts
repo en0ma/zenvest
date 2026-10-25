@@ -25,7 +25,7 @@ export async function POST(request:Request){
    await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${pos.strategyId} FOR UPDATE`;
    const unsettled=await tx.positionAllocation.aggregate({where:{
     positionId,userId:user.id,kind:"DEALLOCATE",
-    status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","AWAITING_ALLOCATION","AWAITING_DEALLOCATION","REVIEW"]},
+    status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","AWAITING_ALLOCATION","AWAITING_DEALLOCATION","AWAITING_WITHDRAWAL","REVIEW"]},
    },_sum:{amountUsdcMicros:true}});
    const reserved=unsettled._sum.amountUsdcMicros??0n;
    const available=pos.allocatedUsdcMicros>reserved?pos.allocatedUsdcMicros-reserved:0n;
