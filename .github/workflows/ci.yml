@@ -74,7 +74,7 @@ jobs:
             coverage/
           if-no-files-found: warn
           retention-days: 14
-      - name: Verify production market seed is repeatable in disposable PostgreSQL
+      - name: Verify strategy trade seed is repeatable in disposable PostgreSQL
         run: |
           node scripts/seed-strategy-design.mjs
           node scripts/seed-strategy-design.mjs
@@ -117,7 +117,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: npx prisma migrate status
-      - name: Seed market presentation records
+      - name: Seed strategies and settled trade history
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: node scripts/seed-strategy-design.mjs
