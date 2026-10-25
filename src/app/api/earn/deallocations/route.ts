@@ -20,9 +20,14 @@ export async function POST(request:Request){
   return NextResponse.json({error:"Invalid position or reduction amount"},{status:400});
  try {
   const outcome=await prisma.$transaction(async tx=>{
-   const pos=await tx.investorPosition.findFirst({where:{id:positionId,userId:user.id,status:"OPEN"}});
-   if(!pos)return "INVALID";
-   await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${pos.strategyId} FOR UPDATE`;
+   const candidate=await tx.investorPosition.findFirst({where:{id:positionId,userId:user.id},select:{strategyId:true}});
+   if(!candidate)return "INVALID";
+   await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${candidate.strategyId} FOR UPDATE`;
+   // Re-read after taking the shared strategy lock so a concurrent close
+   // cannot admit a new deallocation using a stale OPEN position snapshot.
+   const pos=await tx.investorPosition.findFirst({where:{id:positionId,userId:user.id}});
+   if(pos?.status==="CLOSING")return "POSITION_CLOSING";
+   if(!pos||pos.status!=="OPEN")return "INVALID";
    const unsettled=await tx.positionAllocation.aggregate({where:{
     positionId,userId:user.id,kind:"DEALLOCATE",
     status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","AWAITING_ALLOCATION","AWAITING_DEALLOCATION","AWAITING_WITHDRAWAL","REVIEW"]},
@@ -35,6 +40,7 @@ export async function POST(request:Request){
    }});
    return op.id;
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
+  if(outcome==="POSITION_CLOSING")return NextResponse.json({error:"This position is closing; no new deallocation requests are accepted"},{status:409});
   if(outcome==="INVALID")return NextResponse.json({error:"Position is not active"},{status:409});
   if(outcome==="EXCEEDS")return NextResponse.json({error:"Amount exceeds unreserved position balance"},{status:409});
   return NextResponse.json({operationId:outcome,status:"PENDING"},{status:201});
