@@ -46,26 +46,22 @@ export async function POST(request: Request) {
       // Serialize allocation attempts for this strategy even before the unique
       // index gets a chance to reject a racing INSERT.
       await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${strategyId} FOR UPDATE`;
-      const activePositions=await tx.investorPosition.findMany({
-        where:{userId:user.id,strategyId,status:{in:["OPEN","CLOSING"]}},
-        select:{id:true,status:true},take:2,
-      });
-      // A legacy duplicate or CLOSING position must never be silently reused,
-      // and a caller cannot inject a different position ID.
-      if(activePositions.length>1)return "DUPLICATE_POSITION";
-      const active=activePositions[0];
-      if(active?.status==="CLOSING")return "POSITION_CLOSING";
-      if(existingId&&active?.id!==existingId)return "POSITION_MISMATCH";
-      const position=active??await tx.investorPosition.create({data:{userId:user.id,strategyId,status:"OPEN"}});
+      // Each new allocation creates a separate position unless a specific OPEN
+      // position belonging to this investor and strategy is selected.
+      const existing=existingId?await tx.investorPosition.findFirst({where:{
+        id:existingId,userId:user.id,strategyId
+      }}):null;
+      if(existingId&&(!existing||existing.status!=="OPEN"))return "POSITION_MISMATCH";
+      const position=existing??await tx.investorPosition.create({data:{
+        userId:user.id,strategyId,status:"OPEN"
+      }});
       const op=await tx.positionAllocation.create({data:{
         userId:user.id,positionId:position.id,strategyId,
         status:"PENDING",amountUsdcMicros:amount,
       }});
       return {positionId:position.id,operationId:op.id,status:op.status};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
-    if(result==="DUPLICATE_POSITION")return NextResponse.json({error:"Multiple active positions found for this market; contact support for reconciliation"},{status:409});
-    if(result==="POSITION_CLOSING")return NextResponse.json({error:"This market position is closing; wait for verified settlement before allocating"},{status:409});
-    if(result==="POSITION_MISMATCH")return NextResponse.json({error:"Position does not match the active position for this market"},{status:409});
+    if(result==="POSITION_MISMATCH")return NextResponse.json({error:"Selected position is not open or does not belong to this strategy"},{status:409});
     return result ? NextResponse.json(result,{status:201}) : NextResponse.json({error:"Unavailable strategy or Kalshi wallet address, invalid allocation limits, insufficient strategy capacity or insufficient unallocated USDC"},{status:409});
   }catch(error){
     if(error instanceof Prisma.PrismaClientKnownRequestError && ["P2034","P2002"].includes(error.code))return NextResponse.json({error:"Concurrent request; retry"},{status:409});
