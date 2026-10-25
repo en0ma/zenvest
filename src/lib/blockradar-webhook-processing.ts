@@ -88,13 +88,11 @@ export async function processVerifiedBlockradarQueueItem(request: Request) {
   // Only an authenticated, fully swept master-wallet receipt may advance them.
   const metadata=data.metadata&&typeof data.metadata==="object"?data.metadata as Record<string,unknown>:{};
   if(metadata.source_type==="strategy"){
-    // A direct master-wallet deposit.success or a verified sweep into master
-    // confirms destination custody. A strategy-address deposit alone does not.
+    // Only a verified deposit.swept.success may confirm strategy return custody.
+    // deposit.success alone never advances the deallocation status.
+    if(!isSwept)return NextResponse.json({message:"awaiting_strategy_sweep"});
     try{
-      const result=await handleStrategySweptDeposit(data,mint,masterWalletId,
-        isSwept?"deposit.swept.success":"deposit.success");
-      if(result==="awaiting_strategy_sweep")
-        return NextResponse.json({message:"awaiting_strategy_sweep"});
+      const result=await handleStrategySweptDeposit(data,mint,masterWalletId);
       if(result==="awaiting_deallocation"||result==="duplicate"){
         log("strategy_deallocation_"+result,200);
         return NextResponse.json({message:"success"});
