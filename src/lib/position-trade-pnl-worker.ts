@@ -72,7 +72,8 @@ async function prepareTrade(id:string){
    if(earlier)return "waiting_for_prior_event";
    // A verified transfer cannot be skipped in favor of a fresh exposure snapshot.
    const awaitingCapital=await tx.positionAllocation.count({where:{strategyId:trade.strategyId,
-    status:"AWAITING_ALLOCATION"}});
+    OR:[{kind:"ALLOCATE",status:"AWAITING_ALLOCATION"},
+        {kind:"DEALLOCATE",status:{in:["PENDING","SUBMITTING"]}}]}});
    if(awaitingCapital)return "waiting_for_capital_application";
    const positions=await tx.investorPosition.findMany({where:{strategyId:trade.strategyId,status:"OPEN",
     allocatedUsdcMicros:{gt:0}},orderBy:{id:"asc"}});
