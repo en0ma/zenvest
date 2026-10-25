@@ -74,6 +74,24 @@ export async function settleVerifiedStrategyReturn(receipt:VerifiedStrategyRetur
    strategyEventId:event.id,kind:"DEALLOCATE",status:"CONFIRMING"},
    data:{status:"COMPLETED"}});
   if(queued.count!==rows.length)throw new Error("Return batch changed");
+  for(const row of rows){
+   await tx.user.update({where:{id:row.userId},data:{unallocated:{increment:row.amountUsdcMicros}}});
+   await tx.investorActivity.create({data:{userId:row.userId,type:"DEALLOCATION",
+    amountKobo:0n,amountUsdcMicros:row.amountUsdcMicros,
+    reference:"deallocation:"+row.id+":completed",
+    description:"Verified Kalshi withdrawal and master-wallet return"}});
+  }
+  await tx.strategy.update({where:{id:event.strategyId},
+   data:{availableCapacityUsdcMicros:{increment:event.amountUsdcMicros}}});
+  await tx.treasury.upsert({where:{kind:"DEALLOCATE"},
+   create:{walletAddress:master.walletAddress,walletId:master.walletId,
+    source:"MASTER_WALLET",kind:"DEALLOCATE",amount:event.amountUsdcMicros},
+   update:{amount:{increment:event.amountUsdcMicros}}});
+  for(const pos of positions){
+   if(pos.status==="CLOSING"&&pos.allocatedUsdcMicros===0n&&pos.lastPnlUpdated)
+    await tx.investorPosition.updateMany({where:{id:pos.id,status:"CLOSING",
+     allocatedUsdcMicros:0n,lastPnlUpdated:true},data:{status:"CLOSED",closedAt:new Date()}});
+  }
   return "completed";
 
  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,timeout:20000});
