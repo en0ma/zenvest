@@ -18,16 +18,22 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
  const [historyPage,setHistoryPage]=useState(1);
- const [operationsPage,setOperationsPage]=useState(1);
+ const [allocationsPage,setAllocationsPage]=useState(1);
+ const [deallocationsPage,setDeallocationsPage]=useState(1);
  const PAGE_SIZE=10;
  const closedPositions=positions.filter(p=>p.status==="CLOSED");
  const activePositions=positions.filter(p=>p.status==="OPEN"||p.status==="CLOSING");
  const historyPages=Math.max(1,Math.ceil(closedPositions.length/PAGE_SIZE));
- const operationPages=Math.max(1,Math.ceil(operations.length/PAGE_SIZE));
+ const allocations=operations.filter(o=>o.type==="ALLOCATE");
+ const deallocations=operations.filter(o=>o.type==="DEALLOCATE");
+ const allocationPages=Math.max(1,Math.ceil(allocations.length/PAGE_SIZE));
+ const deallocationPages=Math.max(1,Math.ceil(deallocations.length/PAGE_SIZE));
  const shownHistoryPage=Math.min(historyPage,historyPages);
- const shownOperationsPage=Math.min(operationsPage,operationPages);
+ const shownAllocationsPage=Math.min(allocationsPage,allocationPages);
+ const shownDeallocationsPage=Math.min(deallocationsPage,deallocationPages);
  const pagedHistory=closedPositions.slice((shownHistoryPage-1)*PAGE_SIZE,shownHistoryPage*PAGE_SIZE);
- const pagedOperations=operations.slice((shownOperationsPage-1)*PAGE_SIZE,shownOperationsPage*PAGE_SIZE);
+ const pagedAllocations=allocations.slice((shownAllocationsPage-1)*PAGE_SIZE,shownAllocationsPage*PAGE_SIZE);
+ const pagedDeallocations=deallocations.slice((shownDeallocationsPage-1)*PAGE_SIZE,shownDeallocationsPage*PAGE_SIZE);
  async function submit(path:string,payload:Record<string,string>){
   setError("");setNotice("");setWorking(true);
   try{
@@ -62,6 +68,20 @@ export function EarnActions({available,positions,operations,strategies}:{availab
     <button disabled={working||!strategy||!valid(amount)||Number(amount)>Number(available)/1e6||Number(amount)<Number(strategy.min)/1e6||Number(amount)>Math.min(Number(strategy.max)/1e6,Number(strategy.capacity)/1e6)} className="rounded-xl bg-[#635BFF] px-5 py-3 text-sm font-semibold text-white disabled:opacity-40">Allocate</button>
    </form>
    {!allocationPositionId&&(strategy?<div className="mt-4 rounded-xl bg-[#F8FAFD] p-4 text-sm text-[#425466]"><p>{strategy.description}</p><p className="mt-2">Minimum: {money(strategy.min)} · Maximum: {money(strategy.max)} · Available capacity: {money(strategy.capacity)}</p></div>:<p className="mt-4 text-xs text-[#64748B]">Choose an active public strategy to see its allocation limits.</p>)}
+   <div className="mt-8 border-t border-[#EDF0F5] pt-7">
+    <h3 className="text-lg font-semibold text-[#11263E]">Allocation history</h3>
+    <div role="region" aria-label="Allocation history scrollable table" tabIndex={0} className="mt-4 max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
+     <table className="w-full min-w-[930px] border-collapse text-left">
+      <thead className="bg-[#F8FAFC]"><tr>{["Requested","Amount","Status","Position ID","Operation ID","Completed"].map(h=><th key={h} scope="col" className={heading}>{h}</th>)}</tr></thead>
+      <tbody className="divide-y divide-[#EDF0F5]">{pagedAllocations.map(o=><tr key={o.id}>
+       <td className={cell}>{o.created}</td><td className={cell+" font-semibold"}>{money(o.amount)}</td>
+       <td className={cell}>{o.status}</td><td className={cell+" font-mono text-xs"}>{o.positionId}</td>
+       <td className={cell+" font-mono text-xs"}>{o.id}</td><td className={cell}>{o.completed??"—"}</td>
+      </tr>)}{allocations.length===0&&<tr><td colSpan={6} className="px-5 py-8 text-sm text-[#64748B]">No allocation requests yet.</td></tr>}</tbody>
+     </table>
+    </div>
+    {pageControls("Allocation history",shownAllocationsPage,allocationPages,setAllocationsPage)}
+   </div>
   </section>
   <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <h2 className="text-xl font-semibold text-[#11263E]">Positions</h2>
@@ -84,17 +104,22 @@ export function EarnActions({available,positions,operations,strategies}:{availab
    </div>
   </section>
   <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
-   <h2 className="text-xl font-semibold text-[#11263E]">Allocations and DeAllocations</h2>
-   <p className="mt-2 text-sm text-[#64748B]"></p>
-   <div role="region" aria-label="Scrollable Allocations and DeAllocations table" tabIndex={0} className="mt-5 max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
-     <table className="w-full min-w-[1050px] border-collapse text-left"><thead className="bg-[#F8FAFC]"><tr>{["Requested","Type","Amount","Status","Allocation ID","Operation ID","Completed"].map(h=><th key={h} className={heading}>{h}</th>)}</tr></thead>
-     <tbody className="divide-y divide-[#EDF0F5]">{pagedOperations.map(o=><tr key={o.id}>
-      <td className={cell}>{o.created}</td><td className={cell}>{o.type==="ALLOCATE"?"Allocate":"Deallocate"}</td>
-      <td className={cell+" font-semibold"}>{money(o.amount)}</td><td className={cell}>{o.status}</td>
-      <td className={cell+" font-mono text-xs"}>{o.positionId}</td><td className={cell+" font-mono text-xs"}>{o.id}</td><td className={cell}>{o.completed??"—"}</td>
-     </tr>)}{operations.length===0&&<tr><td colSpan={7} className="px-5 py-8 text-sm text-[#64748B]">No allocation or deallocation requests yet.</td></tr>}</tbody></table>
+   <h2 className="text-xl font-semibold text-[#11263E]">Deallocate</h2>
+   <p className="mt-2 text-sm text-[#64748B]">To reduce a position, select Deallocate in the Positions table above. Funds become available only after verified return to custody.</p>
+   <div className="mt-8 border-t border-[#EDF0F5] pt-7">
+    <h3 className="text-lg font-semibold text-[#11263E]">Deallocation history</h3>
+    <div role="region" aria-label="Deallocation history scrollable table" tabIndex={0} className="mt-4 max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
+     <table className="w-full min-w-[930px] border-collapse text-left">
+      <thead className="bg-[#F8FAFC]"><tr>{["Requested","Amount","Status","Position ID","Operation ID","Completed"].map(h=><th key={h} scope="col" className={heading}>{h}</th>)}</tr></thead>
+      <tbody className="divide-y divide-[#EDF0F5]">{pagedDeallocations.map(o=><tr key={o.id}>
+       <td className={cell}>{o.created}</td><td className={cell+" font-semibold"}>{money(o.amount)}</td>
+       <td className={cell}>{o.status}</td><td className={cell+" font-mono text-xs"}>{o.positionId}</td>
+       <td className={cell+" font-mono text-xs"}>{o.id}</td><td className={cell}>{o.completed??"—"}</td>
+      </tr>)}{deallocations.length===0&&<tr><td colSpan={6} className="px-5 py-8 text-sm text-[#64748B]">No deallocation requests yet.</td></tr>}</tbody>
+     </table>
     </div>
-   {pageControls("Allocations and DeAllocations",shownOperationsPage,operationPages,setOperationsPage)}
+    {pageControls("Deallocation history",shownDeallocationsPage,deallocationPages,setDeallocationsPage)}
+   </div>
   </section>
   {notice&&<p role="status" className="rounded-xl bg-[#ECF7F1] px-4 py-3 text-sm text-[#317054]">{notice}</p>}
   {error&&<p role="alert" className="rounded-xl bg-[#FFF0F0] px-4 py-3 text-sm text-[#9C2F2F]">{error}</p>}
