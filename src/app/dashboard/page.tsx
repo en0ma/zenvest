@@ -57,7 +57,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
  const periods=[{label:"24-hour P&L",value:sumSince(1),window:"Past 24 hours"},
   {label:"7-day P&L",value:sumSince(7),window:"Past 7 days"},
   {label:"30-day P&L",value:sumSince(30),window:"Past 30 days"}];
- const feePaid=settled.reduce((n,p)=>n+(p.platformFeeUsdcMicros??0n),0n);
+ 
  const best=settled.reduce<bigint|null>((v,p)=>v===null||(p.netPnlUsdcMicros??0n)>v?(p.netPnlUsdcMicros??0n):v,null);
  const worst=settled.reduce<bigint|null>((v,p)=>v===null||(p.netPnlUsdcMicros??0n)<v?(p.netPnlUsdcMicros??0n):v,null);
  const positionStats=await prisma.positionTradePnl.groupBy({by:["positionId"],where:{userId:session.id,status:"SETTLED"},
@@ -79,10 +79,10 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
      <span className="text-sm text-[#64748B]">Cumulative realized P&amp;L</span>
      <span className="text-lg font-semibold tabular-nums text-[#11263E]">{realized>0n?"+":""}{formatUsdc(realized)}</span>
     </div>
-    <p className="mt-4 text-xs leading-5 text-[#64748B]">Ledger-based portfolio estimate. Realized P&amp;L reflects recorded earnings, not a period return or live market valuation.</p>
+    
     <div className="mt-7 border-t border-[#DCE4F0] pt-6">
     <h2 className="text-base font-semibold text-[#11263E]">Capital allocation</h2>
-    <p className="mt-1 text-xs text-[#64748B]">Where your recorded capital is positioned.</p>
+    
     <div role="img" aria-label={capital>0n?`Allocated ${allocatedPct.toFixed(1)} percent; unallocated ${unallocatedPct.toFixed(1)} percent`:"No allocated or unallocated capital"} className="mt-7 flex h-3 overflow-hidden rounded-full bg-[#EDF0F7]">
      {capital>0n&&<><div className="h-full bg-[#635BFF]" style={{width:allocatedPct+"%"}}/><div className="h-full bg-[#C7D2FE]" style={{width:unallocatedPct+"%"}}/></>}
     </div>
@@ -91,7 +91,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
      <div className="min-w-0"><dt className="flex items-center gap-2 text-xs text-[#64748B]"><span className="h-2 w-2 rounded-full bg-[#C7D2FE]"/>Unallocated</dt><dd className="mt-2 break-words text-lg font-semibold tabular-nums text-[#11263E] sm:text-xl">{formatUsdc(unallocated)}</dd><p className="mt-1 text-xs text-[#94A3B8]">{unallocatedPct.toFixed(1)}% of capital</p></div>
     </dl>
     <p className="mt-6 border-t border-[#EDF0F5] pt-4 text-xs leading-5 text-[#64748B]">Reserved: {formatUsdc(reserved)} · Pending withdrawal and allocation requests reduce spendable unallocated funds.</p>
-    <p className="mt-2 text-xs leading-5 text-[#94A3B8]">Percentages use allocated + unallocated capital, including retained settled P&amp;L.</p>
+    
     </div>
    </article>
   </section>
@@ -120,29 +120,31 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
   <section className="grid gap-4 sm:grid-cols-3" aria-label="Trade analytics">
   {[{label:"Settled events",value:String(settled.length)},{label:"Event win rate",value:winning+losing>0?(winning*100/(winning+losing)).toFixed(1)+"%":"—"},{label:"Last 30 days net P&L",value:formatUsdc(lastThirty)}].map(x=><article key={x.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5"><p className="text-sm text-[#64748B]">{x.label}</p><p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p></article>)}
   </section>
-  <section aria-label="Detailed trading statistics" className="grid gap-4 sm:grid-cols-3">
-   {[{label:"Platform fees paid",value:formatUsdc(feePaid)},
-     {label:"Best settled event",value:best===null?"—":formatUsdc(best)},
-     {label:"Worst settled event",value:worst===null?"—":formatUsdc(worst)}].map(x=>
-     <article key={x.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5">
-      <p className="text-sm text-[#64748B]">{x.label}</p><p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p>
-     </article>)}
+  <section aria-label="Detailed trading statistics" className="rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
+   <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
+    {[{label:"Best settled event",value:best===null?"—":formatUsdc(best)},
+      {label:"Worst settled event",value:worst===null?"—":formatUsdc(worst)}].map((x,index)=>
+     <div key={x.label} className={index===1?"border-t border-[#EDF0F5] pt-5 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0":""}>
+      <p className="text-sm text-[#64748B]">{x.label}</p>
+      <p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p>
+     </div>)}
+   </div>
   </section>
   <section aria-label="Position performance" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <h2 className="text-lg font-semibold text-[#11263E]">Position performance</h2>
    <p className="mt-1 text-sm text-[#64748B]">Current invested balances include retained settled profits and losses.</p>
    <div role="region" aria-label="Scrollable position performance table" tabIndex={0} className="mt-5 max-w-full overflow-x-auto overscroll-x-contain"><table className="w-full min-w-[720px] border-collapse text-left text-sm">
-    <thead className="text-left text-[#64748B]"><tr><th className="py-3">Strategy / Position</th><th>Status</th><th className="text-right">Allocated</th><th className="text-right">Settled events</th><th className="text-right">Lifetime net P&amp;L</th></tr></thead>
+    <thead className="bg-[#F8FAFC] text-left text-xs font-semibold uppercase tracking-wide text-[#64748B]"><tr><th className="py-3">Strategy / Position</th><th>Status</th><th className="text-right">Allocated</th><th className="text-right">Settled events</th><th className="text-right">Lifetime net P&amp;L</th></tr></thead>
     <tbody>{pagedPositions.map(p=>{const stats=statsByPosition.get(p.id);return <tr key={p.id} className="border-t border-[#EDF0F5]">
      <td className="py-3"><p className="font-semibold text-[#11263E]">{p.strategy.name}</p><p className="font-mono text-xs text-[#64748B]">{p.id}</p></td><td>{p.status}</td>
      <td className="text-right tabular-nums">{formatUsdc(p.allocatedUsdcMicros)}</td>
      <td className="text-right tabular-nums">{stats?stats._count._all:0}</td>
      <td className={"text-right tabular-nums font-semibold "+((stats?._sum.netPnlUsdcMicros??0n)<0n?"text-red-600":"text-emerald-700")}>{formatUsdc(stats?._sum.netPnlUsdcMicros??0n)}</td>
-    </tr>})}</tbody>
-   </table>{positions.length===0&&<p className="py-6 text-sm text-[#64748B]">No positions yet.</p>}</div>
+    </tr>})}{positions.length===0&&<tr><td colSpan={5} className="py-6 text-sm text-[#64748B]">No positions yet.</td></tr>}</tbody>
+   </table></div>
    <TablePager page={positionsPage} pages={positionPages} name="positionsPage" otherPage={tradesPage} otherName="tradesPage"/>
   </section>
-  <section aria-label="Trade P&L history" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8"><h2 className="text-lg font-semibold text-[#11263E]">Settled trade history</h2><div role="region" aria-label="Scrollable settled trade history table" tabIndex={0} className="mt-5 max-w-full overflow-x-auto overscroll-x-contain"><table className="w-full min-w-[790px] border-collapse text-left text-sm"><thead><tr className="text-left text-[#64748B]"><th className="py-3">Event</th><th>Settled</th><th className="text-right">Eligible capital</th><th className="text-right">Gross P&amp;L</th><th className="text-right">Fee</th><th className="text-right">Net P&amp;L</th></tr></thead><tbody>{pagedTrades.map(p=><tr key={p.id} className="border-t border-[#E3E8EE]"><td className="py-3">{p.strategyTrade.marketTradeName}</td><td>{p.settledAt?.toLocaleDateString("en-US",{timeZone:"UTC"})}</td><td className="text-right">{formatUsdc(p.eligibleCapitalUsdcMicros)}</td><td className="text-right">{formatUsdc(p.grossPnlUsdcMicros??0n)}</td><td className="text-right">{formatUsdc(p.platformFeeUsdcMicros??0n)}</td><td className={"text-right font-semibold "+((p.netPnlUsdcMicros??0n)<0n?"text-red-600":"text-emerald-600")}>{formatUsdc(p.netPnlUsdcMicros??0n)}</td></tr>)}</tbody></table>{!settled.length&&<p className="py-6 text-sm text-[#64748B]">No verified settled event P&L yet.</p>}</div><TablePager page={tradesPage} pages={tradePages} name="tradesPage" otherPage={positionsPage} otherName="positionsPage"/></section>
+  <section aria-label="Trade P&L history" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8"><h2 className="text-lg font-semibold text-[#11263E]">Settled trade history</h2><div role="region" aria-label="Scrollable settled trade history table" tabIndex={0} className="mt-5 max-w-full overflow-x-auto overscroll-x-contain"><table className="w-full min-w-[790px] border-collapse text-left text-sm"><thead className="bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wide text-[#64748B]"><tr className="text-left"><th className="py-3">Event</th><th>Settled</th><th className="text-right">Eligible capital</th><th className="text-right">Gross P&amp;L</th><th className="text-right">Fee</th><th className="text-right">Net P&amp;L</th></tr></thead><tbody>{pagedTrades.map(p=><tr key={p.id} className="border-t border-[#E3E8EE]"><td className="py-3">{p.strategyTrade.marketTradeName}</td><td>{p.settledAt?.toLocaleDateString("en-US",{timeZone:"UTC"})}</td><td className="text-right">{formatUsdc(p.eligibleCapitalUsdcMicros)}</td><td className="text-right">{formatUsdc(p.grossPnlUsdcMicros??0n)}</td><td className="text-right">{formatUsdc(p.platformFeeUsdcMicros??0n)}</td><td className={"text-right font-semibold "+((p.netPnlUsdcMicros??0n)<0n?"text-red-600":"text-emerald-600")}>{formatUsdc(p.netPnlUsdcMicros??0n)}</td></tr>)}</tbody></table>{!settled.length&&<p className="py-6 text-sm text-[#64748B]">No verified settled event P&L yet.</p>}</div><TablePager page={tradesPage} pages={tradePages} name="tradesPage" otherPage={positionsPage} otherName="positionsPage"/></section>
   <section aria-labelledby="report-heading" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <div className="flex items-center gap-2"><FileBarChart2 size={18} className="text-[#635BFF]"/><h2 id="report-heading" className="text-lg font-semibold text-[#11263E]">Performance report</h2></div>
    <p className="mt-2 text-sm text-[#64748B]">A summary of verified portfolio accounting, without speculative returns.</p>
