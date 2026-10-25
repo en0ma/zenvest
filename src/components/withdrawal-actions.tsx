@@ -7,10 +7,13 @@ import { WITHDRAWAL_FEE_USDC } from "@/lib/withdrawal-fee";
 
 const format = (v: bigint) => (v / 1000000n).toString() + "." + (v % 1000000n).toString().padStart(6, "0").slice(0, 2);
 
-export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{balanceMicros:string;unallocatedMicros:string;pendingMicros:string}) {
+export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros,savedRecipients=[]}:{balanceMicros:string;unallocatedMicros:string;pendingMicros:string;savedRecipients?:{id:string;name:string;walletAddress:string}[]}) {
   const router = useRouter();
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");
+  const [recipientMode,setRecipientMode]=useState<"saved"|"manual">("manual");
+  const [saveRecipient,setSaveRecipient]=useState(false);
+  const [recipientName,setRecipientName]=useState("");
   const [submitting, setSubmitting] = useState(false);
   const [addressCheck,setAddressCheck]=useState<{address:string;state:"checking"|"valid"|"error";message?:string}|null>(null);
   const [quote,setQuote]=useState<{networkFeeMicros:string;totalFeeMicros:string;netMicros:string}|null>(null);
@@ -38,7 +41,7 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
   const feePreview = quote ? BigInt(quote.totalFeeMicros) : 2000000n;
   const addressValid = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
   const addressApproved=addressCheck?.address===address&&addressCheck.state==="valid";
-  const canSubmit = eligibleAmount && addressValid && addressApproved && !!quote && !quoting && !submitting;
+  const canSubmit = eligibleAmount && addressValid && addressApproved && !!quote && !quoting && !submitting && (recipientMode!=="manual"||!saveRecipient||recipientName.trim().length>0);
   const inputClass = "mt-2 w-full rounded-2xl border border-[#DCE3EC] bg-white px-4 py-3.5 text-base text-[#11263E] shadow-sm outline-none transition placeholder:text-[#9AA8B9] focus:border-[#635BFF] focus:ring-4 focus:ring-[#635BFF]/10";
   const onEdit = () => { requestKey.current = null; setFeedback(null); setQuote(null); };
 
@@ -95,7 +98,7 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
     try {
       const response = await fetch("/api/withdrawals", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({amount,address,idempotencyKey:requestKey.current,maxTotalFeeMicros:quote?.totalFeeMicros})
+        body:JSON.stringify({amount,address,idempotencyKey:requestKey.current,maxTotalFeeMicros:quote?.totalFeeMicros,saveRecipient:recipientMode==="manual"&&saveRecipient,recipientName:recipientName.trim()})
       });
       const result: {error?:string;id?:string} = await response.json();
       if (!response.ok) throw new Error(result.error ?? "We couldn't create your withdrawal. Please try again.");
@@ -103,6 +106,8 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
       requestKey.current = null;
       setAmount("");
       setAddress("");
+      setSaveRecipient(false);
+      setRecipientName("");
       router.refresh();
     } catch (error) {
       setFeedback({kind:"error",text:error instanceof Error?error.message:"We couldn't create your withdrawal. Please try again."});
@@ -128,6 +133,11 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
         {tooSmall && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#97605A]"><AlertCircle size={15}/> Enter more than {WITHDRAWAL_FEE_USDC} USDC to cover the fee.</p>}
       </div>
       <div>
+        <div role="group" aria-label="Recipient entry mode" className="mb-3 grid grid-cols-2 gap-2">
+          <button type="button" className={"rounded-xl border px-3 py-2.5 text-xs font-semibold "+(recipientMode==="saved"?"border-[#635BFF] bg-[#F3F1FF]":"border-[#DCE3EC]")} onClick={()=>{setRecipientMode("saved");setAddress("");onEdit()}}>Saved recipient</button>
+          <button type="button" className={"rounded-xl border px-3 py-2.5 text-xs font-semibold "+(recipientMode==="manual"?"border-[#635BFF] bg-[#F3F1FF]":"border-[#DCE3EC]")} onClick={()=>{setRecipientMode("manual");setAddress("");onEdit()}}>Enter manually</button>
+        </div>
+        {recipientMode==="saved"?<div><label className="block text-sm font-semibold" htmlFor="withdraw-saved">Recipient</label><select id="withdraw-saved" className={inputClass} value={address} onChange={e=>{setAddress(e.target.value);onEdit()}}><option value="">Select saved wallet</option>{savedRecipients.map(rec=><option key={rec.id} value={rec.walletAddress}>{rec.name} · {rec.walletAddress.slice(0,7)}…</option>)}</select>{savedRecipients.length===0&&<p className="mt-2 text-xs text-[#64748B]">No saved wallet recipients yet. Choose Enter manually.</p>}</div>:<>
         <label htmlFor="recipient-address" className="block text-sm font-semibold text-[#11263E]">Recipient Solana wallet address</label>
         <input id="recipient-address" required autoComplete="off" spellCheck={false} value={address}
           onChange={e=>{setAddress(e.target.value.trim());onEdit();}}
@@ -139,6 +149,9 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
         {addressValid && (!addressCheck || addressCheck.address!==address || addressCheck.state==="checking") && <p role="status" className="mt-2 text-xs text-[#687B91]">Checking address with Blockradar…</p>}
         {addressApproved && <p role="status" className="mt-2 flex items-center gap-1.5 text-xs text-[#317054]"><CheckCircle2 size={15}/> Blockradar validated the Solana address format. This does not establish wallet ownership or AML clearance.</p>}
         {addressValid && addressCheck?.address===address && addressCheck.state==="error" && <p role="alert" className="mt-2 text-xs text-[#97605A]">{addressCheck.message}</p>}
+        <label className="mt-4 flex items-center gap-2 text-sm text-[#11263E]"><input type="checkbox" checked={saveRecipient} onChange={e=>setSaveRecipient(e.target.checked)} className="accent-[#635BFF]"/> Save recipient</label>
+        {saveRecipient&&<div className="mt-3"><label htmlFor="withdraw-name" className="text-sm font-semibold">Recipient name</label><input id="withdraw-name" className={inputClass} value={recipientName} onChange={e=>setRecipientName(e.target.value)} maxLength={120} placeholder="e.g. Personal wallet"/></div>}
+        </>}
       </div>
     </div>
 
@@ -164,7 +177,7 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
 
     <button type="submit" disabled={!canSubmit}
       className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#635BFF] px-5 py-4 text-sm font-semibold text-white shadow-sm transition-all duration-200 active:scale-[0.99] motion-reduce:transform-none hover:bg-[#544CE4] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#635BFF]/30 disabled:cursor-not-allowed disabled:bg-[#BBC3D1] disabled:shadow-none">
-      {submitting?<><Loader2 size={18} className="animate-spin"/>Submitting request...</>:<>Request withdrawal <ArrowRight size={18}/></>}
+      {submitting?<><Loader2 size={18} className="animate-spin"/>Submitting request...</>:<>{recipientMode==="manual"&&saveRecipient?"Withdraw and save recipient":"Withdraw"} <ArrowRight size={18}/></>}
     </button>
 
     {feedback && <div role={feedback.kind==="error"?"alert":"status"} className={"flex items-start gap-3 rounded-2xl border px-4 py-4 text-sm leading-6 transition-all duration-200 " + (feedback.kind==="success"?"border-[#CCE5D8] bg-[#F4FAF7] text-[#317054]":"border-[#E8D1CE] bg-[#FCF6F5] text-[#925B55]")}>
