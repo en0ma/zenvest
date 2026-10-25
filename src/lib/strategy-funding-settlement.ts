@@ -56,11 +56,8 @@ export async function settleVerifiedStrategyFunding(receipt:VerifiedStrategyFund
   const used=await tx.treasuryTransfer.findFirst({where:{destinationExternalId:receipt.kalshiTransactionId,
    direction:"ALLOCATE",id:{not:event.treasuryTransactionId}}});
   if(used)return "mismatch";
-  const claimed=await tx.strategyEvent.updateMany({
-   where:{id:event.id,kind:"ALLOCATE",status:"CONFIRMING",sourceConfirmed:true,destinationConfirmed:false},
-   data:{status:"COMPLETED",destinationConfirmed:true},
-  });
-  if(claimed.count!==1)return "duplicate";
+  // The independently verified Kalshi receipt completes custody confirmation.
+  // Do not change investor capital until the P&L worker reaches a safe boundary.
   const moved=await tx.treasuryTransfer.updateMany({
    where:{id:event.treasuryTransactionId,direction:"ALLOCATE",status:"PROCESSING",destinationExternalId:null},
    data:{status:"COMPLETE",destinationExternalId:receipt.kalshiTransactionId,completedAt:new Date()},
@@ -68,33 +65,11 @@ export async function settleVerifiedStrategyFunding(receipt:VerifiedStrategyFund
   if(moved.count!==1)throw new Error("Treasury receipt mismatch");
   const count=await tx.positionAllocation.updateMany({
    where:{strategyEventId:event.id,kind:"ALLOCATE",status:"CONFIRMING"},
-   data:{status:"COMPLETED"},
+   data:{status:"AWAITING_ALLOCATION"},
   });
   if(count.count!==event.positionEvents.length)throw new Error("Allocation batch changed");
-  const capacity=await tx.strategy.updateMany({
-   where:{id:event.strategyId,availableCapacityUsdcMicros:{gte:event.amountUsdcMicros}},
-   data:{availableCapacityUsdcMicros:{decrement:event.amountUsdcMicros}},
-  });
-  if(capacity.count!==1)throw new Error("Strategy capacity mismatch");
-  for(const row of event.positionEvents){
-   const debit=await tx.user.updateMany({
-    where:{id:row.userId,unallocated:{gte:row.amountUsdcMicros}},
-    data:{unallocated:{decrement:row.amountUsdcMicros}},
-   });
-   if(debit.count!==1)throw new Error("Investor balance mismatch");
-   const credited=await tx.investorPosition.updateMany({where:{id:row.positionId,
-    userId:row.userId,strategyId:event.strategyId,status:"OPEN"},
-    data:{allocatedUsdcMicros:{increment:row.amountUsdcMicros}}});
-   if(credited.count!==1)throw new Error("Investor position ownership or status changed");
-   await tx.investorActivity.create({data:{
-    userId:row.userId,type:"ALLOCATION",amountKobo:0n,
-    amountUsdcMicros:row.amountUsdcMicros,
-    reference:`allocation:${row.id}:completed`,
-    description:"Independently verified strategy funding",
-   }});
-  }
-  await tx.treasury.update({where:{kind:"ALLOCATE"},
-   data:{amount:{increment:event.amountUsdcMicros}}});
-  return "settled";
+  await tx.strategyEvent.update({where:{id:event.id},data:{destinationConfirmed:true}});
+  return "awaiting_allocation";
+
  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
 }
