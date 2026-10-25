@@ -59,6 +59,17 @@ try {
  assert.equal(reduction.kind,"DEALLOCATE");
  assert.equal(reduction.strategyEventId,null);
  assert.equal(await prisma.positionAllocation.count({where:{kind:"DEALLOCATE",userId:user.id}}),1);
+ // Handles and symbols are unique, compact and database validated.
+ const primary=await prisma.user.findUniqueOrThrow({where:{id:user.id}});
+ assert.match(primary.handle,/^[a-z0-9]{1,8}$/);
+ await assert.rejects(()=>prisma.user.create({data:{
+  email:"ci-duplicate-handle@example.invalid",name:"duplicate",handle:primary.handle,passwordHash:"fixture"
+ }}),e=>e.code==="P2002","duplicate handle rejected");
+ await assert.rejects(()=>prisma.user.create({data:{
+  email:"ci-invalid-handle@example.invalid",name:"invalid",handle:"Bad Name",passwordHash:"fixture"
+ }}),e=>/users_handle_format/.test(String(e)),"invalid handles rejected in database");
+ await prisma.strategy.update({where:{id:strategy.id},data:{symbol:"CI123",logo:"/strategy-logos/ci.png"}});
+ assert.equal((await prisma.strategy.findUniqueOrThrow({where:{id:strategy.id}})).symbol,"CI123");
  // Webhook intake commits one durable message per source-scoped key.
  const enqueued=await prisma.webhookQueue.create({data:{
   source:"BLOCKRADAR",eventType:"deposit.swept.success",
