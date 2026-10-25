@@ -14,7 +14,7 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const existingPosition=positions.find(p=>p.strategyId===strategyId&&(p.status==="OPEN"||p.status==="CLOSING"));
  const deallocationBalance=existingPosition?.status==="OPEN"?BigInt(existingPosition.principal):0n;
  const availableBalance=side==="ALLOCATE"?BigInt(available):deallocationBalance;
- const amountIsValid=/^(0|[1-9]\\d*)(\\.\\d{1,6})?$/.test(amount);
+ const amountIsValid=/^(0|[1-9]\d*)(\.\d{1,6})?$/.test(amount);
  const amountMicros=amountIsValid?(()=>{const [w,f=""]=amount.split(".");return BigInt(w)*1000000n+BigInt(f.padEnd(6,"0"));})():0n;
  const [selected,setSelected]=useState<Position|null>(null);
  const [reduceAmount,setReduceAmount]=useState("");
