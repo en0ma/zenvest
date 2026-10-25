@@ -100,6 +100,46 @@ export async function applyVerifiedCapitalEvent(eventId:string):Promise<string>{
   return "applied";
  },{isolationLevel:SERIALIZABLE,timeout:20000});
 }
+/** Reserve/debit a deallocation only at the P&L-to-next-snapshot boundary.
+ * The amount is removed from position trading capital before Kalshi is called;
+ * user.unallocated is credited only after both withdrawal and sweep verification.
+ */
+export async function reservePendingDeallocationsBeforeSnapshots():Promise<string[]>{
+ const requests=await prisma.positionAllocation.findMany({where:{
+  kind:"DEALLOCATE",status:"PENDING",strategyEventId:null},
+  orderBy:[{createdAt:"asc"},{id:"asc"}],take:100,
+  select:{id:true,strategyId:true}});
+ const outcomes:string[]=[];
+ for(const request of requests){
+  const outcome=await prisma.$transaction(async tx=>{
+   await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${request.strategyId} FOR UPDATE`;
+   const row=await tx.positionAllocation.findUnique({where:{id:request.id}});
+   if(!row||row.status!=="PENDING"||row.strategyEventId)return "already_processed";
+   const position=await tx.investorPosition.findUnique({where:{id:row.positionId}});
+   if(!position||position.userId!==row.userId||position.strategyId!==row.strategyId||
+      !["OPEN","CLOSING"].includes(position.status))return "not_ready";
+   if(position.status==="CLOSING"&&!position.lastPnlUpdated)return "awaiting_pnl";
+   const exposure=await tx.positionTradePnl.count({where:{
+    positionId:row.positionId,status:"SNAPSHOTTED"}});
+   if(exposure)return "awaiting_pnl";
+   if(position.allocatedUsdcMicros<row.amountUsdcMicros){
+    await tx.positionAllocation.updateMany({where:{id:row.id,status:"PENDING",strategyEventId:null},
+      data:{status:"FAILED"}});
+    return "failed_insufficient_equity";
+   }
+   const debited=await tx.investorPosition.updateMany({where:{id:position.id,
+    allocatedUsdcMicros:{gte:row.amountUsdcMicros},status:{in:["OPEN","CLOSING"]}},
+    data:{allocatedUsdcMicros:{decrement:row.amountUsdcMicros}}});
+   if(debited.count!==1)throw new Error("Deallocation reservation raced");
+   const reserved=await tx.positionAllocation.updateMany({where:{id:row.id,status:"PENDING",
+    strategyEventId:null},data:{status:"AWAITING_WITHDRAWAL"}});
+   if(reserved.count!==1)throw new Error("Deallocation reservation state raced");
+   return "reserved";
+  },{isolationLevel:SERIALIZABLE,timeout:20000});
+  outcomes.push(request.id+":"+outcome);
+ }
+ return outcomes;
+}
 export async function applyVerifiedCapitalBeforeSnapshots():Promise<string[]>{
  const pending=await prisma.strategyEvent.findMany({where:{status:"CONFIRMING",
   sourceConfirmed:true,destinationConfirmed:true,
