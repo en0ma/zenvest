@@ -31,12 +31,12 @@ export async function POST(request:Request){
    NextResponse.json({error:"Request key already used"},{status:409});
  try{
   const result=await prisma.$transaction(async tx=>{
-   const sender=await tx.user.findUniqueOrThrow({where:{id:session.id},select:{id:true,handle:true,unallocated:true,isActive:true}});
+   const sender=await tx.user.findUniqueOrThrow({where:{id:session.id},select:{id:true,handle:true,unallocated:true,isActive:true,emailVerifiedAt:true}});
    const recipient=await tx.user.findUnique({where:{handle},select:{id:true,handle:true,isActive:true,emailVerifiedAt:true}});
-   if(!sender.isActive||!recipient||!recipient.isActive||!recipient.emailVerifiedAt||recipient.id===sender.id)return {error:"Recipient unavailable or invalid",status:400};
+   if(!sender.isActive||!sender.emailVerifiedAt||!recipient||!recipient.isActive||!recipient.emailVerifiedAt||recipient.id===sender.id)return {error:"Recipient unavailable or invalid",status:400};
    const [withdrawalHolds,allocationHolds]=await Promise.all([
     tx.withdrawal.aggregate({where:{userId:sender.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
-    tx.positionAllocation.aggregate({where:{userId:sender.id,kind:"ALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}},_sum:{amountUsdcMicros:true}})
+    tx.positionAllocation.aggregate({where:{userId:sender.id,kind:"ALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","AWAITING_ALLOCATION","AWAITING_DEALLOCATION","AWAITING_WITHDRAWAL","REVIEW"]}},_sum:{amountUsdcMicros:true}})
    ]);
    const held=(withdrawalHolds._sum.grossUsdcMicros??0n)+(allocationHolds._sum.amountUsdcMicros??0n);
    if(sender.unallocated-held<amount)return {error:"Insufficient available balance",status:409};
