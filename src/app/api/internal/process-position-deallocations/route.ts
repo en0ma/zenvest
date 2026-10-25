@@ -16,7 +16,7 @@ export async function GET(request:Request){
     await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${p.strategyId} FOR UPDATE`;
     const position=await tx.investorPosition.findUnique({where:{id:p.id}});
     if(!position||position.status!=="CLOSING"||!position.lastPnlUpdated)return "skip";
-    const outstanding=await tx.positionAllocation.count({where:{positionId:p.id,status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}}});
+    const outstanding=await tx.positionAllocation.count({where:{positionId:p.id,status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","AWAITING_ALLOCATION","AWAITING_DEALLOCATION","REVIEW"]}}});
     if(outstanding)return "skip";
     const exposure=await tx.positionTradePnl.count({where:{positionId:p.id,status:"SNAPSHOTTED"}});
     if(exposure)return "skip";
