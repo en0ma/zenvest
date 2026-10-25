@@ -348,6 +348,7 @@ model StrategyEvent {
   treasuryTransactionId String? @unique @map("treasury_transaction_id")
   treasuryTransaction TreasuryTransfer? @relation(fields:[treasuryTransactionId],references:[id],onDelete:Restrict)
   positionEvents PositionAllocation[]
+  kalshiWithdrawalId String? @unique @map("kalshi_withdrawal_id") @db.VarChar(200)
   sourceConfirmed Boolean @default(false) @map("source_confirmed")
   destinationConfirmed Boolean @default(false) @map("destination_confirmed")
   createdAt DateTime @default(now()) @map("created_at")
