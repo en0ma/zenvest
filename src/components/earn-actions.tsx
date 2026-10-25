@@ -110,7 +110,7 @@ export function EarnActions({available,positions,operations,strategies}:{availab
    </div>
    <div id="market-activity-panel" role="tabpanel" aria-labelledby={activityTab==="POSITIONS"?"positions-tab":"trades-tab"} className="p-5 sm:p-7">
     {activityTab==="POSITIONS"?<>
-     <div className="mb-4"><h2 className="text-base font-semibold text-[#11263E]">Positions</h2><p className="mt-1 text-xs text-[#64748B]">{strategy?strategy.name:"Select a market to view positions"}</p></div>
+     <p className="mb-3 text-xs text-[#64748B]">View and manage positions for the selected strategy.</p>
      <div role="region" aria-label="Positions for selected strategy" tabIndex={0} className="max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
       <table className="w-full min-w-[800px] border-collapse text-left">
        <thead className="bg-[#F8FAFC]"><tr>{["Position ID","Allocated","Status","Created","Action"].map(h=><th key={h} scope="col" className={heading}>{h}</th>)}</tr></thead>
@@ -125,19 +125,19 @@ export function EarnActions({available,positions,operations,strategies}:{availab
           <button type="button" disabled={working||p.status!=="OPEN"} onClick={()=>void submit("/api/earn/positions/close",{positionId:p.id})} className="ml-2 rounded-lg border px-3 py-2 font-semibold disabled:opacity-40">Close</button>
          </>}</td>
         </tr>)}
-        {filteredPositions.length===0&&<tr><td colSpan={5} className="px-5 py-8 text-sm text-[#64748B]">{!strategyId?"Select a market above to view positions.":positionFilter==="OPEN"?"No open positions in this market.":"No positions in this market yet."}</td></tr>}
+        {filteredPositions.length===0&&<tr><td colSpan={5} className="px-5 py-8 text-sm text-[#64748B]">{!strategyId?"Select a strategy above to view positions.":positionFilter==="OPEN"?"No open positions for this strategy.":"No positions for this strategy yet."}</td></tr>}
        </tbody>
       </table>
      </div>
      {pageControls("Market positions",shownPositionsPage,positionPages,setPositionsPage)}
     </>:<>
-     
-     <div role="region" aria-label="Trades for selected market" tabIndex={0} className="max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
+     <p className="mb-3 text-xs text-[#64748B]">Allocation and deallocation history for the selected strategy.</p>
+     <div role="region" aria-label="Trades for selected strategy" tabIndex={0} className="max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
       <table className="w-full min-w-[940px] border-collapse text-left">
        <thead className="bg-[#F8FAFC]"><tr>{["Requested","Type","Amount","Status","Position ID","Operation ID","Completed"].map(h=><th key={h} scope="col" className={heading}>{h}</th>)}</tr></thead>
        <tbody className="divide-y divide-[#EDF0F5]">
         {pagedTrades.map(o=><tr key={o.id}><td className={cell}>{o.created}</td><td className={cell}><span className={o.type==="ALLOCATE"?"font-semibold text-emerald-700":"font-semibold text-red-600"}>{o.type==="ALLOCATE"?"Allocate":"Deallocate"}</span></td><td className={cell}>{money(o.amount)}</td><td className={cell}>{o.status}</td><td className={cell+" font-mono text-xs"}>{o.positionId}</td><td className={cell+" font-mono text-xs"}>{o.id}</td><td className={cell}>{o.completed??"—"}</td></tr>)}
-        {marketOperations.length===0&&<tr><td colSpan={7} className="px-5 py-8 text-sm text-[#64748B]">{strategyId?"No trades recorded for this strategy yet.":"Select a market above to view trade history."}</td></tr>}
+        {marketOperations.length===0&&<tr><td colSpan={7} className="px-5 py-8 text-sm text-[#64748B]">{strategyId?"No trades recorded for this strategy yet.":"Select a strategy above to view trade history."}</td></tr>}
        </tbody>
       </table>
      </div>
