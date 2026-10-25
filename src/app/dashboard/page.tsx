@@ -21,7 +21,7 @@ function TablePager({page,pages,name,otherPage,otherName}:{page:number;pages:num
 export default async function Dashboard({searchParams}:{searchParams:Promise<{positionsPage?:string;tradesPage?:string}>}){
  const params=await searchParams;
  const session = await requireUser();
- const account=await prisma.user.findUniqueOrThrow({where:{id:session.id},select:{unallocated:true}});
+ const account=await prisma.user.findUniqueOrThrow({where:{id:session.id},select:{unallocated:true,handle:true}});
  const positions=await prisma.investorPosition.findMany({where:{userId:session.id},include:{strategy:{select:{name:true}}},orderBy:{createdAt:"desc"}});
  const allocated=positions.reduce((total,p)=>total+p.allocatedUsdcMicros,0n);
  const unallocated=account.unallocated;
@@ -69,7 +69,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
  const pagedPositions=positions.slice((positionsPage-1)*TABLE_PAGE_SIZE,positionsPage*TABLE_PAGE_SIZE);
  const pagedTrades=settled.slice().reverse().slice((tradesPage-1)*TABLE_PAGE_SIZE,tradesPage*TABLE_PAGE_SIZE);
  return <Shell><div className="mx-auto max-w-7xl space-y-6">
-  <header><p className="text-sm leading-6 text-[#64748B]">Welcome back{session.name?", "+session.name:""}. Here's how your investment is performing.</p></header>
+  <header><p className="text-sm leading-6 text-[#64748B]">Welcome back, @{account.handle}. Here's how your investment is performing.</p></header>
   <section aria-label="Investment overview" className="block">
    <article className="rounded-[24px] border border-[#E2E8F4] bg-gradient-to-br from-[#EEF2FF] via-[#F7F9FF] to-white p-6 sm:p-8">
     <p className="text-sm font-medium text-[#52647B]">Portfolio value</p>
