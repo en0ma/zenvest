@@ -101,7 +101,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
   </section>
   <section aria-label="Portfolio valuation history" className="rounded-2xl border border-[#E3E8EE] bg-white p-4 sm:p-6">
    <h2 className="text-base font-semibold">Portfolio valuation history</h2>
-   {historical.completeHistory?<div className="mt-3"><PortfolioValueChart points={historical.points}/></div>:<p className="mt-2 text-xs leading-5 text-[#64748B]">History unavailable until deposits, withdrawals, adjustments and trading entries reconcile with the current balance.</p>}
+   <div className="mt-3"><PortfolioValueChart points={historical.completeHistory?historical.points:[]}/></div>{!historical.completeHistory&&<p className="mt-2 text-xs leading-5 text-[#64748B]">History unavailable until deposits, withdrawals, adjustments and trading entries reconcile with the current balance.</p>}
   </section>
   <section aria-label="Realized P&L by period" className="rounded-2xl border border-[#E3E8EE] bg-white p-4 sm:p-6">
    <div className="flex items-center justify-between gap-3"><h2 className="text-base font-semibold">Realized P&amp;L</h2><span className="text-xs text-[#64748B]">Settled results</span></div>
