@@ -233,9 +233,11 @@ try {
  const evt=await prisma.strategyEvent.create({data:{
   kind:"ALLOCATE",strategyId:strategy.id,amountUsdcMicros:7_000_000n,
  }});
+ await prisma.investorPosition.update({where:{id:position.id},data:{status:"CLOSED",closedAt:new Date()}});
  const children=[];
+ const sharedPosition=await prisma.investorPosition.create({data:{userId:user.id,strategyId:strategy.id}});
  for(const [i,n] of [3_000_000n,4_000_000n].entries()){
-  const pos=await prisma.investorPosition.create({data:{userId:user.id,strategyId:strategy.id}});
+  const pos=sharedPosition;
   const operation=await prisma.positionAllocation.create({data:{
    userId:user.id,positionId:pos.id,strategyId:strategy.id,kind:"ALLOCATE",
    strategyEventId:evt.id,status:"PROCESSING",amountUsdcMicros:n,
@@ -290,7 +292,7 @@ try {
  assert.equal((await prisma.treasuryTransfer.findUniqueOrThrow({where:{id:source.treasuryTransactionId}})).destinationExternalId,verified.kalshiTransactionId);
  for(const {pos,operation} of children){
   assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:operation.id}})).status,"COMPLETED");
-  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:pos.id}})).allocatedUsdcMicros,operation.amountUsdcMicros);
+  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:pos.id}})).allocatedUsdcMicros,7_000_000n);
  }
  // P&L worker first authorizes trade with an immutable exposure snapshot.
  const {processPositionTradePnl}=await import("../src/lib/position-trade-pnl-worker.ts");
