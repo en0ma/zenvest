@@ -31,9 +31,9 @@ export default async function StrategyPage({params}:{params:Promise<{id:string}>
   <Link href="/earn" className="text-sm font-semibold text-[#635BFF]">← All strategies</Link>
   <header className="rounded-2xl border border-[#E3E8EE] bg-white p-4 text-[#14253D] sm:p-6">
    <div className="flex flex-wrap items-center justify-between gap-6">
-    <div className="flex min-w-0 items-center gap-4">
+    <div className="flex min-w-0 flex-1 items-center gap-3">
      <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#4A698E] bg-[#34465E] font-bold">{strategy.logo&&(strategy.logo.startsWith("/")||strategy.logo.startsWith("https://"))?<img src={strategy.logo} alt="" className="h-full w-full object-cover"/>:(strategy.symbol??strategy.name).slice(0,2).toUpperCase()}</span>
-     <div><div className="flex flex-wrap items-center gap-3"><h1 className="text-xl font-bold">{strategy.symbol??strategy.name}</h1><span className={"rounded-full border px-3 py-1 text-xs font-semibold "+(strategy.status==="TRADING"?"border-emerald-200 bg-emerald-50 text-emerald-700":"border-[#E2E8F0] bg-[#F1F5F9] text-[#64748B]")}>● {strategy.status==="TRADING"?"Trading":strategy.status.toLowerCase()}</span></div><p className="mt-1 text-sm text-[#64748B]">{strategy.name}</p></div>
+     <div className="min-w-0 flex-1"><h1 className="truncate text-xl font-bold">{strategy.symbol??strategy.name}</h1><p className="mt-1 truncate text-sm text-[#64748B]">{strategy.name}</p></div><span className={"ml-auto shrink-0 whitespace-nowrap rounded-full border px-2 py-1 text-[11px] font-medium capitalize "+(strategy.status==="TRADING"?"border-emerald-200 bg-emerald-50 text-emerald-700":"border-[#E2E8F0] bg-[#F1F5F9] text-[#64748B]")}>{strategy.status==="TRADING"?"Trading":strategy.status.toLowerCase()}</span>
     </div>
     <div className="grid w-full grid-cols-3 gap-2 sm:w-auto sm:gap-5">{returns.map(([label,value])=><div key={label} className="min-w-0 rounded-xl bg-[#F8FAFC] p-3"><p className="text-xs text-[#64748B]">{label}</p><p className={"mt-1 whitespace-nowrap text-sm font-semibold tabular-nums "+(value===null?"text-[#64748B]":value<0?"text-rose-600":"text-emerald-600")}>{value===null?"—":(value>0?"+":"")+value.toFixed(2)+"%"}</p></div>)}</div>
    </div>
