@@ -22,22 +22,24 @@ export async function POST(request:Request){
   const outcome=await prisma.$transaction(async tx=>{
    const pos=await tx.investorPosition.findFirst({where:{id:positionId,userId:user.id,status:"OPEN"}});
    if(!pos)return "INVALID";
-   // One unsettled reduction per position keeps principal ownership unambiguous.
-   const other=await tx.positionAllocation.count({where:{positionId,kind:{in:["ALLOCATE","DEALLOCATE"]},status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}}});
-   if(other)return "BUSY";
-   if(await tx.positionTradePnl.count({where:{positionId,status:"SNAPSHOTTED"}}))return "TRADE_PENDING";
-   if(amount>pos.allocatedUsdcMicros)return "EXCEEDS";
+   await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${pos.strategyId} FOR UPDATE`;
+   const unsettled=await tx.positionAllocation.aggregate({where:{
+    positionId,userId:user.id,kind:"DEALLOCATE",
+    status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]},
+   },_sum:{amountUsdcMicros:true}});
+   const reserved=unsettled._sum.amountUsdcMicros??0n;
+   const available=pos.allocatedUsdcMicros>reserved?pos.allocatedUsdcMicros-reserved:0n;
+   if(amount>available)return "EXCEEDS";
    const op=await tx.positionAllocation.create({data:{
     userId:user.id,positionId:pos.id,strategyId:pos.strategyId,kind:"DEALLOCATE",status:"PENDING",amountUsdcMicros:amount,
    }});
    return op.id;
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
   if(outcome==="INVALID")return NextResponse.json({error:"Position is not active"},{status:409});
-  if(outcome==="BUSY")return NextResponse.json({error:"Position already has a pending reduction"},{status:409});
-  if(outcome==="TRADE_PENDING")return NextResponse.json({error:"Trade result still awaiting settlement"},{status:409});
-  if(outcome==="EXCEEDS")return NextResponse.json({error:"Amount exceeds position principal"},{status:409});
+  if(outcome==="EXCEEDS")return NextResponse.json({error:"Amount exceeds unreserved position balance"},{status:409});
   return NextResponse.json({operationId:outcome,status:"PENDING"},{status:201});
  }catch(error){
+  if(error instanceof Prisma.PrismaClientKnownRequestError&&error.code==="P2034")return NextResponse.json({error:"Concurrent request; retry"},{status:409});
   return NextResponse.json({error:"Unable to request deallocation"},{status:503});
  }
 }
