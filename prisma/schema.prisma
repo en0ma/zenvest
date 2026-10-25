@@ -67,9 +67,6 @@ model Strategy {
   id String @id @db.VarChar(64)
   name String @unique @db.VarChar(120)
   symbol String? @unique @db.VarChar(8)
-  isShowcase Boolean @default(false) @map("is_showcase")
-  displayAllocationUsdcMicros BigInt @default(0) @map("display_allocation_usdc_micros")
-  displayTrades StrategyDisplayTrade[]
   logo String? @db.VarChar(500)
   description String @db.VarChar(500)
   note String? @db.VarChar(1000)
@@ -476,15 +473,3 @@ model PositionTradePnl {
   @@map("position_trade_pnl")
 }
 
-
-/** Presentation-only history; never used by custody, P&L settlement, or investor accounting. */
-model StrategyDisplayTrade {
- id String @id @db.VarChar(100)
- strategyId String @map("strategy_id") @db.VarChar(64)
- strategy Strategy @relation(fields:[strategyId],references:[id],onDelete:Cascade)
- occurredAt DateTime @map("occurred_at")
- netPnlUsdcMicros BigInt @map("net_pnl_usdc_micros")
- eligibleCapitalUsdcMicros BigInt @map("eligible_capital_usdc_micros")
- @@index([strategyId,occurredAt])
- @@map("strategy_display_trades")
-}
