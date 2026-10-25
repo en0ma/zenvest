@@ -48,7 +48,7 @@ export function WalletActions({balanceMicros,unallocatedMicros,pendingMicros,con
   <h2 className="text-base font-semibold text-[#14253D]">Move USDC</h2>
   <div role="tablist" aria-label="Wallet actions" className="mt-4 grid grid-cols-3 gap-2">{(["Deposit","Withdraw","Send @"] as const).map(x=><button key={x} role="tab" aria-selected={tab===x} type="button" onClick={()=>switchTab(x)} className={"min-h-12 rounded-xl px-2 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-[#635BFF] "+(tab===x?"border border-[#C6C1FF] bg-[#EEEAFE] text-[#5149DB]":"border border-[#EDF0F5] bg-[#F8FAFC] text-[#14253D]")}>{x}</button>)}</div>
   <div role="tabpanel" className="mt-5">
-   {tab==="Deposit"?deposit:tab==="Withdraw"?<div><p className="text-sm font-semibold text-[#14253D]">Withdraw to Solana</p><WithdrawalForm balanceMicros={balanceMicros} unallocatedMicros={unallocatedMicros} pendingMicros={pendingMicros}/></div>:
+   {tab==="Deposit"?deposit:tab==="Withdraw"?<div><p className="text-sm font-semibold text-[#14253D]">Withdraw to Solana</p><WithdrawalForm balanceMicros={balanceMicros} unallocatedMicros={unallocatedMicros} pendingMicros={pendingMicros} savedRecipients={contacts.filter(x=>x.kind==="WITHDRAW"&&x.walletAddress).map(x=>({id:x.id,name:x.name,walletAddress:x.walletAddress!}))}/></div>:
     <div className="space-y-4">
      <h3 className="text-sm font-semibold text-[#14253D]">Send to a Zenvest user</h3>
      {!review?<>
