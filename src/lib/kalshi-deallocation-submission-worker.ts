@@ -2,14 +2,13 @@ import {Prisma} from "@prisma/client";
 import {prisma} from "./db.ts";
 import {submitMockKalshiWithdrawal} from "./kalshi-withdrawal-mock.ts";
 
-/** Development/CI only. A mock 200 is not a custody receipt.
- * The live worker leaves requests PENDING until authenticated Kalshi transport exists.
+/** The existing Kalshi adapter currently returns a simulated HTTP 200.
+ * This authorizes only PROCESSING, never CONFIRMING or investor credit.
  */
 export async function processMockDeallocationSubmissions(){
- if(process.env.NODE_ENV!=="test")return "kalshi_rail_unavailable";
  const first=await prisma.positionAllocation.findFirst({where:{
   kind:"DEALLOCATE",status:"PENDING",strategyEventId:null,
-  position:{status:{in:["OPEN","CLOSING"]}}
+  position:{status:{in:["OPEN","CLOSING"]},strategy:{blockRadarAddress:{not:null}}}
  },orderBy:[{createdAt:"asc"},{id:"asc"}],include:{position:{include:{strategy:true}}}});
  if(!first)return "empty";
  const claimed=await prisma.$transaction(async tx=>{
@@ -27,9 +26,10 @@ export async function processMockDeallocationSubmissions(){
  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
  if(!claimed)return "already_claimed";
  try{
-  const master=await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}});
+  const destination=first.position.strategy.blockRadarAddress;
+  if(!destination)throw new Error("Strategy Blockradar address unconfigured");
   const response=await submitMockKalshiWithdrawal({eventId:claimed.eventId,amountUsdcMicros:claimed.amount,
-   destination:master.walletAddress});
+   destination});
   if(response.status!==200||!response.mocked)throw new Error("Invalid mock response");
   // A stub HTTP 200 means accepted for processing, NOT transferred or received.
   // Neither CONFIRMING nor AWAITING_DEALLOCATION can be reached from this response.
