@@ -32,13 +32,13 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
   <section aria-labelledby="capital-breakdown-heading" className="mt-8 rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
       <h2 id="capital-breakdown-heading" className="text-xl font-semibold tracking-tight text-[#11263E]">Capital breakdown</h2>
       <p className="mt-1 text-sm text-[#64748B]">Your allocated and unallocated balances at a glance.</p>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-[#E8EDF4] bg-[#FAFBFD] p-5">
+      <div className="mt-5 grid gap-5 sm:grid-cols-2 sm:gap-0">
+        <div className="min-w-0 pb-5 sm:pb-0 sm:pr-6">
           <p className="flex items-center gap-2 text-sm font-medium text-[#5B6B7F]"><ShieldCheck size={17}/>Allocated capital</p>
           <p className="mt-3 text-2xl font-bold tracking-tight text-[#11263E] sm:text-3xl">{formatUsdc(positions.reduce((sum,p)=>sum+p.allocatedUsdcMicros,0n))}</p>
           <p className="mt-2 text-xs text-[#7A889A]">May require deallocation</p>
         </div>
-        <div className="rounded-2xl border border-[#E8EDF4] bg-[#FAFBFD] p-5">
+        <div className="min-w-0 border-t border-[#EDF1F6] pt-5 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
           <p className="flex items-center gap-2 text-sm font-medium text-[#5B6B7F]"><ArrowUpFromLine size={17}/>Unallocated capital</p>
           <p className="mt-3 text-2xl font-bold tracking-tight text-[#11263E] sm:text-3xl">{formatUsdc(account.unallocated)}</p>
           <p className="mt-2 text-xs text-[#7A889A]">Not currently allocated</p>
