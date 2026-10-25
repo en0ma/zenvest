@@ -81,6 +81,12 @@ try{
  const closing=await call(closePosition,{positionId:pos.id});
  assert.equal((await closing.json()).status,"closing");
  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:pos.id}})).status,"CLOSING");
+ const blockedWhileClosing=await post({strategyId,amount:"1.000000"});
+ assert.equal(blockedWhileClosing.status,409,"backend must reject allocations while active position is CLOSING");
+ assert.match((await blockedWhileClosing.json()).error,/closing/i);
+ assert.equal(await prisma.investorPosition.count({where:{userId,strategyId}}),1,
+  "rejected request must not create a second position");
+
  const zeroStrategyId="ci_route_zero_strategy";
  await prisma.strategy.create({data:{id:zeroStrategyId,name:"CI Route Zero Strategy",description:"Fixture",isActive:true,isPublic:true,kalshiWalletAddress:"11111111111111111111111111111111",minAllocationUsdcMicros:1000000n,maxAllocationUsdcMicros:10000000n,availableCapacityUsdcMicros:12000000n}});
  const zero=await prisma.investorPosition.create({data:{userId,strategyId:zeroStrategyId,allocatedUsdcMicros:0n}});
