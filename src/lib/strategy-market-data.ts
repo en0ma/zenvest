@@ -12,9 +12,12 @@ export async function strategyMarketRows(){
   const rows=pnl.filter(p=>p.strategyTrade.strategyId===s.id);
   const lifetime=rows.reduce((n,p)=>n+(p.netPnlUsdcMicros??0n),0n);
   const latest=rows.filter(p=>p.settledAt&&p.settledAt.getTime()>=now-86400000);
+  const windowPct=(duration:number)=>{const period=rows.filter(p=>p.settledAt&&p.settledAt.getTime()>=now-duration&&p.settledAt.getTime()<=now);const gain=period.reduce((n,p)=>n+(p.netPnlUsdcMicros??0n),0n);const basis=period.reduce((n,p)=>n+p.eligibleCapitalUsdcMicros,0n);return pct(gain,basis);};
   const dayPnl=latest.reduce((n,p)=>n+(p.netPnlUsdcMicros??0n),0n);
-  const dayBasis=latest.reduce((n,p)=>n+p.eligibleCapitalUsdcMicros,0n);
+  const hourPct=windowPct(3600000);
+  const dayPct=windowPct(86400000);
+  const monthPct=windowPct(30*86400000);
   return {id:s.id,name:s.name,symbol:s.symbol,logo:s.logo,description:s.description,
-   allocation:positionMap.get(s.id)??0n,lifetime,dayPnl,dayPct:pct(dayPnl,dayBasis),settledCount:rows.length};
+   allocation:positionMap.get(s.id)??0n,lifetime,dayPnl,dayPct,hourPct,monthPct,settledCount:rows.length};
  });
 }
