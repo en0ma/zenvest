@@ -26,7 +26,6 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
  const history=await prisma.blockchainDeposit.findMany({where:{wallet:{userId:user.id}},orderBy:[{createdAt:"desc"},{id:"desc"}],skip:(page-1)*PAGE_SIZE,take:PAGE_SIZE});
  const qr = depositWallet?.status === "ACTIVE" && depositWallet.address ? await QRCode.toDataURL(depositWallet.address, {errorCorrectionLevel:"M",width:220,margin:2}) : null;
  return <Shell><div className="mx-auto max-w-5xl">
-  <p className="mb-6 text-sm text-[#425466]">Manage your Solana USDC deposits, withdrawals, and balances.</p>
   <section className="mt-8 rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-2xl font-semibold tracking-tight">Deposit USDC</h2><p className="mt-2 text-sm text-[#425466]">Use your personal Solana deposit address to add funds.</p></div><span className="rounded-full bg-[#F0EEFF] px-3 py-1.5 text-xs font-semibold text-[#635BFF]">Solana · USDC</span></div>
    {depositWallet?.status === "ACTIVE" && depositWallet.address ? <div className="mt-5 space-y-4">
