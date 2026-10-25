@@ -68,7 +68,7 @@ try{
   process.env.BLOCK_RADAR_MASTER_WALLET_ID=masterWalletId;
   const data={
    id:providerTx,status:"SUCCESS",type:"DEPOSIT",confirmed:true,
-   recipientAddress:address,hash:"ci-verified-chain-hash",amount:"1.500001",network:"testnet",
+   recipientAddress:address,senderAddress:"11111111111111111111111111111111",hash:"ci-verified-chain-hash",amount:"1.500001",network:"testnet",
    wallet:{id:masterWalletId,address:masterAddress},
    asset:{address:"ci-verified-mint",symbol:"USDC",decimals:6},
    address:{id:"ci-verified-address-id",address}
@@ -150,6 +150,7 @@ try{
    "racing sweeps must credit one additional deposit, never more");
   const deposit=await db.blockchainDeposit.findUniqueOrThrow({where:{providerTransactionId:providerTx}});
   assert.equal(deposit.status,"CONFIRMED");
+  assert.equal(deposit.senderAddress,"11111111111111111111111111111111","originating wallet address is persisted from signed deposit webhook");
   assert.ok(deposit.treasuryTransactionId);
   assert.equal(await db.treasuryTransfer.count({where:{reference:providerTx}}),1);
   assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).amount,treasuryBefore.amount+micros*2n);
