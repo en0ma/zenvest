@@ -14,7 +14,7 @@ export default async function EarnPage(){
   prisma.strategy.findMany({where:{isActive:true,isPublic:true},orderBy:{name:"asc"}}),
   prisma.withdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
   prisma.positionAllocation.aggregate({where:{userId:user.id,kind:"ALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","AWAITING_ALLOCATION","AWAITING_DEALLOCATION","AWAITING_WITHDRAWAL","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
-  prisma.positionAllocation.groupBy({by:["positionId"],where:{userId:user.id,kind:"DEALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","AWAITING_ALLOCATION","AWAITING_DEALLOCATION","AWAITING_WITHDRAWAL","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
+  prisma.positionAllocation.groupBy({by:["positionId"],where:{userId:user.id,kind:"DEALLOCATE",status:{in:["PENDING","SUBMITTING"]}},_sum:{amountUsdcMicros:true}}),
  ]);
  const u=account.unallocated,w=withdrawalReservations._sum.grossUsdcMicros??0n,a=allocationReservations._sum.amountUsdcMicros??0n;
  const reservedByPosition=new Map(deallocationReservations.map(x=>[x.positionId,x._sum.amountUsdcMicros??0n]));
