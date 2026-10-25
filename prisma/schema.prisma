@@ -16,7 +16,8 @@ enum TokenPurpose {
 model User {
   id           String   @id @default(cuid())
   email        String   @unique @db.VarChar(254)
-  name         String   @db.VarChar(120)
+  name         String   @db.VarChar(120) // Legacy account label while existing consumers migrate to handle.
+  handle       String   @unique @db.VarChar(8)
   passwordHash String   @map("password_hash") @db.VarChar(255)
   role         Role     @default(USER)
   isActive     Boolean  @default(true) @map("is_active")
@@ -65,6 +66,8 @@ enum MarketType {
 model Strategy {
   id String @id @db.VarChar(64)
   name String @unique @db.VarChar(120)
+  symbol String? @unique @db.VarChar(8)
+  logo String? @db.VarChar(500)
   description String @db.VarChar(500)
   note String? @db.VarChar(1000)
   minCapacityUsdcMicros BigInt @default(0) @map("min_capacity_usdc_micros")
