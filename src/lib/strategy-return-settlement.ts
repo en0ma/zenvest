@@ -67,41 +67,17 @@ export async function settleVerifiedStrategyReturn(receipt:VerifiedStrategyRetur
    destinationExternalId:receipt.masterReceiptId,
    reference:`strategy_return:${event.id}`,completedAt:new Date(),
   }});
+  // Custody is independently confirmed, but the position's capital stays
+  // unchanged until all earlier frozen trade exposure has settled.
   const changed=await tx.strategyEvent.updateMany({where:{id:event.id,status:"CONFIRMING",
    sourceConfirmed:false,destinationConfirmed:false,treasuryTransactionId:null},
-   data:{status:"COMPLETED",sourceConfirmed:true,destinationConfirmed:true,
-    treasuryTransactionId:transfer.id}});
+   data:{sourceConfirmed:true,destinationConfirmed:true,treasuryTransactionId:transfer.id}});
   if(changed.count!==1)throw new Error("Concurrent strategy return settlement");
-  const completed=await tx.positionAllocation.updateMany({where:{
+  const queued=await tx.positionAllocation.updateMany({where:{
    strategyEventId:event.id,kind:"DEALLOCATE",status:"CONFIRMING"},
-   data:{status:"COMPLETED"}});
-  if(completed.count!==rows.length)throw new Error("Return batch changed");
-  for(const row of rows){
-   const debited=await tx.investorPosition.updateMany({where:{id:row.positionId,
-    status:{in:["OPEN","CLOSING"]},allocatedUsdcMicros:{gte:row.amountUsdcMicros}},
-    data:{allocatedUsdcMicros:{decrement:row.amountUsdcMicros}}});
-   if(debited.count!==1)throw new Error("Position equity race");
-   await tx.user.update({where:{id:row.userId},
-    data:{unallocated:{increment:row.amountUsdcMicros}}});
-   await tx.investorActivity.create({data:{userId:row.userId,type:"DEALLOCATION",
-    amountKobo:0n,amountUsdcMicros:row.amountUsdcMicros,
-    reference:`deallocation:${row.id}:completed`,
-    description:"Verified Kalshi withdrawal and master-wallet return"}});
-   const pos=byId.get(row.positionId)!;
-   if(pos.status==="CLOSING"){
-    if(pos.allocatedUsdcMicros!==row.amountUsdcMicros)throw new Error("Closing return must cover final equity");
-    const closed=await tx.investorPosition.updateMany({where:{id:row.positionId,
-     status:"CLOSING",allocatedUsdcMicros:0n,lastPnlUpdated:true},
-     data:{status:"CLOSED",closedAt:new Date()}});
-    if(closed.count!==1)throw new Error("Closing position not ready");
-   }
-  }
-  await tx.strategy.update({where:{id:event.strategyId},
-   data:{availableCapacityUsdcMicros:{increment:event.amountUsdcMicros}}});
-  await tx.treasury.upsert({where:{kind:"DEALLOCATE"},
-   create:{walletAddress:master.walletAddress,walletId:master.walletId,source:"MASTER_WALLET",
-    kind:"DEALLOCATE",amount:event.amountUsdcMicros},
-   update:{amount:{increment:event.amountUsdcMicros}}});
-  return "settled";
+   data:{status:"AWAITING_DEALLOCATION"}});
+  if(queued.count!==rows.length)throw new Error("Return batch changed");
+  return "awaiting_deallocation";
+
  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,timeout:20000});
 }
