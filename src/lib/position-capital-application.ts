@@ -103,8 +103,6 @@ export async function reservePendingDeallocationsBeforeSnapshots():Promise<strin
    await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${request.strategyId} FOR UPDATE`;
    const row=await tx.positionAllocation.findUnique({where:{id:request.id}});
    if(!row||row.status!=="PENDING"||row.strategyEventId)return "already_processed";
-   const claim=await tx.positionAllocation.updateMany({where:{id:row.id,status:"PENDING",strategyEventId:null},data:{status:"SUBMITTING"}});
-   if(claim.count!==1)return "already_processed";
    const position=await tx.investorPosition.findUnique({where:{id:row.positionId}});
    if(!position||position.userId!==row.userId||position.strategyId!==row.strategyId||
       !["OPEN","CLOSING"].includes(position.status))return "not_ready";
@@ -112,6 +110,8 @@ export async function reservePendingDeallocationsBeforeSnapshots():Promise<strin
    const exposure=await tx.positionTradePnl.count({where:{
     positionId:row.positionId,status:"SNAPSHOTTED"}});
    if(exposure)return "awaiting_pnl";
+   const claim=await tx.positionAllocation.updateMany({where:{id:row.id,status:"PENDING",strategyEventId:null},data:{status:"SUBMITTING"}});
+   if(claim.count!==1)return "already_processed";
    if(position.allocatedUsdcMicros<row.amountUsdcMicros){
     await tx.positionAllocation.updateMany({where:{id:row.id,status:"SUBMITTING",strategyEventId:null},
       data:{status:"FAILED"}});
