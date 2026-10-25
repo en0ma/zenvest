@@ -47,7 +47,7 @@ export async function POST(request:Request){
    if(save)await tx.userRecipient.create({data:{userId:sender.id,kind:"SEND",name,handle:recipient.handle,status:"COMPLETED"}});
    return {id:send.id,status:send.status};
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,timeout:10000});
-  if("error" in result)return NextResponse.json({error:result.error},{status:result.status});
+  if("error" in result)return NextResponse.json({error:result.error},{status:typeof result.status==="number"?result.status:400});
   return NextResponse.json(result,{status:201});
  }catch(error){
   if(error instanceof Prisma.PrismaClientKnownRequestError&&error.code==="P2002"){
