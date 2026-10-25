@@ -68,8 +68,6 @@ try {
  await assert.rejects(()=>prisma.user.create({data:{
   email:"ci-invalid-handle@example.invalid",name:"invalid",handle:"Bad Name",passwordHash:"fixture"
  }}),e=>/users_handle_format/.test(String(e)),"invalid handles rejected in database");
- await prisma.strategy.update({where:{id:strategy.id},data:{symbol:"CI123",logo:"/strategy-logos/ci.png"}});
- assert.equal((await prisma.strategy.findUniqueOrThrow({where:{id:strategy.id}})).symbol,"CI123");
  // Webhook intake commits one durable message per source-scoped key.
  const enqueued=await prisma.webhookQueue.create({data:{
   source:"BLOCKRADAR",eventType:"deposit.swept.success",
@@ -91,6 +89,8 @@ try {
  assert.equal((await prisma.webhookQueue.findUniqueOrThrow({where:{id:enqueued.id}})).status,"PROCESSED");
  // Real PostgreSQL uniqueness and ownership constraints.
  const strategy=await prisma.strategy.findUniqueOrThrow({where:{id:"ci_test_strategy"}});
+ await prisma.strategy.update({where:{id:strategy.id},data:{symbol:"CI123",logo:"/strategy-logos/ci.png"}});
+ assert.equal((await prisma.strategy.findUniqueOrThrow({where:{id:strategy.id}})).symbol,"CI123");
  assert.equal(strategy.platformProfitPercentage.toString(),"0");
  await prisma.strategyTrade.create({data:{
   id:"ci_trade_1",strategyId:strategy.id,marketTradeId:"CI_15M_EVENT_1",
