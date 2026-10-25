@@ -2,7 +2,7 @@ import {Prisma} from "@prisma/client";
 import {prisma} from "./db.ts";
 
 const SERIALIZABLE=Prisma.TransactionIsolationLevel.Serializable;
-const VERIFIED=["AWAITING_ALLOCATION","AWAITING_DEALLOCATION"] as const;
+const VERIFIED=["AWAITING_ALLOCATION"] as const;
 
 /** Apply verified, physically completed transfers only after frozen trade P&L has posted.
  * Both this coordinator and the next-snapshot worker serialize on strategies.id.
@@ -14,7 +14,7 @@ export async function applyVerifiedCapitalEvent(eventId:string):Promise<string>{
   await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${head.strategyId} FOR UPDATE`;
   const event=await tx.strategyEvent.findUnique({where:{id:eventId},
    include:{positionEvents:true,treasuryTransaction:true}});
-  if(!event||event.status!=="CONFIRMING"||!event.sourceConfirmed||!event.destinationConfirmed||
+  if(!event||event.kind!=="ALLOCATE"||event.status!=="CONFIRMING"||!event.sourceConfirmed||!event.destinationConfirmed||
    !event.treasuryTransaction||event.treasuryTransaction.status!=="COMPLETE")return "not_ready";
   const desired=event.kind==="ALLOCATE"?"AWAITING_ALLOCATION":"AWAITING_DEALLOCATION";
   const rows=event.positionEvents;
