@@ -13,7 +13,7 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const [chartRange,setChartRange]=useState("1M");
  const strategy=strategies.find(x=>x.id===strategyId);
  const existingPosition=positions.find(p=>p.strategyId===strategyId&&(p.status==="OPEN"||p.status==="CLOSING"));
- const deallocationBalance=existingPosition?.status==="OPEN"&&!existingPosition.pending?(()=>{const remaining=BigInt(existingPosition.principal)-BigInt(existingPosition.reserved);return remaining>0n?remaining:0n;})():0n;
+ const deallocationBalance=existingPosition?.status==="OPEN"?(()=>{const remaining=BigInt(existingPosition.principal)-BigInt(existingPosition.reserved);return remaining>0n?remaining:0n;})():0n;
  const availableBalance=side==="ALLOCATE"?BigInt(available):deallocationBalance;
  const amountIsValid=/^(0|[1-9]\d*)(\.\d{1,6})?$/.test(amount);
  const amountMicros=amountIsValid?(()=>{const [w,f=""]=amount.split(".");return BigInt(w)*1000000n+BigInt(f.padEnd(6,"0"));})():0n;
@@ -24,7 +24,7 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const [notice,setNotice]=useState("");
  const canConfirm=!!strategy&&!working&&amountMicros>0n&&amountMicros<=availableBalance&&(
   side==="ALLOCATE"?(existingPosition?.status!=="CLOSING"&&amountMicros>=BigInt(strategy.min)&&amountMicros<=BigInt(strategy.max)&&amountMicros<=BigInt(strategy.capacity)):
-  (existingPosition?.status==="OPEN"&&!existingPosition.pending));
+  (existingPosition?.status==="OPEN"));
 
  const [activityTab,setActivityTab]=useState<"POSITIONS"|"TRADES">("POSITIONS");
  const [positionFilter,setPositionFilter]=useState<"OPEN"|"ALL">("OPEN");
@@ -133,7 +133,7 @@ export function EarnActions({available,positions,operations,strategies}:{availab
          <td className={cell}>{p.status}{p.pending?" · reduction pending":""}</td>
          <td className={cell}>{p.created}</td>
          <td className={cell}>{p.status==="CLOSED"?<span className="text-xs text-[#64748B]">Closed</span>:<>
-          <button type="button" disabled={working||p.status!=="OPEN"||p.pending||BigInt(p.principal)<=0n} onClick={()=>{setSelected(p);setReduceAmount("");setError("");}} className="rounded-lg border border-[#635BFF] px-3 py-2 font-semibold text-[#635BFF] disabled:opacity-40">Reduce</button>
+          <button type="button" disabled={working||p.status!=="OPEN"||BigInt(p.principal)<=BigInt(p.reserved)} onClick={()=>{setSelected(p);setReduceAmount("");setError("");}} className="rounded-lg border border-[#635BFF] px-3 py-2 font-semibold text-[#635BFF] disabled:opacity-40">Reduce</button>
           <button type="button" disabled={working||p.status!=="OPEN"} onClick={()=>void submit("/api/earn/positions/close",{positionId:p.id})} className="ml-2 rounded-lg border px-3 py-2 font-semibold disabled:opacity-40">Close</button>
          </>}</td>
         </tr>)}
