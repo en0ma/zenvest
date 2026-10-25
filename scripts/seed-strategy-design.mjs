@@ -1,4 +1,5 @@
 import {PrismaClient} from "@prisma/client";
+import {createHash} from "node:crypto";
 
 // Populate an isolated design database only. Never inject generated P&L into
 // real investor ledgers or an environment with production custody.
@@ -49,7 +50,7 @@ try{
   let trades=0;const counts=[];
   for(let index=0;index<catalogs.length;index++){
    const strategy=catalogs[index];
-   const positionId="design_"+strategy.id+"_"+user.id;
+   const positionId="c"+createHash("sha256").update("zenvest-design-position:"+strategy.id+":"+user.id).digest("hex").slice(0,24);
    const position=await tx.investorPosition.findUnique({where:{id:positionId}});
    if(position&&(position.userId!==user.id||position.strategyId!==strategy.id))
     throw new Error("Position collision: "+positionId);
