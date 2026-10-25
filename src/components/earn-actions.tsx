@@ -66,9 +66,9 @@ export function EarnActions({available,positions,operations,strategies}:{availab
     <h3 className="text-sm font-semibold text-[#334155]">Strategy performance</h3>
     <p className="mt-3 text-sm text-[#64748B]">A verified historical strategy performance chart is not available yet. No simulated prices or returns are shown.</p>
    </div>
-   <div role="group" aria-label="Position action" className="mt-5 grid grid-cols-2 gap-0 rounded-xl border border-[#DCE3EC] bg-[#F4F6FA] p-1">
-    <button type="button" aria-pressed={side==="ALLOCATE"} onClick={()=>{setSide("ALLOCATE");setAmount("");}} className={"rounded-lg px-4 py-3 text-sm font-semibold transition "+(side==="ALLOCATE"?"bg-emerald-600 text-white shadow-sm":"bg-transparent text-[#64748B] hover:text-emerald-700")}>Allocate</button>
-    <button type="button" aria-pressed={side==="DEALLOCATE"} onClick={()=>{setSide("DEALLOCATE");setAmount("");}} className={"rounded-lg px-4 py-3 text-sm font-semibold transition "+(side==="DEALLOCATE"?"bg-red-600 text-white shadow-sm":"bg-transparent text-[#64748B] hover:text-red-600")}>Deallocate</button>
+   <div role="group" aria-label="Position action" className="mt-5 grid grid-cols-2 gap-3">
+    <button type="button" aria-pressed={side==="ALLOCATE"} onClick={()=>{setSide("ALLOCATE");setAmount("");}} className={"rounded-lg px-4 py-3 text-sm font-semibold transition "+(side==="ALLOCATE"?"bg-emerald-600 text-white shadow-sm":"border border-[#DCE3EC] bg-[#F4F6FA] text-[#64748B] hover:bg-[#E9EEF5]")}>Allocate</button>
+    <button type="button" aria-pressed={side==="DEALLOCATE"} onClick={()=>{setSide("DEALLOCATE");setAmount("");}} className={"rounded-lg px-4 py-3 text-sm font-semibold transition "+(side==="DEALLOCATE"?"bg-red-600 text-white shadow-sm":"border border-[#DCE3EC] bg-[#F4F6FA] text-[#64748B] hover:bg-[#E9EEF5]")}>Deallocate</button>
    </div>
    {strategy&&<p className="mt-3 text-xs text-[#64748B]">{existingPosition?.status==="OPEN"?"Existing open position: "+existingPosition.id:existingPosition?.status==="CLOSING"?"Position closing; allocations and reductions are blocked until closure is verified.":"No open position in this market; allocating creates one."}</p>}
    <form className="mt-4 space-y-4" onSubmit={e=>{e.preventDefault();if(!canConfirm||!strategy)return;
