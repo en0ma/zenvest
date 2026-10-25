@@ -96,8 +96,8 @@ export function EarnActions({available,positions,operations,strategies}:{availab
     </div>
    </div>
    <div role="group" aria-label="Position action" className="mt-5 grid grid-cols-2 gap-3">
-    <button type="button" aria-pressed={side==="ALLOCATE"} onClick={()=>{setSide("ALLOCATE");setAmount("");}} className={"rounded-lg px-4 py-3 text-sm font-semibold transition "+(side==="ALLOCATE"?"bg-emerald-600 text-white shadow-sm":"border border-[#DCE3EC] bg-[#F4F6FA] text-[#64748B] hover:bg-[#E9EEF5]")}>Allocate</button>
-    <button type="button" aria-pressed={side==="DEALLOCATE"} onClick={()=>{setSide("DEALLOCATE");setAmount("");}} className={"rounded-lg px-4 py-3 text-sm font-semibold transition "+(side==="DEALLOCATE"?"bg-red-600 text-white shadow-sm":"border border-[#DCE3EC] bg-[#F4F6FA] text-[#64748B] hover:bg-[#E9EEF5]")}>Deallocate</button>
+    <button type="button" aria-pressed={side==="ALLOCATE"} onClick={()=>{setSide("ALLOCATE");setAmount("");}} className={"rounded-lg border-2 px-4 py-3 text-sm font-semibold transition-colors "+(side==="ALLOCATE"?"border-emerald-600 bg-emerald-600 text-white shadow-sm":"border-[#94A3B8] bg-white text-[#475569] hover:border-[#64748B] hover:bg-[#F8FAFC]")}>Allocate</button>
+    <button type="button" aria-pressed={side==="DEALLOCATE"} onClick={()=>{setSide("DEALLOCATE");setAmount("");}} className={"rounded-lg border-2 px-4 py-3 text-sm font-semibold transition-colors "+(side==="DEALLOCATE"?"border-red-600 bg-red-600 text-white shadow-sm":"border-[#94A3B8] bg-white text-[#475569] hover:border-[#64748B] hover:bg-[#F8FAFC]")}>Deallocate</button>
    </div>
    {strategy&&<p className="mt-3 text-xs text-[#64748B]">{existingPosition?.status==="OPEN"?"Existing open position: "+existingPosition.id:existingPosition?.status==="CLOSING"?"Position closing; allocations and reductions are blocked until closure is verified.":"No open position in this strategy; allocating creates one."}</p>}
    <form className="mt-4 space-y-4" onSubmit={e=>{e.preventDefault();if(!canConfirm||!strategy)return;
