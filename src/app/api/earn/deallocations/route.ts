@@ -30,7 +30,7 @@ export async function POST(request:Request){
    if(!pos||pos.status!=="OPEN")return "INVALID";
    const unsettled=await tx.positionAllocation.aggregate({where:{
     positionId,userId:user.id,kind:"DEALLOCATE",
-    status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","AWAITING_ALLOCATION","AWAITING_DEALLOCATION","AWAITING_WITHDRAWAL","REVIEW"]},
+    status:"PENDING", // All later deallocation states are already debited from trading capital.
    },_sum:{amountUsdcMicros:true}});
    const reserved=unsettled._sum.amountUsdcMicros??0n;
    const available=pos.allocatedUsdcMicros>reserved?pos.allocatedUsdcMicros-reserved:0n;
