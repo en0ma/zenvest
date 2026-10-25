@@ -56,7 +56,6 @@ export async function POST(request: Request) {
       const active=activePositions[0];
       if(active?.status==="CLOSING")return "POSITION_CLOSING";
       if(existingId&&active?.id!==existingId)return "POSITION_MISMATCH";
-      if(active&&await tx.positionAllocation.count({where:{positionId:active.id,kind:"DEALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}}}))return "POSITION_REDUCING";
       const position=active??await tx.investorPosition.create({data:{userId:user.id,strategyId,status:"OPEN"}});
       const op=await tx.positionAllocation.create({data:{
         userId:user.id,positionId:position.id,strategyId,
@@ -66,7 +65,6 @@ export async function POST(request: Request) {
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
     if(result==="DUPLICATE_POSITION")return NextResponse.json({error:"Multiple active positions found for this market; contact support for reconciliation"},{status:409});
     if(result==="POSITION_CLOSING")return NextResponse.json({error:"This market position is closing; wait for verified settlement before allocating"},{status:409});
-    if(result==="POSITION_REDUCING")return NextResponse.json({error:"Await pending deallocation settlement"},{status:409});
     if(result==="POSITION_MISMATCH")return NextResponse.json({error:"Position does not match the active position for this market"},{status:409});
     return result ? NextResponse.json(result,{status:201}) : NextResponse.json({error:"Unavailable strategy or Kalshi wallet address, invalid allocation limits, insufficient strategy capacity or insufficient unallocated USDC"},{status:409});
   }catch(error){
