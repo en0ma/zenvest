@@ -2,6 +2,7 @@ import {NextResponse} from "next/server";
 import {authorizedCron} from "@/lib/cron-auth";
 import {Prisma} from "@prisma/client";
 import {prisma} from "@/lib/db";
+import {processMockDeallocationSubmissions} from "@/lib/kalshi-deallocation-submission-worker";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 // Kalshi outbound rail is not connected. Create final close requests but NEVER
@@ -32,7 +33,8 @@ export async function GET(request:Request){
   }
   const pending=await prisma.positionAllocation.aggregate({where:{kind:"DEALLOCATE",status:"PENDING",
    position:{OR:[{status:"OPEN"},{status:"CLOSING",lastPnlUpdated:true}]}},_count:{_all:true},_sum:{amountUsdcMicros:true}});
-  return NextResponse.json({status:"awaiting_verified_kalshi_return_integration",direction:"kalshi_to_master",
+  const submission=await processMockDeallocationSubmissions();
+  return NextResponse.json({status:"awaiting_verified_kalshi_return_integration",submission,direction:"kalshi_to_master",
    createdFinalCloseRequests:created,closedWithoutFunds,
    eligibleRequests:pending._count._all,amountUsdcMicros:(pending._sum.amountUsdcMicros??0n).toString()});
  }catch(error){console.error(JSON.stringify({component:"deallocation-worker",errorType:error instanceof Error?error.name:"unknown"}));
