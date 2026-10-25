@@ -96,11 +96,10 @@ export function EarnActions({available,positions,operations,strategies}:{availab
     </div>}
    <div className="mt-8 border-t border-[#EDF0F5] pt-7">
    <h2 className="text-xl font-semibold text-[#11263E]">Position history</h2>
-   {closedPositions.length===0?<p className="mt-3 text-sm text-[#64748B]">No closed positions yet.</p>:
-    <><div role="region" aria-label="Scrollable position history table" tabIndex={0} className="mt-5 max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
+   <div role="region" aria-label="Scrollable position history table" tabIndex={0} className="mt-5 max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
       <table className="w-full min-w-[720px] border-collapse text-left"><thead className="bg-[#F8FAFC]"><tr>{["Position ID","Strategy","Status","Created","Final allocated"].map(h=><th key={h} className={heading}>{h}</th>)}</tr></thead>
-      <tbody className="divide-y divide-[#EDF0F5]">{pagedHistory.map(p=><tr key={p.id}><td className={cell+" font-mono text-xs"}>{p.id}</td><td className={cell}>{strategies.find(x=>x.id===p.strategyId)?.name??p.strategyId}</td><td className={cell}>Closed</td><td className={cell}>{p.created}</td><td className={cell}>{money(p.principal)}</td></tr>)}</tbody></table>
-     </div>{pageControls("Position history",shownHistoryPage,historyPages,setHistoryPage)}</>}
+      <tbody className="divide-y divide-[#EDF0F5]">{pagedHistory.map(p=><tr key={p.id}><td className={cell+" font-mono text-xs"}>{p.id}</td><td className={cell}>{strategies.find(x=>x.id===p.strategyId)?.name??p.strategyId}</td><td className={cell}>Closed</td><td className={cell}>{p.created}</td><td className={cell}>{money(p.principal)}</td></tr>)}{closedPositions.length===0&&<tr><td colSpan={5} className="px-5 py-8 text-sm text-[#64748B]">No closed positions yet.</td></tr>}</tbody></table>
+     </div>{pageControls("Position history",shownHistoryPage,historyPages,setHistoryPage)}
    </div>
   </section>
   <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
