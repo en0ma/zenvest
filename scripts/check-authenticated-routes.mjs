@@ -75,12 +75,22 @@ try{
  assert.equal(op.userId,userId);
  assert.equal(op.kind,"DEALLOCATE");
  assert.equal(op.amountUsdcMicros,2000001n);
- assert.equal((await call(deallocate,{positionId:pos.id,amount:"1"})).status,409);
+ const second=await call(deallocate,{positionId:pos.id,amount:"1.000000"});
+ assert.equal(second.status,201,"multiple reductions may reserve remaining principal");
+ const secondId=(await second.json()).operationId;
+ assert.equal((await call(deallocate,{positionId:pos.id,amount:"1.000000"})).status,409,
+  "reductions cannot exceed equity after existing reservations");
+ const increaseDuringReduction=await post({strategyId,amount:"1.000000"});
+ assert.equal(increaseDuringReduction.status,201,
+  "allocations and reductions may coexist on an open position");
+ await prisma.positionAllocation.update({where:{id:(await increaseDuringReduction.json()).operationId},data:{status:"CANCELLED"}});
+
  assert.equal((await call(closePosition,{positionId:pos.id})).status,409);
- await prisma.positionAllocation.update({where:{id:op.id},data:{status:"CANCELLED"}});
+ await prisma.positionAllocation.updateMany({where:{id:{in:[op.id,secondId]}},data:{status:"CANCELLED"}});
  const closing=await call(closePosition,{positionId:pos.id});
  assert.equal((await closing.json()).status,"closing");
  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:pos.id}})).status,"CLOSING");
+ assert.equal((await call(deallocate,{positionId:pos.id,amount:"1.000000"})).status,409,"closing positions reject reductions");
  const blockedWhileClosing=await post({strategyId,amount:"1.000000"});
  assert.equal(blockedWhileClosing.status,409,"backend must reject allocations while active position is CLOSING");
  assert.match((await blockedWhileClosing.json()).error,/closing/i);
