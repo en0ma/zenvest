@@ -194,6 +194,7 @@ model BlockchainDeposit {
   wallet InvestorDepositWallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
   providerTransactionId String @unique @map("provider_transaction_id")
   transactionHash String @map("transaction_hash") @db.VarChar(180)
+  senderAddress String? @map("sender_address") @db.VarChar(128)
   assetAddress String @map("asset_address") @db.VarChar(128)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
   feeUsdcMicros BigInt @default(0) @map("fee_usdc_micros")
