@@ -76,7 +76,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
  const pagedTrades=settled.slice().reverse().slice((tradesPage-1)*TABLE_PAGE_SIZE,tradesPage*TABLE_PAGE_SIZE);
 
  return <Shell><main className="mx-auto max-w-7xl space-y-4 pb-8 text-[#14253D] sm:space-y-5">
-  <header className="flex flex-wrap items-end justify-between gap-2 px-1"><div><p className="text-[11px] font-semibold uppercase tracking-[.13em] text-[#7B8BA0]">Portfolio management</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">Dashboard</h1><p className="mt-1 text-xs text-[#64748B]">Welcome back, @{account.handle}</p></div><Link href="/earn" className="rounded-xl border border-[#E3E8EE] bg-white px-3 py-2 text-xs font-semibold text-[#635BFF]">Explore strategies →</Link></header>
+  <header className="px-1"><h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1><p className="mt-1 text-xs text-[#64748B]">Welcome back, @{account.handle}</p></header>
   <section aria-label="Portfolio equity and capital" className="rounded-2xl border border-[#E3E8EE] bg-white p-4 sm:p-6">
    <div className="flex items-center justify-between gap-2"><p className="text-xs font-medium text-[#64748B]">Net portfolio equity</p><span className="rounded-full bg-[#F2F3FF] px-2.5 py-1 text-[11px] font-medium text-[#635BFF]">USDC</span></div>
    <p className="mt-2 break-words text-[clamp(1.8rem,6vw,3.2rem)] font-semibold leading-tight tracking-tight tabular-nums">{formatUsdc(equity)}</p>
