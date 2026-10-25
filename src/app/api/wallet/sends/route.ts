@@ -7,7 +7,7 @@ export const runtime="nodejs";
 export const dynamic="force-dynamic";
 
 function amountMicros(value:unknown):bigint|null {
- if(typeof value!=="string"||!/^(0|[1-9]\\d*)(\\.\\d{1,6})?$/.test(value))return null;
+ if(typeof value!=="string"||!/^(0|[1-9]\d*)(\.\d{1,6})?$/.test(value))return null;
  const [whole,part=""]=value.split(".");
  const n=BigInt(whole)*1000000n+BigInt(part.padEnd(6,"0"));
  return n>0n&&n<=9223372036854775807n?n:null;
