@@ -10,7 +10,6 @@ export function StrategyMarketList({rows}:{rows:Row[]}){
  const [expanded,setExpanded]=useState<string|null>(null);
  const sorted=[...rows].sort((a,b)=>BigInt(b.allocation)>BigInt(a.allocation)?1:BigInt(b.allocation)<BigInt(a.allocation)?-1:0);
  return <section className="overflow-hidden rounded-2xl border border-[#E3E8EE] bg-white text-[#14253D]" aria-label="Strategy market">
-  <header className="border-b border-[#EDF0F5] px-5 py-5 sm:px-7"><h1 className="text-lg font-semibold">Strategies</h1></header>
   {sorted.map(row=>{
    const open=expanded===row.id;
    const href="/earn/strategies/"+encodeURIComponent(row.id);
