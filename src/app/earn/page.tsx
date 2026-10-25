@@ -19,7 +19,6 @@ export default async function EarnPage(){
  const allocated=positions.reduce((total,x)=>total+x.allocatedUsdcMicros,0n);
  const available=u>w+a?u-w-a:0n;
  return <Shell><div className="mx-auto max-w-6xl space-y-7">
-  <header><h1 className="text-3xl font-semibold tracking-tight text-[#11263E]">Earn</h1><p className="mt-2 text-sm text-[#64748B]">Manage allocations, view investment positions and request return of capital.</p></header>
   <EarnActions strategies={strategies.map(x=>({id:x.id,name:x.name,description:x.description,min:x.minAllocationUsdcMicros.toString(),max:x.maxAllocationUsdcMicros.toString(),capacity:x.availableCapacityUsdcMicros.toString()}))} available={available.toString()} positions={positions.map(x=>({id:x.id,strategyId:x.strategyId,principal:x.allocatedUsdcMicros.toString(),status:x.status,created:date(x.createdAt)??"—",pending:deallocations.some(o=>o.positionId===x.id&&["PENDING","SUBMITTING","PROCESSING","REVIEW"].includes(o.status))}))}
    operations={[...allocations.map(x=>({id:x.id,positionId:x.positionId,type:"ALLOCATE",amount:x.amountUsdcMicros.toString(),status:x.status,created:date(x.createdAt)??"—",completed:x.status==="COMPLETED"?date(x.updatedAt):null})),...deallocations.map(x=>({id:x.id,positionId:x.positionId,type:"DEALLOCATE",amount:x.amountUsdcMicros.toString(),status:x.status,created:date(x.createdAt)??"—",completed:x.status==="COMPLETED"?date(x.updatedAt):null}))].sort((a,b)=>b.created.localeCompare(a.created))}/>
  </div></Shell>;
