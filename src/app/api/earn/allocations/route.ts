@@ -56,6 +56,7 @@ export async function POST(request: Request) {
       const active=activePositions[0];
       if(active?.status==="CLOSING")return "POSITION_CLOSING";
       if(existingId&&active?.id!==existingId)return "POSITION_MISMATCH";
+      if(active&&await tx.positionAllocation.count({where:{positionId:active.id,kind:"DEALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}}}))return "POSITION_REDUCING";
       const position=active??await tx.investorPosition.create({data:{userId:user.id,strategyId,status:"OPEN"}});
       const op=await tx.positionAllocation.create({data:{
         userId:user.id,positionId:position.id,strategyId,
