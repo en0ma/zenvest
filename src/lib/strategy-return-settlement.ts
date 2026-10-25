@@ -72,9 +72,9 @@ export async function settleVerifiedStrategyReturn(receipt:VerifiedStrategyRetur
   if(changed.count!==1)throw new Error("Concurrent strategy return settlement");
   const queued=await tx.positionAllocation.updateMany({where:{
    strategyEventId:event.id,kind:"DEALLOCATE",status:"CONFIRMING"},
-   data:{status:"AWAITING_WITHDRAWAL"}});
+   data:{status:"AWAITING_DEALLOCATION"}});
   if(queued.count!==rows.length)throw new Error("Return batch changed");
-  return "awaiting_withdrawal";
+  return "awaiting_deallocation";
 
  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,timeout:20000});
 }
