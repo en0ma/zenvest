@@ -43,7 +43,7 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{a
   type==="All"||type==="Send @"?prisma.send.findMany({where:{recipientUserId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}],take,select:{id:true,createdAt:true,amount:true,status:true,senderHandle:true}}):Promise.resolve([])
  ]);
  const events=[
-  ...deposits.map(x=>({id:"d"+x.id,at:x.createdAt,description:"Deposit from wallet address unavailable",detail:"Transaction "+short(x.transactionHash),amount:"+"+formatUsdc(x.amountUsdcMicros),status:x.status==="CONFIRMED"?"Confirmed":"Confirming",incoming:true,kind:"Deposit"})),
+  ...deposits.map(x=>({id:"d"+x.id,at:x.createdAt,description:"Deposit from wallet address",detail:"Source address unavailable · Tx "+short(x.transactionHash),amount:"+"+formatUsdc(x.amountUsdcMicros),status:x.status==="CONFIRMED"?"Confirmed":"Confirming",incoming:true,kind:"Deposit"})),
   ...withdrawals.map(x=>({id:"w"+x.id,at:x.createdAt,description:"Withdraw to "+short(x.destinationAddress),detail:"External · Solana",amount:"−"+formatUsdc(x.grossUsdcMicros),status:x.status,incoming:false,kind:"Withdraw"})),
   ...sent.map(x=>({id:"s"+x.id,at:x.createdAt,description:"Sent to @"+x.recipientHandle,detail:"Internal transfer",amount:"−"+formatUsdc(x.amount),status:x.status,incoming:false,kind:"Send @"})),
   ...received.map(x=>({id:"r"+x.id,at:x.createdAt,description:"Received from @"+x.senderHandle,detail:"Internal transfer",amount:"+"+formatUsdc(x.amount),status:x.status,incoming:true,kind:"Send @"}))
