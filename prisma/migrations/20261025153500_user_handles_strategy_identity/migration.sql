@@ -6,6 +6,7 @@ WITH numbered AS (
 UPDATE "users" AS u SET handle = 'u' || lpad(to_hex(numbered.ordinal::integer), 7, '0')
 FROM numbered WHERE u.id = numbered.id;
 ALTER TABLE "users" ALTER COLUMN "handle" SET NOT NULL;
+ALTER TABLE "users" ALTER COLUMN "handle" SET DEFAULT substr(md5(random()::text || clock_timestamp()::text), 1, 8);
 ALTER TABLE "users" ADD CONSTRAINT "users_handle_format" CHECK (handle ~ '^[a-z0-9]{1,8}$');
 CREATE UNIQUE INDEX "users_handle_key" ON "users"("handle");
 ALTER TABLE "strategies" ADD COLUMN "symbol" VARCHAR(8), ADD COLUMN "logo" VARCHAR(500);
