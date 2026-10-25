@@ -419,6 +419,17 @@ try {
  await reservePendingDeallocationsBeforeSnapshots();
  assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:payable.id}})).status,"AWAITING_DEALLOCATION");
  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:reservePosition.id}})).allocatedUsdcMicros,1000000n);
+ await reservePendingDeallocationsBeforeSnapshots();
+ assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:reservePosition.id}})).allocatedUsdcMicros,1000000n,
+  "deallocation replay must not debit capital twice");
+ const resumed=await prisma.positionAllocation.create({data:{
+  userId:user.id,positionId:reservePosition.id,strategyId:strategy.id,
+  kind:"DEALLOCATE",status:"SUBMITTING",amountUsdcMicros:500000n}});
+ await reservePendingDeallocationsBeforeSnapshots();
+ assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:resumed.id}})).status,"AWAITING_DEALLOCATION",
+  "interrupted pre-custody claim should resume");
+ assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:reservePosition.id}})).allocatedUsdcMicros,500000n);
+
  console.log("Position P&L concurrency, replay and authenticated-return closure passed");
  console.log("Strategy source-only confirmation, duplicate, mismatch, and financial conservation passed");
  console.log("CI PostgreSQL transaction rollback, uniqueness and idempotent settlement assertions passed");
