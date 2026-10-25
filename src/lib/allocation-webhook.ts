@@ -49,6 +49,13 @@ export async function handleAllocationWebhook(event:string,data:Record<string,un
   if(rows.length!==batch.positionEvents.length||
    rows.reduce((n,x)=>n+x.amountUsdcMicros,0n)!==batch.amountUsdcMicros)
    throw new Error("Strategy batch changed during source settlement");
+  const owners=await tx.investorPosition.findMany({where:{id:{in:rows.map(r=>r.positionId)}},select:{id:true,userId:true,strategyId:true,status:true}});
+  const ownerById=new Map(owners.map(p=>[p.id,p]));
+  if(rows.some(r=>{
+   const p=ownerById.get(r.positionId);
+   return !p||p.userId!==r.userId||p.strategyId!==r.strategyId||
+    p.strategyId!==batch.strategyId||p.status!=="OPEN"||r.amountUsdcMicros<=0n;
+  }))throw new Error("Allocation source event position mismatch");
   const marked=await tx.positionAllocation.updateMany({
    where:{strategyEventId:eventId,kind:"ALLOCATE",status:{in:["SUBMITTING","PROCESSING","REVIEW"]}},
    data:{status:"CONFIRMING"},
