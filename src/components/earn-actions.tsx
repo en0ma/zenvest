@@ -70,8 +70,8 @@ export function EarnActions({available,positions,operations,strategies}:{availab
     <p className="mt-3 text-sm text-[#64748B]">A verified historical strategy performance chart is not available yet. No simulated prices or returns are shown.</p>
    </div>
    <div role="group" aria-label="Position action" className="mt-5 grid grid-cols-2 gap-2 rounded-xl bg-[#F1F5F9] p-1">
-    <button type="button" aria-pressed={side==="ALLOCATE"} onClick={()=>{setSide("ALLOCATE");setAmount("");}} className={"rounded-lg px-4 py-3 text-sm font-semibold transition "+(side==="ALLOCATE"?"bg-emerald-600 text-white":"text-[#64748B]")}>Allocate</button>
-    <button type="button" aria-pressed={side==="DEALLOCATE"} onClick={()=>{setSide("DEALLOCATE");setAmount("");}} className={"rounded-lg px-4 py-3 text-sm font-semibold transition "+(side==="DEALLOCATE"?"bg-red-600 text-white":"text-[#64748B]")}>Deallocate</button>
+    <button type="button" aria-pressed={side==="ALLOCATE"} onClick={()=>{setSide("ALLOCATE");setAmount("");}} className={"rounded-lg px-4 py-3 text-sm font-semibold transition "+(side==="ALLOCATE"?"bg-emerald-600 text-white":"bg-emerald-600/75 text-white")}>Allocate</button>
+    <button type="button" aria-pressed={side==="DEALLOCATE"} onClick={()=>{setSide("DEALLOCATE");setAmount("");}} className={"rounded-lg px-4 py-3 text-sm font-semibold transition "+(side==="DEALLOCATE"?"bg-red-600 text-white":"bg-red-600/75 text-white")}>Deallocate</button>
    </div>
    {strategy&&<p className="mt-3 text-xs text-[#64748B]">{existingPosition?.status==="OPEN"?"Existing open position: "+existingPosition.id:existingPosition?.status==="CLOSING"?"Position closing; allocations and reductions are blocked until closure is verified.":"No open position in this market; allocating creates one."}</p>}
    <form className="mt-4 space-y-4" onSubmit={e=>{e.preventDefault();if(!canConfirm||!strategy)return;
@@ -82,7 +82,7 @@ export function EarnActions({available,positions,operations,strategies}:{availab
      <span className="flex items-baseline justify-between gap-3"><span>Amount</span><span className="text-xs font-normal text-[#64748B]">Balance: {money(availableBalance.toString())}</span></span>
      <input aria-label={side==="ALLOCATE"?"Allocation amount in USDC":"Deallocation amount in USDC"} required inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0.00" className="mt-2 w-full rounded-xl border border-[#CBD5E1] px-4 py-3 font-normal"/>
     </label>
-    <button type="submit" disabled={!canConfirm} className="w-full rounded-xl bg-amber-400 px-5 py-3 text-sm font-bold text-[#11263E] disabled:cursor-not-allowed disabled:opacity-40">Confirm {side==="ALLOCATE"?"allocation":"deallocation"}</button>
+    <button type="submit" disabled={!canConfirm} className="w-full rounded-xl bg-amber-400 px-5 py-3 text-sm font-bold text-[#11263E] disabled:cursor-not-allowed disabled:opacity-40">Confirm</button>
    </form>
    <p className="mt-3 text-xs leading-5 text-[#64748B]">Confirmation creates a pending request, not a completed custody movement. Deallocation is credited only after authenticated return of funds.</p>
   </section>
