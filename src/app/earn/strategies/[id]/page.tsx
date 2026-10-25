@@ -13,7 +13,7 @@ export default async function StrategyPage({params}:{params:Promise<{id:string}>
  if(!strategy)notFound();
  const [positions,settled,allPositions,account,withdrawalHolds,allocationHolds,positionPnls]=await Promise.all([
   prisma.investorPosition.findMany({where:{strategyId:id,userId:user.id},orderBy:{createdAt:"desc"}}),
-  prisma.positionTradePnl.findMany({where:{strategyTrade:{strategyId:id},status:"SETTLED",settledAt:{not:null}},orderBy:[{settledAt:"asc"},{id:"asc"}],select:{netPnlUsdcMicros:true,settledAt:true}}),
+  prisma.positionTradePnl.findMany({where:{strategyTrade:{strategyId:id},status:"SETTLED",settledAt:{not:null}},orderBy:[{settledAt:"asc"},{id:"asc"}],select:{netPnlUsdcMicros:true,eligibleCapitalUsdcMicros:true,settledAt:true}}),
   prisma.investorPosition.aggregate({where:{strategyId:id,status:{in:["OPEN","CLOSING"]}},_sum:{allocatedUsdcMicros:true}}),
   prisma.user.findUniqueOrThrow({where:{id:user.id},select:{unallocated:true}}),
   prisma.withdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
@@ -24,7 +24,7 @@ export default async function StrategyPage({params}:{params:Promise<{id:string}>
  const free=account.unallocated>held?account.unallocated-held:0n;
  const points=settled.filter(x=>x.settledAt).map(x=>({time:x.settledAt!.toISOString(),pnl:Number(x.netPnlUsdcMicros??0n)/1e6}));
  const now=Date.now();
- const periodReturn=(ms:number)=>{const items=settled.filter(x=>x.settledAt&&x.settledAt.getTime()>=now-ms);const sum=items.reduce((a,x)=>a+(x.netPnlUsdcMicros??0n),0n);return pct(sum,BigInt(items.length)* (allPositions._sum.allocatedUsdcMicros??0n));};
+ const periodReturn=(ms:number)=>{const items=settled.filter(x=>x.settledAt&&x.settledAt.getTime()>=now-ms);const sum=items.reduce((a,x)=>a+(x.netPnlUsdcMicros??0n),0n);return pct(sum,items.reduce((a,x)=>a+x.eligibleCapitalUsdcMicros,0n));};
  const returns=[["1H P&L",periodReturn(3600000)],["24H P&L",periodReturn(86400000)],["30D P&L",periodReturn(30*86400000)]] as const;
  const pnlMap=new Map(positionPnls.map(p=>[p.positionId,p._sum.netPnlUsdcMicros??0n]));
  return <Shell><div className="mx-auto max-w-7xl space-y-5">
