@@ -234,6 +234,7 @@ try {
   kind:"ALLOCATE",strategyId:strategy.id,amountUsdcMicros:7_000_000n,
  }});
  await prisma.investorPosition.update({where:{id:position.id},data:{status:"CLOSED",closedAt:new Date()}});
+ await prisma.positionAllocation.update({where:{id:reduction.id},data:{status:"CANCELLED"}}); // Fixture is not part of following trade scenarios.
  const children=[];
  const sharedPosition=await prisma.investorPosition.create({data:{userId:user.id,strategyId:strategy.id}});
  for(const [i,n] of [3_000_000n,4_000_000n].entries()){
