@@ -93,7 +93,7 @@ export async function processVerifiedBlockradarQueueItem(request: Request) {
     if(!isSwept)return NextResponse.json({message:"awaiting_strategy_sweep"});
     try{
       const result=await handleStrategySweptDeposit(data,mint,masterWalletId);
-      if(result==="awaiting_deallocation"||result==="duplicate"){
+      if(result==="completed"||result==="duplicate"){
         log("strategy_deallocation_"+result,200);
         return NextResponse.json({message:"success"});
       }
