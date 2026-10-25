@@ -91,18 +91,18 @@ export async function processVerifiedBlockradarQueueItem(request: Request) {
     if(!isSwept)return NextResponse.json({message:"awaiting_strategy_sweep"});
     try{
       const result=await handleStrategySweptDeposit(data,mint,masterWalletId);
-      if(result==="settled"||result==="duplicate"){
+      if(result==="awaiting_deallocation"||result==="duplicate"){
         log("strategy_deallocation_"+result,200);
         return NextResponse.json({message:"success"});
       }
-      if(result==="unmatched_withdrawal"||result==="not_ready"||result==="awaiting_pnl"){
+      if(result==="unmatched_withdrawal"||result==="not_ready"){
         log("strategy_sweep_awaiting_matching_kalshi_withdrawal",503);
         return NextResponse.json({error:"Strategy sweep awaiting authenticated Kalshi withdrawal"}, {status:503});
       }
       log("strategy_sweep_"+result,422);
       return NextResponse.json({error:"Invalid or unmatched strategy sweep"}, {status:422});
     }catch(error){
-      journeyLog("error","strategy_sweep","processing_error",{requestId,errorType:error instanceof Error?error.name:"unknown"});
+      journeyLog("error","deposit_webhook","strategy_sweep_processing_error",{requestId,errorType:error instanceof Error?error.name:"unknown"});
       return NextResponse.json({error:"Strategy sweep reconciliation unavailable"},{status:503});
     }
   }
