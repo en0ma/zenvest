@@ -24,16 +24,18 @@ try{
  assert.equal((await invoke("wrong")).status,401);
  await prisma.user.create({data:{id:userId,email:"ci-deallocation-coordinator@example.invalid",name:"CI Deallocation Coordinator",passwordHash:"test-only"}});
  await prisma.strategy.create({data:{id:strategyId,name:"CI Deallocation Coordinator Strategy",description:"Test-only coordinator lifecycle"}});
+ await prisma.strategy.create({data:{id:strategyId+"_empty",name:"CI Deallocation Empty Strategy",description:"Test fixture"}});
+ await prisma.strategy.create({data:{id:strategyId+"_pending",name:"CI Deallocation Pending Strategy",description:"Test fixture"}});
  const funded=await prisma.investorPosition.create({data:{
   userId,strategyId,status:"CLOSING",allocatedUsdcMicros:6500001n,lastPnlUpdated:true
  }});
  const empty=await prisma.investorPosition.create({data:{
-  userId,strategyId,status:"CLOSING",allocatedUsdcMicros:0n,lastPnlUpdated:true
+  userId,strategyId:strategyId+"_empty",status:"CLOSING",allocatedUsdcMicros:0n,lastPnlUpdated:true
  }});
  const pending=await prisma.investorPosition.create({data:{
-  userId,strategyId,status:"CLOSING",allocatedUsdcMicros:1200000n,lastPnlUpdated:true
+  userId,strategyId:strategyId+"_pending",status:"CLOSING",allocatedUsdcMicros:1200000n,lastPnlUpdated:true
  }});
- await prisma.positionAllocation.create({data:{userId,strategyId,positionId:pending.id,kind:"DEALLOCATE",amountUsdcMicros:1200000n,status:"PENDING"}});
+ await prisma.positionAllocation.create({data:{userId,strategyId:strategyId+"_pending",positionId:pending.id,kind:"DEALLOCATE",amountUsdcMicros:1200000n,status:"PENDING"}});
  const response=await invoke(secret);
  assert.equal(response.status,200);
  const data=await response.json();
@@ -54,7 +56,7 @@ try{
  console.log("Deallocation coordinator integration passed: cron authorization, final close request, empty position, pending hold and idempotent retries");
 }finally{
  if(prevSecret===undefined)delete process.env.CRON_SECRET;else process.env.CRON_SECRET=prevSecret;
- await prisma.positionAllocation.deleteMany({where:{strategyId}});
+ await prisma.positionAllocation.deleteMany({where:{strategyId:{startsWith:strategyId}}});
  await prisma.investorPosition.deleteMany({where:{strategyId}});
  await prisma.strategy.deleteMany({where:{id:strategyId}});
  await prisma.user.deleteMany({where:{id:userId}});
