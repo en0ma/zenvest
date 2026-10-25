@@ -1,6 +1,7 @@
 import {Prisma} from "@prisma/client";
 import {prisma} from "./db.ts";
 import {distributeWeightedMicros,platformProfitFee} from "./position-pnl-math.ts";
+import {applyVerifiedCapitalBeforeSnapshots} from "./position-capital-application.ts";
 
 const SERIALIZABLE=Prisma.TransactionIsolationLevel.Serializable;
 function percentageUnits(value:Prisma.Decimal):bigint{
@@ -69,6 +70,10 @@ async function prepareTrade(id:string){
    const earlier=await tx.strategyTrade.findFirst({where:{strategyId:trade.strategyId,id:{not:id},
     createdAt:{lt:trade.createdAt},OR:[{status:{in:["AWAITING_ALLOCATION","TRADING","ERROR"]}},{status:"SETTLED",isPnlCalculated:false}]}});
    if(earlier)return "waiting_for_prior_event";
+   // A verified transfer cannot be skipped in favor of a fresh exposure snapshot.
+   const awaitingCapital=await tx.positionAllocation.count({where:{strategyId:trade.strategyId,
+    status:{in:["AWAITING_ALLOCATION","AWAITING_DEALLOCATION"]}}});
+   if(awaitingCapital)return "waiting_for_capital_application";
    const positions=await tx.investorPosition.findMany({where:{strategyId:trade.strategyId,status:"OPEN",
     allocatedUsdcMicros:{gt:0}},orderBy:{id:"asc"}});
    const capital=positions.reduce((n,p)=>n+p.allocatedUsdcMicros,0n);
@@ -93,6 +98,9 @@ export async function processPositionTradePnl(){
   orderBy:[{marketEnd:"asc"},{createdAt:"asc"},{id:"asc"}],take:20,select:{id:true}});
  const results:string[]=[];
  for(const row of pending)results.push(`settle:${row.id}:${await settleTrade(row.id)}`);
+ // P&L is final before verified capital adjustments, which precede new snapshots.
+ const capitalResults=await applyVerifiedCapitalBeforeSnapshots();
+ results.push(...capitalResults.map(x=>"capital:"+x));
  const awaiting=await prisma.strategyTrade.findMany({where:{status:"AWAITING_ALLOCATION"},
   orderBy:[{marketStart:"asc"},{createdAt:"asc"},{id:"asc"}],take:20,select:{id:true}});
  for(const row of awaiting)results.push(`prepare:${row.id}:${await prepareTrade(row.id)}`);
