@@ -85,6 +85,8 @@ try{
      trades++;
     }
    }
+   if(!position)await tx.investorPosition.update({where:{id:positionId},
+    data:{allocatedUsdcMicros:strategy.capital+settledTotal}});
    counts.push({symbol:strategy.symbol,trades:120,pnlUsdc:Number(settledTotal/microsPerUsdc)});
   }
   return {strategies:catalogs.length,trades,positions:catalogs.length,counts};
