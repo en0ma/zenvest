@@ -42,6 +42,7 @@ try{
  const duplicate=await call(data);
  assert.equal(duplicate.status,200);
  assert.equal((await duplicate.json()).id,row.id);
+ assert.equal((await call({...data,amount:"19.000000"})).status,409,"reusing a request key for a different amount must be rejected");
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:senderId}})).unallocated,29_876_544n,"duplicate key cannot debit twice");
  assert.equal(await prisma.send.count({where:{senderUserId:senderId}}),1);
  assert.equal((await call({handle:"@"+recipientHandle,amount:"20",idempotencyKey:k2})).status,409,"balance after reserving pending withdrawal must be respected");
