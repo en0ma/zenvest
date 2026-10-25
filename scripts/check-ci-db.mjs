@@ -233,9 +233,11 @@ try {
  const evt=await prisma.strategyEvent.create({data:{
   kind:"ALLOCATE",strategyId:strategy.id,amountUsdcMicros:7_000_000n,
  }});
+ await prisma.investorPosition.update({where:{id:position.id},data:{status:"CLOSED",closedAt:new Date()}});
  const children=[];
+ const sharedPosition=await prisma.investorPosition.create({data:{userId:user.id,strategyId:strategy.id}});
  for(const [i,n] of [3_000_000n,4_000_000n].entries()){
-  const pos=await prisma.investorPosition.create({data:{userId:user.id,strategyId:strategy.id}});
+  const pos=sharedPosition;
   const operation=await prisma.positionAllocation.create({data:{
    userId:user.id,positionId:pos.id,strategyId:strategy.id,kind:"ALLOCATE",
    strategyEventId:evt.id,status:"PROCESSING",amountUsdcMicros:n,
