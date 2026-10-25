@@ -34,11 +34,17 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
   prisma.withdrawal.aggregate({where:{userId:session.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
   prisma.positionAllocation.aggregate({where:{userId:session.id,kind:"ALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
  ]);
+ const [sentTransfers,receivedTransfers]=await Promise.all([
+  prisma.send.findMany({where:{senderUserId:session.id,status:"COMPLETED"},select:{id:true,createdAt:true,amount:true}}),
+  prisma.send.findMany({where:{recipientUserId:session.id,status:"COMPLETED"},select:{id:true,createdAt:true,amount:true}})
+ ]);
  const financialEvents:PortfolioEvent[]=[
   ...deposits.filter(d=>d.creditedAt).map(d=>({id:"deposit:"+d.id,at:d.creditedAt!,kind:"DEPOSIT" as const,
    amountMicros:d.amountUsdcMicros})),
   ...withdrawals.filter(w=>w.completedAt).map(w=>({id:"withdrawal:"+w.id,at:w.completedAt!,kind:"WITHDRAWAL" as const,
    amountMicros:-w.grossUsdcMicros})),
+  ...sentTransfers.map(p=>({id:"send:"+p.id,at:p.createdAt,kind:"TRANSFER_OUT" as const,amountMicros:-p.amount})),
+  ...receivedTransfers.map(p=>({id:"receive:"+p.id,at:p.createdAt,kind:"TRANSFER_IN" as const,amountMicros:p.amount})),
   ...settled.filter(p=>p.settledAt).map(p=>({id:"pnl:"+p.id,at:p.settledAt!,kind:"PNL" as const,
    amountMicros:p.netPnlUsdcMicros??0n})),
  ];
