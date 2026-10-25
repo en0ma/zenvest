@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-type Strategy = {id:string;name:string;description:string;min:string;max:string;capacity:string};
+type Strategy = {id:string;name:string;symbol:string|null;logo:string|null;description:string;min:string;max:string;capacity:string};
 type Position = {id:string;strategyId:string;principal:string;reserved:string;status:string;created:string;pending:boolean};
 type Operation = {id:string;positionId:string;type:string;amount:string;status:string;created:string;completed:string|null};
 const money=(raw:string)=> (Number(raw)/1e6).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:6})+" USDC";
@@ -64,6 +64,20 @@ export function EarnActions({available,positions,operations,strategies}:{availab
      <option value="">Select a strategy</option>{strategies.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
     </select>
    </div>
+   {strategies.length>0&&<div aria-label="Available strategies" className="mt-4 overflow-hidden rounded-xl border border-[#E3E8EE] bg-white">
+    {strategies.map(item=><button key={item.id} type="button" aria-pressed={strategyId===item.id}
+      onClick={()=>{setStrategyId(item.id);setTargetPositionId("");setAmount("");setSide("ALLOCATE");setPositionFilter("OPEN");setPositionsPage(1);setTradesPage(1);}}
+      className={"flex w-full items-center gap-3 border-b border-[#EDF0F5] px-4 py-3 text-left last:border-b-0 hover:bg-[#F8FAFC] "+(strategyId===item.id?"bg-[#EEF2FF]":"")}>
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#E8ECF5] text-sm font-bold text-[#14253D]">
+       {item.logo&&(/^https:\/\//.test(item.logo)||item.logo.startsWith("/"))?<img src={item.logo} alt="" className="h-full w-full object-cover"/>:(item.symbol??item.name).slice(0,2).toUpperCase()}
+      </span>
+      <span className="min-w-0 flex-1">
+       <span className="block truncate font-semibold text-[#14253D]">{item.symbol??item.name}</span>
+       <span className="block truncate text-xs text-[#64748B]">{item.name}</span>
+      </span>
+      <span className="text-xs font-medium text-[#64748B]">{strategyId===item.id?"Selected":"Select"}</span>
+    </button>)}
+   </div>}
    <div className="mt-5 overflow-hidden rounded-xl border border-[#293341] bg-[#1F2632] text-[#E9EDF3]">
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#35404E] px-4 py-3">
      <div><h3 className="text-sm font-semibold">Strategy chart</h3><p className="mt-0.5 text-xs text-[#91A0B2]">{strategy?.name??"Select a strategy"} · Performance</p></div>
