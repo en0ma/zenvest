@@ -51,6 +51,7 @@ export async function POST(request: Request) {
       const existing=existingId?await tx.investorPosition.findFirst({where:{
         id:existingId,userId:user.id,strategyId
       }}):null;
+      if(existing?.status==="CLOSING")return "POSITION_CLOSING";
       if(existingId&&(!existing||existing.status!=="OPEN"))return "POSITION_MISMATCH";
       const position=existing??await tx.investorPosition.create({data:{
         userId:user.id,strategyId,status:"OPEN"
@@ -61,6 +62,7 @@ export async function POST(request: Request) {
       }});
       return {positionId:position.id,operationId:op.id,status:op.status};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
+    if(result==="POSITION_CLOSING")return NextResponse.json({error:"This position is closing; new allocations are blocked until closure"},{status:409});
     if(result==="POSITION_MISMATCH")return NextResponse.json({error:"Selected position is not open or does not belong to this strategy"},{status:409});
     return result ? NextResponse.json(result,{status:201}) : NextResponse.json({error:"Unavailable strategy or Kalshi wallet address, invalid allocation limits, insufficient strategy capacity or insufficient unallocated USDC"},{status:409});
   }catch(error){
