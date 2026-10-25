@@ -2,6 +2,8 @@ import Link from "next/link";
 import {notFound} from "next/navigation";
 import {Shell} from "@/components/shell";
 import {PositionCapitalActions} from "@/components/position-capital-actions";
+import {PositionCapitalHistory} from "@/components/position-capital-history";
+import {PositionPnlChart} from "@/components/position-pnl-chart";
 import {requireUser} from "@/lib/access";
 import {prisma} from "@/lib/db";
 import {usdc} from "@/lib/strategy-market-data";
@@ -10,9 +12,9 @@ export default async function PositionPage({params}:{params:Promise<{id:string}>
  const {id}=await params;const user=await requireUser();
  const position=await prisma.investorPosition.findFirst({where:{id,userId:user.id},include:{strategy:true}});
  if(!position)notFound();
- const [trades,requests,account,withdrawalHolds,allocationHolds]=await Promise.all([
-  prisma.positionTradePnl.findMany({where:{positionId:id,userId:user.id},include:{strategyTrade:{select:{marketTradeName:true,status:true,marketStart:true}}},orderBy:[{createdAt:"desc"},{id:"desc"}],take:100}),
-  prisma.positionAllocation.findMany({where:{positionId:id,userId:user.id},orderBy:[{createdAt:"desc"},{id:"desc"}],take:50}),
+ const [settlements,requests,account,withdrawalHolds,allocationHolds]=await Promise.all([
+  prisma.positionTradePnl.findMany({where:{positionId:id,userId:user.id,status:"SETTLED"},orderBy:[{settledAt:"asc"},{id:"asc"}],select:{netPnlUsdcMicros:true,settledAt:true,createdAt:true}}),
+  prisma.positionAllocation.findMany({where:{positionId:id,userId:user.id,kind:{in:["ALLOCATE","DEALLOCATE"]}},orderBy:[{createdAt:"desc"},{id:"desc"}],select:{id:true,kind:true,amountUsdcMicros:true,status:true,createdAt:true}}),
   prisma.user.findUniqueOrThrow({where:{id:user.id},select:{unallocated:true}}),
   prisma.withdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
   prisma.positionAllocation.aggregate({where:{userId:user.id,kind:"ALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","AWAITING_ALLOCATION","REVIEW"]}},_sum:{amountUsdcMicros:true}})
@@ -20,16 +22,24 @@ export default async function PositionPage({params}:{params:Promise<{id:string}>
  const pendingReduction=requests.filter(r=>r.kind==="DEALLOCATE"&&["PENDING","SUBMITTING"].includes(r.status)).reduce((n,r)=>n+r.amountUsdcMicros,0n);
  const held=(withdrawalHolds._sum.grossUsdcMicros??0n)+(allocationHolds._sum.amountUsdcMicros??0n);
  const free=account.unallocated>held?account.unallocated-held:0n;
- const realized=trades.filter(t=>t.status==="SETTLED").reduce((n,t)=>n+(t.netPnlUsdcMicros??0n),0n);
- return <Shell><div className="mx-auto max-w-6xl space-y-6">
+ const realized=settlements.reduce((n,t)=>n+(t.netPnlUsdcMicros??0n),0n);
+ const points=settlements.map(t=>({time:(t.settledAt??t.createdAt).toISOString(),amount:Number(t.netPnlUsdcMicros??0n)/1e6}));
+ const history=requests.map(x=>({id:x.id,kind:x.kind,amount:usdc(x.amountUsdcMicros),status:x.status,date:x.createdAt.toLocaleString("en-US",{timeZone:"UTC",year:"numeric",month:"short",day:"2-digit",hour:"2-digit",minute:"2-digit"})+" UTC"}));
+ return <Shell><div className="mx-auto max-w-7xl space-y-5">
   <Link href={"/earn/strategies/"+encodeURIComponent(position.strategyId)} className="text-sm font-semibold text-[#635BFF]">← {position.strategy.symbol??position.strategy.name}</Link>
-  <header><h1 className="text-2xl font-bold text-[#14253D]">Position</h1><p className="mt-2 break-all font-mono text-xs text-[#64748B]">{position.id}</p></header>
-  <div className="grid gap-4 sm:grid-cols-3">{[["Allocated",usdc(position.allocatedUsdcMicros)+" USDC"],["Settled net P&L",usdc(realized)+" USDC"],["Status",position.status]].map(([label,value])=><div key={label} className="rounded-xl border border-[#E3E8EE] bg-white p-5"><p className="text-xs text-[#64748B]">{label}</p><p className="mt-2 text-lg font-semibold">{value}</p></div>)}</div>
-  <PositionCapitalActions strategyId={position.strategyId} positionId={position.id} available={free.toString()} allocated={position.allocatedUsdcMicros.toString()} reserved={pendingReduction.toString()} min={position.strategy.minAllocationUsdcMicros.toString()} max={position.strategy.maxAllocationUsdcMicros.toString()} capacity={position.strategy.availableCapacityUsdcMicros.toString()} status={position.status}/>
-  <section className="overflow-hidden rounded-2xl border border-[#E3E8EE] bg-white">
-   <header className="border-b px-5 py-5 sm:px-7"><h2 className="text-lg font-semibold">Position trades</h2><p className="mt-1 text-xs text-[#64748B]">Real trade exposure and settled net P&amp;L only</p></header>
-   <div className="overflow-x-auto"><table className="w-full min-w-[670px] text-left text-sm"><thead className="bg-[#F8FAFC] text-xs text-[#64748B]"><tr>{["Trade","Status","Exposure USDC","Net P&L USDC","Date"].map(h=><th key={h} className="px-5 py-3">{h}</th>)}</tr></thead><tbody className="divide-y">{trades.map(t=><tr key={t.id}><td className="px-5 py-4">{t.strategyTrade.marketTradeName}</td><td className="px-5 py-4">{t.status}</td><td className="px-5 py-4 tabular-nums">{usdc(t.eligibleCapitalUsdcMicros)}</td><td className="px-5 py-4 tabular-nums">{t.status==="SETTLED"?usdc(t.netPnlUsdcMicros??0n):"—"}</td><td className="px-5 py-4 text-xs">{(t.settledAt??t.createdAt).toLocaleString("en-US",{timeZone:"UTC"})} UTC</td></tr>)}</tbody></table>{trades.length===0&&<p className="p-7 text-sm text-[#64748B]">No position trades recorded yet.</p>}</div>
-  </section>
-  <section className="overflow-hidden rounded-2xl border border-[#E3E8EE] bg-white"><header className="border-b px-5 py-5 sm:px-7"><h2 className="text-lg font-semibold">Capital requests</h2></header><div className="overflow-x-auto"><table className="w-full min-w-[540px] text-left text-sm"><thead className="bg-[#F8FAFC] text-xs text-[#64748B]"><tr>{["Type","Amount USDC","Status","Requested"].map(h=><th key={h} className="px-5 py-3">{h}</th>)}</tr></thead><tbody className="divide-y">{requests.map(x=><tr key={x.id}><td className="px-5 py-4">{x.kind}</td><td className="px-5 py-4">{usdc(x.amountUsdcMicros)}</td><td className="px-5 py-4">{x.status}</td><td className="px-5 py-4 text-xs">{x.createdAt.toLocaleString("en-US",{timeZone:"UTC"})} UTC</td></tr>)}</tbody></table>{requests.length===0&&<p className="p-7 text-sm text-[#64748B]">No capital requests yet.</p>}</div></section>
+  <header className="flex items-center gap-4 rounded-2xl border border-[#35404E] bg-[#202934] p-5 text-white sm:p-6">
+   <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#34465E] font-bold">{position.strategy.logo&&(position.strategy.logo.startsWith("/")||position.strategy.logo.startsWith("https://"))?<img src={position.strategy.logo} alt="" className="h-full w-full object-cover"/>:(position.strategy.symbol??position.strategy.name).slice(0,2).toUpperCase()}</span>
+   <div className="min-w-0"><h1 className="text-2xl font-bold">{position.strategy.symbol??position.strategy.name}</h1><p className="mt-1 text-sm text-[#A6B3C5]">{position.strategy.name}</p><p className="mt-1 break-all font-mono text-xs text-[#A6B3C5]">Position {position.id}</p></div>
+  </header>
+  <div className="grid gap-3 sm:grid-cols-3">{[
+   ["Allocated capital",usdc(position.allocatedUsdcMicros)+" USDC",false],
+   ["Settled P&L",(realized>0n?"+":"")+usdc(realized)+" USDC",true],
+   ["Total settlements",String(settlements.length),false]
+  ].map(([label,value,profit])=><div key={String(label)} className="rounded-2xl border border-[#35404E] bg-[#293545] p-5"><p className="text-xs text-[#A6B3C5]">{label}</p><p className={"mt-2 text-xl font-bold tabular-nums "+(profit?(realized<0n?"text-rose-400":"text-emerald-300"):"text-white")}>{value}</p></div>)}</div>
+  <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.9fr)_minmax(300px,1fr)]">
+   <PositionPnlChart points={points}/>
+   <PositionCapitalActions dark strategyId={position.strategyId} positionId={position.id} available={free.toString()} allocated={position.allocatedUsdcMicros.toString()} reserved={pendingReduction.toString()} min={position.strategy.minAllocationUsdcMicros.toString()} max={position.strategy.maxAllocationUsdcMicros.toString()} capacity={position.strategy.availableCapacityUsdcMicros.toString()} status={position.status}/>
+  </div>
+  <PositionCapitalHistory requests={history}/>
  </div></Shell>;
 }
