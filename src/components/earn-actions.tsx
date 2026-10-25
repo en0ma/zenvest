@@ -10,6 +10,7 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const [amount,setAmount]=useState("");
  const [strategyId,setStrategyId]=useState("");
  const [side,setSide]=useState<"ALLOCATE"|"DEALLOCATE">("ALLOCATE");
+ const [chartRange,setChartRange]=useState("1M");
  const strategy=strategies.find(x=>x.id===strategyId);
  const existingPosition=positions.find(p=>p.strategyId===strategyId&&(p.status==="OPEN"||p.status==="CLOSING"));
  const deallocationBalance=existingPosition?.status==="OPEN"?BigInt(existingPosition.principal):0n;
@@ -62,24 +63,36 @@ export function EarnActions({available,positions,operations,strategies}:{availab
      <option value="">Select a strategy</option>{strategies.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
     </select>
    </label>
-   <div className="mt-5 overflow-hidden rounded-xl border border-[#E7EDF4] bg-white">
-    <div className="flex items-center justify-between gap-3 border-b border-[#EDF0F5] px-4 py-3">
-     <h3 className="text-sm font-semibold text-[#334155]">Strategy performance</h3>
-     <span className="text-xs text-[#64748B]">USDC · Historical</span>
+   <div className="mt-5 overflow-hidden rounded-xl border border-[#293341] bg-[#1F2632] text-[#E9EDF3]">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#35404E] px-4 py-3">
+     <div><h3 className="text-sm font-semibold">Strategy chart</h3><p className="mt-0.5 text-xs text-[#91A0B2]">{strategy?.name??"Select a strategy"} · Performance</p></div>
+     <span className="rounded-md bg-[#2B3645] px-2 py-1 text-xs text-[#B9C3D1]">USDC</span>
     </div>
-    <div role="img" aria-label="Empty historical strategy performance chart. No verified data is available yet." className="relative h-56 w-full sm:h-72">
-     <svg viewBox="0 0 700 240" preserveAspectRatio="none" className="h-full w-full" aria-hidden="true">
-      {[40,85,130,175,220].map(y=><line key={y} x1="18" x2="680" y1={y} y2={y} stroke="#E8EDF4" strokeWidth="1"/>)}
-      {[120,240,360,480,600].map(x=><line key={x} x1={x} x2={x} y1="16" y2="220" stroke="#F0F3F8" strokeWidth="1"/>)}
-      <line x1="18" x2="680" y1="220" y2="220" stroke="#CBD5E1" strokeWidth="1.5"/>
-      <line x1="18" x2="18" y1="16" y2="220" stroke="#CBD5E1" strokeWidth="1.5"/>
-     </svg>
-     <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6">
-      <div className="rounded-lg bg-white/90 px-4 py-3 text-center shadow-sm ring-1 ring-[#E7EDF4]">
-       <p className="text-sm font-medium text-[#475569]">No performance data yet</p>
-       <p className="mt-1 text-xs text-[#94A3B8]">Verified strategy results will appear here</p>
-      </div>
+    <div className="flex items-center justify-between gap-3 border-b border-[#35404E] px-3 py-2 sm:px-4">
+     <div role="group" aria-label="Chart time range" className="flex min-w-0 flex-wrap items-center gap-1">
+      {["1D","1W","1M","3M","1Y","ALL"].map(range=><button key={range} type="button" aria-pressed={chartRange===range} onClick={()=>setChartRange(range)} className={"rounded px-2 py-1.5 text-xs font-medium "+(chartRange===range?"bg-[#354355] text-white":"text-[#94A3B8] hover:bg-[#2C3645] hover:text-white")}>{range}</button>)}
      </div>
+     <span className="shrink-0 text-xs text-[#8290A3]">Historical</span>
+    </div>
+    <div className="flex items-center gap-4 border-b border-[#35404E] px-4 py-2 text-[11px] text-[#8290A3]">
+     <span>Performance</span><span>Net P&amp;L</span><span>USDC</span>
+    </div>
+    <div role="img" aria-label="Empty strategy performance chart for the selected date range: grid and axes only, with no fabricated prices or returns." className="relative h-64 w-full sm:h-[340px]">
+     <svg viewBox="0 0 700 300" preserveAspectRatio="none" className="h-full w-full" aria-hidden="true">
+      {[36,89,142,195,248].map(y=><line key={y} x1="14" x2="635" y1={y} y2={y} stroke="#35404E" strokeWidth="1"/>)}
+      {[14,138,262,386,510,635].map(x=><line key={x} x1={x} x2={x} y1="12" y2="266" stroke="#35404E" strokeWidth="1"/>)}
+      <line x1="14" x2="635" y1="266" y2="266" stroke="#526073" strokeWidth="1"/>
+      <line x1="635" x2="635" y1="12" y2="266" stroke="#526073" strokeWidth="1"/>
+      {[36,89,142,195,248].map(y=><line key={"tick"+y} x1="635" x2="642" y1={y} y2={y} stroke="#708096" strokeWidth="1"/>)}
+     </svg>
+     <div className="pointer-events-none absolute inset-x-4 top-1/2 -translate-y-1/2 text-center">
+      <span className="inline-block rounded-lg border border-[#435165] bg-[#263241]/95 px-4 py-3 text-xs text-[#B7C3D2]">No verified performance data yet</span>
+     </div>
+     <span className="pointer-events-none absolute bottom-3 left-4 text-[10px] text-[#8290A3]">{chartRange} view</span>
+     <span className="pointer-events-none absolute bottom-3 right-4 text-[10px] text-[#8290A3]">Awaiting historical results</span>
+    </div>
+    <div className="flex items-center gap-4 overflow-x-auto border-t border-[#35404E] px-4 py-3 text-xs text-[#A5B1C1]">
+     <span className="font-semibold text-[#E9EDF3]">Performance</span><span>Allocations</span><span>Realized P&amp;L</span>
     </div>
    </div>
    <div role="group" aria-label="Position action" className="mt-5 grid grid-cols-2 gap-3">
