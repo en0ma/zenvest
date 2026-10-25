@@ -404,6 +404,20 @@ try {
  assert.equal(closedPosition.allocatedUsdcMicros,0n);
  assert.ok(closedPosition.closedAt);
  assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:returnChild.id}})).status,"COMPLETED");
+ const {reservePendingDeallocationsBeforeSnapshots}=await import("../src/lib/position-capital-application.ts");
+ const reservePosition=await prisma.investorPosition.create({data:{
+  userId:user.id,strategyId:strategy.id,status:"OPEN",allocatedUsdcMicros:2000000n}});
+ const tooLarge=await prisma.positionAllocation.create({data:{
+  userId:user.id,positionId:reservePosition.id,strategyId:strategy.id,
+  kind:"DEALLOCATE",amountUsdcMicros:3000000n}});
+ await reservePendingDeallocationsBeforeSnapshots();
+ assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:tooLarge.id}})).status,"FAILED");
+ const payable=await prisma.positionAllocation.create({data:{
+  userId:user.id,positionId:reservePosition.id,strategyId:strategy.id,
+  kind:"DEALLOCATE",amountUsdcMicros:1000000n}});
+ await reservePendingDeallocationsBeforeSnapshots();
+ assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:payable.id}})).status,"AWAITING_DEALLOCATION");
+ assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:reservePosition.id}})).allocatedUsdcMicros,1000000n);
  console.log("Position P&L concurrency, replay and authenticated-return closure passed");
  console.log("Strategy source-only confirmation, duplicate, mismatch, and financial conservation passed");
  console.log("CI PostgreSQL transaction rollback, uniqueness and idempotent settlement assertions passed");
