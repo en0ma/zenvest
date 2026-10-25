@@ -20,7 +20,7 @@ export function PortfolioValueChart({points}:{points:Point[]}){
     <path d={chart.path} fill="none" stroke="#635BFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
    </svg>
    <div className="mt-2 flex justify-between text-xs text-[#64748B]"><span>{new Date(chart.first).toLocaleDateString("en-US")}</span><span>{new Date(chart.last).toLocaleDateString("en-US")}</span></div>
-  </div>:<p className="mt-6 rounded-xl bg-[#F8FAFD] p-8 text-center text-sm text-[#64748B]">Historical chart will appear after verified financial events are recorded.</p>}
+  </div>:<div className="mt-6"><svg role="img" aria-label="Portfolio valuation chart awaiting reconciled history; no real valuation series is available" viewBox="0 0 760 240" className="h-auto w-full"><line x1="24" x2="736" y1="40" y2="40" stroke="#E9EEF6" strokeDasharray="4 6"/><line x1="24" x2="736" y1="120" y2="120" stroke="#E9EEF6" strokeDasharray="4 6"/><line x1="24" x2="736" y1="216" y2="216" stroke="#DBE4F1"/><line x1="24" x2="736" y1="120" y2="120" stroke="#B7B2FF" strokeWidth="2" strokeDasharray="6 7"/><text x="24" y="234" fontSize="12" fill="#64748B">Start</text><text x="736" y="234" fontSize="12" textAnchor="end" fill="#64748B">Today</text></svg><p className="mt-2 text-center text-xs text-[#64748B]">Valuation history awaiting reconciled events · guideline is not account data</p></div>}
   <p className="mt-3 text-xs text-[#94A3B8]">Live unrealized market valuation is not included.</p>
  </section>;
 }
