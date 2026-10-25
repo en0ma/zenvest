@@ -16,14 +16,15 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const availableBalance=side==="ALLOCATE"?BigInt(available):deallocationBalance;
  const amountIsValid=/^(0|[1-9]\\d*)(\\.\\d{1,6})?$/.test(amount);
  const amountMicros=amountIsValid?(()=>{const [w,f=""]=amount.split(".");return BigInt(w)*1000000n+BigInt(f.padEnd(6,"0"));})():0n;
- const canConfirm=!!strategy&&!working&&amountMicros>0n&&amountMicros<=availableBalance&&(
-  side==="ALLOCATE"?(existingPosition?.status!=="CLOSING"&&amountMicros>=BigInt(strategy.min)&&amountMicros<=BigInt(strategy.max)&&amountMicros<=BigInt(strategy.capacity)):
-  (existingPosition?.status==="OPEN"&&!existingPosition.pending));
  const [selected,setSelected]=useState<Position|null>(null);
  const [reduceAmount,setReduceAmount]=useState("");
  const [working,setWorking]=useState(false);
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
+ const canConfirm=!!strategy&&!working&&amountMicros>0n&&amountMicros<=availableBalance&&(
+  side==="ALLOCATE"?(existingPosition?.status!=="CLOSING"&&amountMicros>=BigInt(strategy.min)&&amountMicros<=BigInt(strategy.max)&&amountMicros<=BigInt(strategy.capacity)):
+  (existingPosition?.status==="OPEN"&&!existingPosition.pending));
+
  const [historyPage,setHistoryPage]=useState(1);
  const [allocationsPage,setAllocationsPage]=useState(1);
  const [deallocationsPage,setDeallocationsPage]=useState(1);
