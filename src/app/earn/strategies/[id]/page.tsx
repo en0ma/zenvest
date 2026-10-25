@@ -42,7 +42,7 @@ export default async function StrategyPage({params}:{params:Promise<{id:string}>
    <div className="min-w-0">
   <StrategyDetailTabs points={points} description={strategy.description} note={strategy.note} stats={{market:strategy.marketType,status:strategy.status,total:usdc(allPositions._sum.allocatedUsdcMicros??0n),settlements:settled.length,capacity:usdc(strategy.availableCapacityUsdcMicros)}}/>
    </div>
-   <div className="min-w-0"><PositionCapitalActions strategyId={id} available={free.toString()} min={strategy.minAllocationUsdcMicros.toString()} max={strategy.maxAllocationUsdcMicros.toString()} capacity={strategy.availableCapacityUsdcMicros.toString()}/></div>
+   <div className="min-w-0"><PositionCapitalActions dark strategyId={id} available={free.toString()} min={strategy.minAllocationUsdcMicros.toString()} max={strategy.maxAllocationUsdcMicros.toString()} capacity={strategy.availableCapacityUsdcMicros.toString()}/></div>
   </div>
   <section className="overflow-hidden rounded-2xl border border-[#35404E] bg-[#202934] text-white">
    <header className="border-b border-white/10 px-5 py-5 sm:px-7"><h2 className="text-lg font-semibold">Your positions in this strategy</h2></header>
