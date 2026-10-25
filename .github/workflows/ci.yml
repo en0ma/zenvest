@@ -74,6 +74,10 @@ jobs:
             coverage/
           if-no-files-found: warn
           retention-days: 14
+      - name: Verify production market seed is repeatable in disposable PostgreSQL
+        run: |
+          node scripts/seed-strategy-design.mjs
+          node scripts/seed-strategy-design.mjs
       - run: npm run typecheck
       - run: npm run build
       - name: Verify built HTTP financial endpoint security
