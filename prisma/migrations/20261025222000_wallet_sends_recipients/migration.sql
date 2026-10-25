@@ -30,13 +30,13 @@ CREATE TABLE "sends" (
   "amount" BIGINT NOT NULL,
   "sender_handle" VARCHAR(8) NOT NULL,
   "recipient_handle" VARCHAR(8) NOT NULL,
-  "idempotency_key" VARCHAR(100) NOT NULL,
+  "request_key" VARCHAR(100) NOT NULL,
   CONSTRAINT "sends_pkey" PRIMARY KEY ("id"),
   CONSTRAINT "sends_sender_user_id_fkey" FOREIGN KEY ("sender_user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT "sends_recipient_user_id_fkey" FOREIGN KEY ("recipient_user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT "sends_positive_amount_check" CHECK ("amount" > 0),
   CONSTRAINT "sends_not_self_check" CHECK ("sender_user_id" <> "recipient_user_id")
 );
-CREATE UNIQUE INDEX "sends_idempotency_key_key" ON "sends"("idempotency_key");
+CREATE UNIQUE INDEX "sends_request_key_key" ON "sends"("request_key");
 CREATE INDEX "sends_sender_user_id_created_at_idx" ON "sends"("sender_user_id","created_at");
 CREATE INDEX "sends_recipient_user_id_created_at_idx" ON "sends"("recipient_user_id","created_at");
