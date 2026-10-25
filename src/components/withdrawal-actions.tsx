@@ -101,7 +101,7 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
 
     <div className="grid gap-5">
       <div>
-        <label htmlFor="withdrawal-amount" className="text-sm font-semibold text-[#11263E]">Amount to withdraw</label>
+        <div className="flex items-baseline justify-between gap-3"><label htmlFor="withdrawal-amount" className="text-sm font-semibold text-[#11263E]">Amount</label><span className="whitespace-nowrap text-xs text-[#64748B]">Balance: {format(balance)} USDC</span></div>
         <div className="relative">
           <input id="withdrawal-amount" required inputMode="decimal" autoComplete="off" value={amount}
             onChange={e=>{setAmount(e.target.value);onEdit();}} placeholder="0.00"

@@ -2,7 +2,6 @@ import { Shell } from "@/components/shell";
 import { EarnActions } from "@/components/earn-actions";
 import { requireUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
-import { formatUsdc } from "@/lib/usdc-money";
 export const dynamic="force-dynamic";
 function date(d:Date|null){return d?d.toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short",timeZone:"UTC"})+" UTC":null;}
 export default async function EarnPage(){
@@ -21,12 +20,6 @@ export default async function EarnPage(){
  const available=u>w+a?u-w-a:0n;
  return <Shell><div className="mx-auto max-w-6xl space-y-7">
   <header><h1 className="text-3xl font-semibold tracking-tight text-[#11263E]">Earn</h1><p className="mt-2 text-sm text-[#64748B]">Manage allocations, view investment positions and request return of capital.</p></header>
-  <section aria-label="Available USDC balance" className="rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
-   <p className="text-sm text-[#64748B]">Available balance</p>
-   <p className="mt-3 text-2xl font-semibold tabular-nums text-[#11263E]">{formatUsdc(available)}</p>
-   <p className="mt-3 text-xs leading-5 text-[#64748B]">Allocated: {formatUsdc(allocated)} · Reserved: {formatUsdc(w+a)}</p>
-   <p className="mt-1 text-xs leading-5 text-[#64748B]">Available balance is unallocated USDC minus pending withdrawal and allocation reservations.</p>
-  </section>
   <EarnActions strategies={strategies.map(x=>({id:x.id,name:x.name,description:x.description,min:x.minAllocationUsdcMicros.toString(),max:x.maxAllocationUsdcMicros.toString(),capacity:x.availableCapacityUsdcMicros.toString()}))} available={available.toString()} positions={positions.map(x=>({id:x.id,strategyId:x.strategyId,principal:x.allocatedUsdcMicros.toString(),status:x.status,created:date(x.createdAt)??"—",pending:deallocations.some(o=>o.positionId===x.id&&["PENDING","SUBMITTING","PROCESSING","REVIEW"].includes(o.status))}))}
    operations={[...allocations.map(x=>({id:x.id,positionId:x.positionId,type:"ALLOCATE",amount:x.amountUsdcMicros.toString(),status:x.status,created:date(x.createdAt)??"—",completed:x.status==="COMPLETED"?date(x.updatedAt):null})),...deallocations.map(x=>({id:x.id,positionId:x.positionId,type:"DEALLOCATE",amount:x.amountUsdcMicros.toString(),status:x.status,created:date(x.createdAt)??"—",completed:x.status==="COMPLETED"?date(x.updatedAt):null}))].sort((a,b)=>b.created.localeCompare(a.created))}/>
  </div></Shell>;

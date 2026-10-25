@@ -45,7 +45,6 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
  const realized=settled.reduce((total,p)=>total+(p.netPnlUsdcMicros??0n),0n);
  const winning=settled.filter(p=>(p.netPnlUsdcMicros??0n)>0n).length;
  const losing=settled.filter(p=>(p.netPnlUsdcMicros??0n)<0n).length;
- const lastThirty=settled.filter(p=>p.settledAt&&p.settledAt.getTime()>=Date.now()-30*86400000).reduce((n,p)=>n+(p.netPnlUsdcMicros??0n),0n);
  const equity=allocated+unallocated;
  const capital=allocated+unallocated;
  const reserved=(withdrawalReservations._sum.grossUsdcMicros??0n)+(allocationReservations._sum.amountUsdcMicros??0n);
@@ -110,15 +109,25 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
   </section>
   <PnlPerformanceChart rows={settled.filter(p=>p.settledAt).map(p=>({day:p.settledAt!.toISOString().slice(0,10),netMicros:(p.netPnlUsdcMicros??0n).toString()}))}/>
   <div className="flex justify-end"><a href="/api/earn/reports/trade-pnl.csv" className="rounded-xl border border-[#635BFF] px-4 py-2 text-sm font-semibold text-[#635BFF]">Export settled event report (CSV)</a></div>
-  <section aria-labelledby="period-heading">
-   <h2 id="period-heading" className="mb-3 text-lg font-semibold text-[#11263E]">Realized P&amp;L by period</h2>
-   <div className="grid grid-cols-3 gap-3">{periods.map(period=><article key={period.label} className="rounded-xl border border-[#E3E8EE] bg-white px-4 py-4">
-    <p className="text-xs font-medium text-[#64748B]">{period.label}</p><p className={"mt-2 text-xl font-semibold tabular-nums "+(period.value<0n?"text-red-600":"text-emerald-700")}>{period.value>0n?"+":""}{formatUsdc(period.value)}</p><p className="mt-1 text-xs text-[#94A3B8]">{period.window}</p>
-   </article>)}</div>
-   <p className="mt-3 text-xs leading-5 text-[#64748B]">These figures are realized profit or loss in USDC, not percentage investment returns.</p>
+  <section aria-labelledby="period-heading" className="rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
+   <h2 id="period-heading" className="text-lg font-semibold text-[#11263E]">Realized P&amp;L by period</h2>
+   <div className="mt-5 grid gap-5 sm:grid-cols-3 sm:gap-6">
+    {periods.map((period,index)=><div key={period.label} className={index>0?"border-t border-[#EDF0F5] pt-5 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0":""}>
+     <p className="text-sm font-medium text-[#64748B]">{period.label}</p>
+     <p className={"mt-2 break-words text-xl font-semibold tabular-nums "+(period.value<0n?"text-red-600":"text-emerald-700")}>{period.value>0n?"+":""}{formatUsdc(period.value)}</p>
+     <p className="mt-1 text-xs text-[#94A3B8]">{period.window}</p>
+    </div>)}
+   </div>
+   <p className="mt-5 border-t border-[#EDF0F5] pt-4 text-xs leading-5 text-[#64748B]">These figures are realized profit or loss in USDC, not percentage investment returns.</p>
   </section>
-  <section className="grid gap-4 sm:grid-cols-3" aria-label="Trade analytics">
-  {[{label:"Settled events",value:String(settled.length)},{label:"Event win rate",value:winning+losing>0?(winning*100/(winning+losing)).toFixed(1)+"%":"—"},{label:"Last 30 days net P&L",value:formatUsdc(lastThirty)}].map(x=><article key={x.label} className="rounded-2xl border border-[#E3E8EE] bg-white p-5"><p className="text-sm text-[#64748B]">{x.label}</p><p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p></article>)}
+  <section aria-label="Trade analytics" className="rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
+   <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
+    {[{label:"Settled events",value:String(settled.length)},{label:"Event win rate",value:winning+losing>0?(winning*100/(winning+losing)).toFixed(1)+"%":"—"}].map((x,index)=>
+     <div key={x.label} className={index>0?"border-t border-[#EDF0F5] pt-5 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0":""}>
+      <p className="text-sm text-[#64748B]">{x.label}</p>
+      <p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p>
+     </div>)}
+   </div>
   </section>
   <section aria-label="Detailed trading statistics" className="rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
    <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
