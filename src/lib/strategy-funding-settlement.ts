@@ -34,6 +34,24 @@ export async function settleVerifiedStrategyFunding(receipt:VerifiedStrategyFund
     p.status!=="CONFIRMING")||
    event.positionEvents.reduce((a,p)=>a+p.amountUsdcMicros,0n)!==receipt.amountUsdcMicros)
    return "mismatch";
+  // Foreign keys prove that each entity exists, not that a position event
+  // belongs to the referenced investor and market. Reject inconsistent rows
+  // before changing the treasury or investor balances.
+  const positionIds=[...new Set(event.positionEvents.map(row=>row.positionId))];
+  const positions=await tx.investorPosition.findMany({
+   where:{id:{in:positionIds}},select:{id:true,userId:true,strategyId:true,status:true},
+  });
+  const positionById=new Map(positions.map(pos=>[pos.id,pos]));
+  if(event.positionEvents.some(row=>{
+   const pos=positionById.get(row.positionId);
+   return row.amountUsdcMicros<=0n||row.userId!==pos?.userId||
+    row.strategyId!==pos?.strategyId||pos?.strategyId!==event.strategyId||
+    pos.status!=="OPEN";
+  }))return "mismatch";
+  // Reject duplicate references to a single allocation, even if the event
+  // relationship was corrupted outside the usual API path.
+  if(new Set(event.positionEvents.map(row=>row.id)).size!==event.positionEvents.length)
+   return "mismatch";
   // Prevent one Kalshi receipt being attributed to more than one event.
   const used=await tx.treasuryTransfer.findFirst({where:{destinationExternalId:receipt.kalshiTransactionId,
    direction:"ALLOCATE",id:{not:event.treasuryTransactionId}}});
@@ -64,8 +82,10 @@ export async function settleVerifiedStrategyFunding(receipt:VerifiedStrategyFund
     data:{unallocated:{decrement:row.amountUsdcMicros}},
    });
    if(debit.count!==1)throw new Error("Investor balance mismatch");
-   await tx.investorPosition.update({where:{id:row.positionId},
+   const credited=await tx.investorPosition.updateMany({where:{id:row.positionId,
+    userId:row.userId,strategyId:event.strategyId,status:"OPEN"},
     data:{allocatedUsdcMicros:{increment:row.amountUsdcMicros}}});
+   if(credited.count!==1)throw new Error("Investor position ownership or status changed");
    await tx.investorActivity.create({data:{
     userId:row.userId,type:"ALLOCATION",amountKobo:0n,
     amountUsdcMicros:row.amountUsdcMicros,
