@@ -10,7 +10,8 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const [amount,setAmount]=useState("");
  const [strategyId,setStrategyId]=useState("");
  const [allocationPositionId,setAllocationPositionId]=useState("");
- const strategy=strategies.find(x=>x.id===strategyId);
+ const existingPosition=positions.find(p=>p.id===allocationPositionId&&p.status==="OPEN");
+ const strategy=strategies.find(x=>x.id===(allocationPositionId?existingPosition?.strategyId:strategyId));
  const [selected,setSelected]=useState<Position|null>(null);
  const [reduceAmount,setReduceAmount]=useState("");
  const [working,setWorking]=useState(false);
@@ -44,16 +45,23 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const pageControls=(label:string,page:number,pages:number,setPage:(page:number)=>void)=> <nav aria-label={label+" pagination"} className="mt-4 flex items-center justify-between gap-3 text-sm"><span className="text-[#64748B]">Page {page} of {pages}</span><div className="flex gap-2"><button type="button" onClick={()=>setPage(Math.max(1,page-1))} disabled={page<=1} className="rounded-lg border border-[#DEE5EE] px-3 py-2 font-medium disabled:opacity-40">Previous</button><button type="button" onClick={()=>setPage(Math.min(pages,page+1))} disabled={page>=pages} className="rounded-lg border border-[#DEE5EE] px-3 py-2 font-medium disabled:opacity-40">Next</button></div></nav>;
  return <div className="space-y-8">
   <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
-   <h2 className="text-xl font-semibold text-[#11263E]">Open allocation</h2>
-   <p className="mt-2 text-sm text-[#64748B]">Choose how much of your available USDC to commit to a new position. Funds are reserved immediately; allocation completes only after verified strategy funding.</p>
+   <h2 className="text-xl font-semibold text-[#11263E]">Allocate</h2>
+   <p className="mt-2 text-sm text-[#64748B]">Allocate available USDC to a new or existing position. Funds stay reserved until strategy funding is verified.</p>
    <p className="mt-5 text-sm text-[#64748B]">Available to allocate or withdraw: <strong className="text-[#11263E]">{money(available)}</strong></p>
-   <form className="mt-4 flex flex-wrap items-end gap-3" onSubmit={e=>{e.preventDefault();if(valid(amount)&&strategy)void submit("/api/earn/allocations",{amount,strategyId,...(allocationPositionId?{positionId:allocationPositionId}:{})});}}>
-    <label className="flex min-w-[220px] flex-col gap-2 text-sm font-semibold text-[#334155]">Strategy<select required aria-label="Choose strategy" value={strategyId} onChange={e=>{setStrategyId(e.target.value);setAmount("");setAllocationPositionId("");}} className="rounded-xl border border-[#CBD5E1] px-4 py-3 font-normal"><option value="">Select a strategy</option>{strategies.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
+   <form className="mt-4 flex flex-wrap items-end gap-3" onSubmit={e=>{e.preventDefault();if(valid(amount)&&strategy)void submit("/api/earn/allocations",{amount,strategyId:strategy.id,...(allocationPositionId?{positionId:allocationPositionId}:{})});}}>
+    <label className="flex min-w-[220px] flex-col gap-2 text-sm font-semibold text-[#334155]">Position
+     <select aria-label="Existing position or new position" value={allocationPositionId} onChange={e=>{setAllocationPositionId(e.target.value);setStrategyId("");setAmount("");}} className="rounded-xl border border-[#CBD5E1] px-4 py-3 font-normal">
+      <option value="">Open new position</option>
+      {positions.filter(p=>p.status==="OPEN").map(p=><option key={p.id} value={p.id}>{strategies.find(x=>x.id===p.strategyId)?.name??"Position"} · {p.id.slice(0,13)}… ({money(p.principal)})</option>)}
+     </select>
+    </label>
+    {!allocationPositionId&&<label className="flex min-w-[220px] flex-col gap-2 text-sm font-semibold text-[#334155]">Strategy
+     <select required aria-label="Choose strategy" value={strategyId} onChange={e=>{setStrategyId(e.target.value);setAmount("");}} className="rounded-xl border border-[#CBD5E1] px-4 py-3 font-normal"><option value="">Select a strategy</option>{strategies.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>
+    </label>}
     <label className="flex min-w-[220px] flex-col gap-2 text-sm font-semibold text-[#334155]">Amount (USDC)<input aria-label="Allocation amount in USDC" required inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0.00" className="rounded-xl border border-[#CBD5E1] px-4 py-3 font-normal"/></label>
-    <label className="flex min-w-[220px] flex-col gap-2 text-sm font-semibold text-[#334155]">Position<select aria-label="Existing position or new position" value={allocationPositionId} onChange={e=>setAllocationPositionId(e.target.value)} className="rounded-xl border border-[#CBD5E1] px-4 py-3 font-normal"><option value="">Open new position</option>{positions.filter(p=>p.status==="OPEN"&&p.strategyId===strategyId).map(p=><option key={p.id} value={p.id}>{p.id.slice(0,13)}… ({money(p.principal)})</option>)}</select></label>
     <button disabled={working||!strategy||!valid(amount)||Number(amount)>Number(available)/1e6||Number(amount)<Number(strategy.min)/1e6||Number(amount)>Math.min(Number(strategy.max)/1e6,Number(strategy.capacity)/1e6)} className="rounded-xl bg-[#635BFF] px-5 py-3 text-sm font-semibold text-white disabled:opacity-40">Request allocation</button>
    </form>
-   {strategy?<div className="mt-4 rounded-xl bg-[#F8FAFD] p-4 text-sm text-[#425466]"><p>{strategy.description}</p><p className="mt-2">Minimum: {money(strategy.min)} · Maximum: {money(strategy.max)} · Available capacity: {money(strategy.capacity)}</p></div>:<p className="mt-4 text-xs text-[#64748B]">Choose an active public strategy to see its allocation limits.</p>}
+   {!allocationPositionId&&(strategy?<div className="mt-4 rounded-xl bg-[#F8FAFD] p-4 text-sm text-[#425466]"><p>{strategy.description}</p><p className="mt-2">Minimum: {money(strategy.min)} · Maximum: {money(strategy.max)} · Available capacity: {money(strategy.capacity)}</p></div>:<p className="mt-4 text-xs text-[#64748B]">Choose an active public strategy to see its allocation limits.</p>)}
   </section>
   <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <h2 className="text-xl font-semibold text-[#11263E]">Positions</h2>
