@@ -3,6 +3,10 @@
 **An investor operations and USDC custody application — development / pre-production**
 
 [![Zenvest CI](https://github.com/en0ma/zenvest/actions/workflows/ci.yml/badge.svg)](https://github.com/en0ma/zenvest/actions/workflows/ci.yml)
+[![Line coverage: 91.87% (CI #1849)](https://img.shields.io/badge/line%20coverage-91.87%25-brightgreen)](https://github.com/en0ma/zenvest/actions/runs/40140348723)
+[![Coverage thresholds](https://img.shields.io/badge/coverage%20gates-lines%20%E2%89%A585%25%20%7C%20branches%20%E2%89%A580%25-blue)](https://github.com/en0ma/zenvest/actions/workflows/ci.yml)
+
+<sub>Coverage percentage is a snapshot from the linked CI run; current values are published in each run summary and PR coverage report.</sub>
 
 Zenvest is built with **Next.js (App Router), TypeScript, Prisma, PostgreSQL and NextAuth**, with Blockradar-backed USDC custody workflows and position/strategy accounting. The repository includes investor onboarding, wallet operations, withdrawal requests, strategy allocation and closing workflows, trade P&L processing, authenticated internal jobs, administrative review surfaces and source-instrumented tests.
 

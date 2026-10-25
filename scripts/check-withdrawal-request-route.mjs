@@ -28,6 +28,38 @@ try{
   assert.match(String(url),/\/withdraw\/network-fee$/);
   return Response.json({data:{networkFeeInUSD:"0.100000"}});
  };
+ const {POST:validateAddress}=await import("../src/app/api/withdrawals/validate-address/route.ts");
+ const validate=data=>validateAddress(new Request("http://ci.local/api/withdrawals/validate-address",{method:"POST",body:typeof data==="string"?data:JSON.stringify(data)}));
+ assert.equal((await validate("{bad")).status,400,"malformed validation JSON must fail");
+ assert.equal((await validate({address:"invalid"})).status,400,"invalid Solana key must fail locally");
+ let checks=0;
+ globalThis.fetch=async(url,options)=>{
+  checks++;
+  const path=new URL(String(url));
+  assert.equal(path.pathname,"/v1/addresses/validate");
+  assert.equal(path.searchParams.get("address"),address);
+  assert.equal(path.searchParams.get("blockchain"),"solana");
+  assert.equal(options.headers["x-api-key"],"ci-key");
+  return Response.json({data:{isValid:true,address,blockchain:"solana"}});
+ };
+ const validResult=await validate({address});
+ assert.equal(validResult.status,200);
+ assert.equal((await validResult.json()).valid,true);
+ assert.equal(checks,1);
+ globalThis.fetch=async()=>Response.json({data:{isValid:false,address,blockchain:"solana"}});
+ const rejected=await validate({address});
+ assert.equal(rejected.status,200);
+ assert.equal((await rejected.json()).valid,false,"HTTP 200 with provider isValid:false cannot enable withdrawals");
+ globalThis.fetch=async()=>new Response("unavailable",{status:503});
+ const outage=await validate({address});
+ assert.equal(outage.status,503);
+ assert.equal((await outage.json()).valid,false,"provider outage must fail closed");
+ // Restore the mocked fee-quote provider after the deliberate address-validation
+ // outage. Each provider endpoint has independent fixtures.
+ globalThis.fetch=async(url)=>{
+  assert.match(String(url),/\/withdraw\/network-fee$/);
+  return Response.json({data:{networkFeeInUSD:"0.100000"}});
+ };
  const estimate=data=>estimateFee(new Request("http://ci.local/api/withdrawals/estimate-fee",{method:"POST",body:typeof data==="string"?data:JSON.stringify(data)}));
  assert.equal((await estimate("{bad")).status,400);
  assert.equal((await estimate({amount:"0",address})).status,400);

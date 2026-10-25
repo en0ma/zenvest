@@ -1,3 +1,4 @@
+import {isValidSolanaAddress} from "@/lib/solana-address";
 import {NextResponse} from "next/server";
 import {requireUser} from "@/lib/access";
 import {estimateWithdrawalNetworkFee} from "@/lib/blockradar-withdrawal-fee";
@@ -15,7 +16,7 @@ export async function POST(request:Request){
  const body=input as Record<string,unknown>;
  const gross=parsePositiveUsdcMicros(body.amount);
  const address=body.address;
- if(!gross||gross<=WITHDRAWAL_FEE_USDC_MICROS||typeof address!=="string"||!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return NextResponse.json({error:"Invalid withdrawal details"},{status:400});
+ if(!gross||gross<=WITHDRAWAL_FEE_USDC_MICROS||!isValidSolanaAddress(address))return NextResponse.json({error:"Invalid withdrawal details"},{status:400});
  try{
   const network=await estimateWithdrawalNetworkFee(address,gross-WITHDRAWAL_FEE_USDC_MICROS);
   const fees=withdrawalFeeBreakdown(gross,network);

@@ -12,6 +12,7 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [addressCheck,setAddressCheck]=useState<{address:string;state:"checking"|"valid"|"error";message?:string}|null>(null);
   const [quote,setQuote]=useState<{networkFeeMicros:string;totalFeeMicros:string;netMicros:string}|null>(null);
   const [quoteError,setQuoteError]=useState<string|null>(null);
   const [quoting,setQuoting]=useState(false);
@@ -36,9 +37,32 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
   const netPreview = quote ? BigInt(quote.netMicros) : 0n;
   const feePreview = quote ? BigInt(quote.totalFeeMicros) : 2000000n;
   const addressValid = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
-  const canSubmit = eligibleAmount && addressValid && !!quote && !quoting && !submitting;
+  const addressApproved=addressCheck?.address===address&&addressCheck.state==="valid";
+  const canSubmit = eligibleAmount && addressValid && addressApproved && !!quote && !quoting && !submitting;
   const inputClass = "mt-2 w-full rounded-2xl border border-[#DCE3EC] bg-white px-4 py-3.5 text-base text-[#11263E] shadow-sm outline-none transition placeholder:text-[#9AA8B9] focus:border-[#635BFF] focus:ring-4 focus:ring-[#635BFF]/10";
   const onEdit = () => { requestKey.current = null; setFeedback(null); setQuote(null); };
+
+  useEffect(()=>{
+    setAddressCheck(null);
+    if(!addressValid)return;
+    const controller=new AbortController();
+    const timer=setTimeout(async()=>{
+      setAddressCheck({address,state:"checking"});
+      try{
+        const response=await fetch("/api/withdrawals/validate-address",{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({address}),signal:controller.signal
+        });
+        const body:{valid?:boolean;address?:string;error?:string}=await response.json();
+        if(!controller.signal.aborted)setAddressCheck(response.ok&&body.valid===true&&body.address===address
+          ?{address,state:"valid"}
+          :{address,state:"error",message:body.error??"Address verification unavailable"});
+      }catch{
+        if(!controller.signal.aborted)setAddressCheck({address,state:"error",message:"Address verification unavailable. Retry by editing the address."});
+      }
+    },450);
+    return()=>{clearTimeout(timer);controller.abort();};
+  },[address,addressValid]);
 
   useEffect(()=>{
     setQuote(null);setQuoteError(null);
@@ -122,6 +146,9 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros}:{
           className={inputClass + " font-mono text-sm"}/>
         <p id="recipient-help" className="mt-2 text-xs text-[#687B91]">Double-check the address. Transfers to an incorrect wallet cannot be reversed.</p>
         {address && !addressValid && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-medium text-[#97605A]"><AlertCircle size={15}/> Enter a valid Solana wallet address.</p>}
+        {addressValid && (!addressCheck || addressCheck.address!==address || addressCheck.state==="checking") && <p role="status" className="mt-2 text-xs text-[#687B91]">Checking address with Blockradar…</p>}
+        {addressApproved && <p role="status" className="mt-2 flex items-center gap-1.5 text-xs text-[#317054]"><CheckCircle2 size={15}/> Blockradar validated the Solana address format. This does not establish wallet ownership or AML clearance.</p>}
+        {addressValid && addressCheck?.address===address && addressCheck.state==="error" && <p role="alert" className="mt-2 text-xs text-[#97605A]">{addressCheck.message}</p>}
       </div>
     </div>
 
