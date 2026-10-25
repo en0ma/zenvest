@@ -57,8 +57,8 @@ try{
 }finally{
  if(prevSecret===undefined)delete process.env.CRON_SECRET;else process.env.CRON_SECRET=prevSecret;
  await prisma.positionAllocation.deleteMany({where:{strategyId:{startsWith:strategyId}}});
- await prisma.investorPosition.deleteMany({where:{strategyId}});
- await prisma.strategy.deleteMany({where:{id:strategyId}});
+ await prisma.investorPosition.deleteMany({where:{strategyId:{startsWith:strategyId}}});
+ await prisma.strategy.deleteMany({where:{id:{startsWith:strategyId}}});
  await prisma.user.deleteMany({where:{id:userId}});
  await prisma.$disconnect();
 }
