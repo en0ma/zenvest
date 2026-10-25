@@ -25,6 +25,7 @@ export function EarnActions({available,positions,operations,strategies}:{availab
   side==="ALLOCATE"?(existingPosition?.status!=="CLOSING"&&amountMicros>=BigInt(strategy.min)&&amountMicros<=BigInt(strategy.max)&&amountMicros<=BigInt(strategy.capacity)):
   (existingPosition?.status==="OPEN"&&!existingPosition.pending));
 
+ const [activityTab,setActivityTab]=useState<"POSITIONS"|"TRADES">("POSITIONS");
  const [positionFilter,setPositionFilter]=useState<"OPEN"|"ALL">("OPEN");
  const [positionsPage,setPositionsPage]=useState(1);
  const [allocationsPage,setAllocationsPage]=useState(1);
@@ -35,6 +36,11 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const positionPages=Math.max(1,Math.ceil(filteredPositions.length/PAGE_SIZE));
  const shownPositionsPage=Math.min(positionsPage,positionPages);
  const pagedPositions=filteredPositions.slice((shownPositionsPage-1)*PAGE_SIZE,shownPositionsPage*PAGE_SIZE);
+ const marketOperations=operations.filter(o=>marketPositions.some(p=>p.id===o.positionId));
+ const tradePages=Math.max(1,Math.ceil(marketOperations.length/PAGE_SIZE));
+ const [tradesPage,setTradesPage]=useState(1);
+ const shownTradesPage=Math.min(tradesPage,tradePages);
+ const pagedTrades=marketOperations.slice((shownTradesPage-1)*PAGE_SIZE,shownTradesPage*PAGE_SIZE);
  const allocations=operations.filter(o=>o.type==="ALLOCATE");
  const deallocations=operations.filter(o=>o.type==="DEALLOCATE");
  const allocationPages=Math.max(1,Math.ceil(allocations.length/PAGE_SIZE));
@@ -62,7 +68,7 @@ export function EarnActions({available,positions,operations,strategies}:{availab
   <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <h2 className="text-xl font-semibold text-[#11263E]">Earn market</h2>
    <label className="mt-5 block text-sm font-semibold text-[#334155]">Market (strategy)
-    <select aria-label="Select market strategy" value={strategyId} onChange={e=>{setStrategyId(e.target.value);setAmount("");setSide("ALLOCATE");setPositionFilter("OPEN");setPositionsPage(1);}} className="mt-2 w-full rounded-xl border border-[#CBD5E1] bg-white px-4 py-3 font-normal">
+    <select aria-label="Select market strategy" value={strategyId} onChange={e=>{setStrategyId(e.target.value);setAmount("");setSide("ALLOCATE");setPositionFilter("OPEN");setPositionsPage(1);setTradesPage(1);}} className="mt-2 w-full rounded-xl border border-[#CBD5E1] bg-white px-4 py-3 font-normal">
      <option value="">Select a market</option>{strategies.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
     </select>
    </label>
@@ -87,57 +93,54 @@ export function EarnActions({available,positions,operations,strategies}:{availab
    </form>
    <p className="mt-3 text-xs leading-5 text-[#64748B]">Confirmation creates a pending request, not a completed custody movement. Deallocation is credited only after authenticated return of funds.</p>
   </section>
-  <section aria-labelledby="earn-positions-heading" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
-   <div className="flex flex-wrap items-center justify-between gap-4">
-    <div>
-     <h2 id="earn-positions-heading" className="text-xl font-semibold text-[#11263E]">Positions</h2>
-     <p className="mt-1 text-sm text-[#64748B]">{strategy?strategy.name:"Select a market to view its positions"}</p>
-    </div>
-    <label className="flex items-center gap-2 text-sm font-medium text-[#334155]">Show
-     <select aria-label="Filter market positions" value={positionFilter} onChange={e=>{setPositionFilter(e.target.value as "OPEN"|"ALL");setPositionsPage(1);}} className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-2">
-      <option value="OPEN">Open</option>
-      <option value="ALL">All (open and closed)</option>
-     </select>
-    </label>
+
+  <section aria-label="Market positions and trades" className="overflow-hidden rounded-[24px] border border-[#E3E8EE] bg-white">
+   <div role="tablist" aria-label="Market activity" className="flex border-b border-[#E3E8EE] px-5 sm:px-7">
+    <button type="button" id="positions-tab" role="tab" aria-selected={activityTab==="POSITIONS"} aria-controls="market-activity-panel" onClick={()=>setActivityTab("POSITIONS")} className={"mr-6 border-b-[3px] py-5 text-sm font-semibold transition-colors "+(activityTab==="POSITIONS"?"border-[#635BFF] text-[#11263E]":"border-transparent text-[#64748B] hover:text-[#11263E]")}>Positions <span className="ml-1 text-xs text-[#94A3B8]">({marketPositions.filter(p=>p.status!=="CLOSED").length})</span></button>
+    <button type="button" id="trades-tab" role="tab" aria-selected={activityTab==="TRADES"} aria-controls="market-activity-panel" onClick={()=>setActivityTab("TRADES")} className={"border-b-[3px] py-5 text-sm font-semibold transition-colors "+(activityTab==="TRADES"?"border-[#635BFF] text-[#11263E]":"border-transparent text-[#64748B] hover:text-[#11263E]")}>Trades <span className="ml-1 text-xs text-[#94A3B8]">({marketOperations.length})</span></button>
    </div>
-   <div role="region" aria-label="Positions for selected market" tabIndex={0} className="mt-5 max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
-    <table className="w-full min-w-[800px] border-collapse text-left">
-     <thead className="bg-[#F8FAFC]"><tr>{["Position ID","Allocated","Status","Created","Action"].map(h=><th key={h} scope="col" className={heading}>{h}</th>)}</tr></thead>
-     <tbody className="divide-y divide-[#EDF0F5]">
-      {pagedPositions.map(p=><tr key={p.id}>
-       <td className={cell+" font-mono text-xs"}>{p.id}</td>
-       <td className={cell}>{money(p.principal)}</td>
-       <td className={cell}>{p.status}{p.pending?" · reduction pending":""}</td>
-       <td className={cell}>{p.created}</td>
-       <td className={cell}>
-        {p.status==="CLOSED"?<span className="text-xs text-[#64748B]">Closed</span>:<>
-         <button type="button" disabled={working||p.status!=="OPEN"||p.pending||BigInt(p.principal)<=0n} onClick={()=>{setSelected(p);setReduceAmount("");setError("");}} className="rounded-lg border border-[#635BFF] px-3 py-2 font-semibold text-[#635BFF] disabled:opacity-40">Deallocate</button>
-         <button type="button" disabled={working||p.status!=="OPEN"} onClick={()=>void submit("/api/earn/positions/close",{positionId:p.id})} className="ml-2 rounded-lg border px-3 py-2 font-semibold disabled:opacity-40">Close position</button>
-        </>}
-       </td>
-      </tr>)}
-      {filteredPositions.length===0&&<tr><td colSpan={5} className="px-5 py-8 text-sm text-[#64748B]">{!strategyId?"Select a market above to view positions.":positionFilter==="OPEN"?"No open positions in this market.":"No positions in this market yet."}</td></tr>}
-     </tbody>
-    </table>
-   </div>
-   {pageControls("Market positions",shownPositionsPage,positionPages,setPositionsPage)}
-  </section>
-  <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
-   <h2 className="text-xl font-semibold text-[#11263E]">Deallocate</h2>
-   <p className="mt-2 text-sm text-[#64748B]">To reduce a position, select Deallocate in the Positions table above. Funds become available only after verified return to custody.</p>
-   <div className="mt-8 border-t border-[#EDF0F5] pt-7">
-    <h3 className="text-lg font-semibold text-[#11263E]">Deallocation history</h3>
-    <div role="region" aria-label="Deallocation history scrollable table" tabIndex={0} className="mt-4 max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
-     <table className="w-full min-w-[930px] border-collapse text-left">
-      <thead className="bg-[#F8FAFC]"><tr>{["Requested","Amount","Status","Position ID","Operation ID","Completed"].map(h=><th key={h} scope="col" className={heading}>{h}</th>)}</tr></thead>
-      <tbody className="divide-y divide-[#EDF0F5]">{pagedDeallocations.map(o=><tr key={o.id}>
-       <td className={cell}>{o.created}</td><td className={cell+" font-semibold"}>{money(o.amount)}</td>
-       <td className={cell}>{o.status}</td><td className={cell+" font-mono text-xs"}>{o.positionId}</td>
-       <td className={cell+" font-mono text-xs"}>{o.id}</td><td className={cell}>{o.completed??"—"}</td>
-      </tr>)}{deallocations.length===0&&<tr><td colSpan={6} className="px-5 py-8 text-sm text-[#64748B]">No deallocation requests yet.</td></tr>}</tbody>
-     </table>
-    </div>
-    {pageControls("Deallocation history",shownDeallocationsPage,deallocationPages,setDeallocationsPage)}
+   <div id="market-activity-panel" role="tabpanel" aria-labelledby={activityTab==="POSITIONS"?"positions-tab":"trades-tab"} className="p-5 sm:p-7">
+    {activityTab==="POSITIONS"?<>
+     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div><h2 className="text-base font-semibold text-[#11263E]">Positions</h2><p className="mt-1 text-xs text-[#64748B]">{strategy?strategy.name:"Select a market to view positions"}</p></div>
+      <label className="flex items-center gap-2 text-xs font-medium text-[#64748B]">Status
+       <select aria-label="Filter market positions" value={positionFilter} onChange={e=>{setPositionFilter(e.target.value as "OPEN"|"ALL");setPositionsPage(1);}} className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-sm text-[#11263E]">
+        <option value="OPEN">Open</option><option value="ALL">All (open and closed)</option>
+       </select>
+      </label>
+     </div>
+     <div role="region" aria-label="Positions for selected market" tabIndex={0} className="max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
+      <table className="w-full min-w-[800px] border-collapse text-left">
+       <thead className="bg-[#F8FAFC]"><tr>{["Position ID","Allocated","Status","Created","Action"].map(h=><th key={h} scope="col" className={heading}>{h}</th>)}</tr></thead>
+       <tbody className="divide-y divide-[#EDF0F5]">
+        {pagedPositions.map(p=><tr key={p.id}>
+         <td className={cell+" font-mono text-xs"}>{p.id}</td>
+         <td className={cell}>{money(p.principal)}</td>
+         <td className={cell}>{p.status}{p.pending?" · reduction pending":""}</td>
+         <td className={cell}>{p.created}</td>
+         <td className={cell}>{p.status==="CLOSED"?<span className="text-xs text-[#64748B]">Closed</span>:<>
+          <button type="button" disabled={working||p.status!=="OPEN"||p.pending||BigInt(p.principal)<=0n} onClick={()=>{setSelected(p);setReduceAmount("");setError("");}} className="rounded-lg border border-[#635BFF] px-3 py-2 font-semibold text-[#635BFF] disabled:opacity-40">Reduce</button>
+          <button type="button" disabled={working||p.status!=="OPEN"} onClick={()=>void submit("/api/earn/positions/close",{positionId:p.id})} className="ml-2 rounded-lg border px-3 py-2 font-semibold disabled:opacity-40">Close</button>
+         </>}</td>
+        </tr>)}
+        {filteredPositions.length===0&&<tr><td colSpan={5} className="px-5 py-8 text-sm text-[#64748B]">{!strategyId?"Select a market above to view positions.":positionFilter==="OPEN"?"No open positions in this market.":"No positions in this market yet."}</td></tr>}
+       </tbody>
+      </table>
+     </div>
+     {pageControls("Market positions",shownPositionsPage,positionPages,setPositionsPage)}
+    </>:<>
+     <div className="mb-4"><h2 className="text-base font-semibold text-[#11263E]">Trades</h2><p className="mt-1 text-xs text-[#64748B]">Allocation and deallocation activity{strategy?" · "+strategy.name:" for the selected market"}</p></div>
+     <div role="region" aria-label="Trades for selected market" tabIndex={0} className="max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
+      <table className="w-full min-w-[940px] border-collapse text-left">
+       <thead className="bg-[#F8FAFC]"><tr>{["Requested","Type","Amount","Status","Position ID","Operation ID","Completed"].map(h=><th key={h} scope="col" className={heading}>{h}</th>)}</tr></thead>
+       <tbody className="divide-y divide-[#EDF0F5]">
+        {pagedTrades.map(o=><tr key={o.id}><td className={cell}>{o.created}</td><td className={cell}><span className={o.type==="ALLOCATE"?"font-semibold text-emerald-700":"font-semibold text-red-600"}>{o.type==="ALLOCATE"?"Allocate":"Deallocate"}</span></td><td className={cell}>{money(o.amount)}</td><td className={cell}>{o.status}</td><td className={cell+" font-mono text-xs"}>{o.positionId}</td><td className={cell+" font-mono text-xs"}>{o.id}</td><td className={cell}>{o.completed??"—"}</td></tr>)}
+        {marketOperations.length===0&&<tr><td colSpan={7} className="px-5 py-8 text-sm text-[#64748B]">{strategyId?"No trades recorded for this market yet.":"Select a market above to view trade history."}</td></tr>}
+       </tbody>
+      </table>
+     </div>
+     {pageControls("Market trades",shownTradesPage,tradePages,setTradesPage)}
+    </>}
    </div>
   </section>
   {notice&&<p role="status" className="rounded-xl bg-[#ECF7F1] px-4 py-3 text-sm text-[#317054]">{notice}</p>}
