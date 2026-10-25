@@ -76,18 +76,17 @@ export function EarnActions({available,positions,operations,strategies}:{availab
    </div>
   </section>
   <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
-   <h2 className="text-xl font-semibold text-[#11263E]">Position allocations and deallocations</h2>
-   <p className="mt-2 text-sm text-[#64748B]">All position allocation and deallocation requests, with their position and operation IDs.</p>
-   {operations.length===0?<p className="mt-5 text-sm text-[#64748B]">No position allocation or deallocation requests yet.</p>:
-    <div role="region" aria-label="Scrollable position allocations and deallocations table" tabIndex={0} className="mt-5 max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
+   <h2 className="text-xl font-semibold text-[#11263E]">Allocations and DeAllocations</h2>
+   <p className="mt-2 text-sm text-[#64748B]"></p>
+   <div role="region" aria-label="Scrollable Allocations and DeAllocations table" tabIndex={0} className="mt-5 max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
      <table className="w-full min-w-[1050px] border-collapse text-left"><thead className="bg-[#F8FAFC]"><tr>{["Requested","Type","Amount","Status","Allocation ID","Operation ID","Completed"].map(h=><th key={h} className={heading}>{h}</th>)}</tr></thead>
      <tbody className="divide-y divide-[#EDF0F5]">{pagedOperations.map(o=><tr key={o.id}>
       <td className={cell}>{o.created}</td><td className={cell}>{o.type==="ALLOCATE"?"Allocate":"Deallocate"}</td>
       <td className={cell+" font-semibold"}>{money(o.amount)}</td><td className={cell}>{o.status}</td>
       <td className={cell+" font-mono text-xs"}>{o.positionId}</td><td className={cell+" font-mono text-xs"}>{o.id}</td><td className={cell}>{o.completed??"—"}</td>
-     </tr>)}</tbody></table>
-    </div>}
-   {operations.length>0&&pageControls("Position allocations and deallocations",shownOperationsPage,operationPages,setOperationsPage)}
+     </tr>)}{operations.length===0&&<tr><td colSpan={7} className="px-5 py-8 text-sm text-[#64748B]">No allocation or deallocation requests yet.</td></tr>}</tbody></table>
+    </div>
+   {pageControls("Allocations and DeAllocations",shownOperationsPage,operationPages,setOperationsPage)}
   </section>
   {notice&&<p role="status" className="rounded-xl bg-[#ECF7F1] px-4 py-3 text-sm text-[#317054]">{notice}</p>}
   {error&&<p role="alert" className="rounded-xl bg-[#FFF0F0] px-4 py-3 text-sm text-[#9C2F2F]">{error}</p>}
