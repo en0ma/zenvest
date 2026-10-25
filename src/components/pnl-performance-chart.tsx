@@ -20,7 +20,7 @@ export function PnlPerformanceChart({rows}:{rows:Point[]}){
  const low=Math.min(0,...values),high=Math.max(0,...values),span=high-low||1;
  const path=points.map((p,i)=>[40+(n===1?0:i/(n-1)*720),212-(Number(p.amount)/1e6-low)/span*176] as const);
  const polyline=path.map(([x,y])=>x+","+y).join(" ");
- return <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8" aria-label="Cumulative settled event P&L">
+ return <section className="min-w-0" aria-label="Cumulative settled event P&L">
   <div className="flex flex-wrap items-center justify-between gap-4"><div>
    <h2 className="text-lg font-semibold text-[#11263E]">Cumulative realized P&amp;L</h2>
    <p className="mt-1 text-sm text-[#64748B]">Verified investor net results, excluding deposits, withdrawals and internal capital transfers</p>
