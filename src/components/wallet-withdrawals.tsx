@@ -27,8 +27,7 @@ export async function WalletWithdrawals({userId,unallocated,pending,pendingAlloc
     <section className="mt-10 border-t border-[#E3E8EE] pt-7">
       <div className="px-0"><h2 className="text-xl font-semibold">Withdrawals</h2>
         <p className="mt-2 text-sm text-[#64748B]">Your withdrawal requests and payout progress.</p></div>
-      {records.length===0?<p className="py-6 text-sm text-[#64748B]">No withdrawals yet.</p>:
-      <div className="mt-5 w-full overflow-x-auto rounded-xl border border-[#E7EDF4]" role="region" aria-label="Withdrawals table" tabIndex={0}>
+      <div className="mt-5 w-full max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]" role="region" aria-label="Withdrawals table" tabIndex={0}>
         <table className="w-full min-w-[950px] border-collapse text-left">
           <thead className="border-y border-[#E9EDF3] bg-[#F8FAFC]"><tr>
             <th className={heading}>Gross</th><th className={heading}>Fee</th>
@@ -43,9 +42,9 @@ export async function WalletWithdrawals({userId,unallocated,pending,pendingAlloc
             <td className={cell+" font-mono text-xs"} title={record.transactionHash??""}>{record.transactionHash??"—"}</td>
             <td className={cell}><span className="rounded-full bg-[#F1F5F9] px-3 py-1 text-xs font-semibold">{record.status}</span></td>
             <td className={cell}>{date(record.createdAt)}</td>
-          </tr>)}</tbody>
+          </tr>)}{records.length===0&&<tr><td colSpan={7} className="px-5 py-8 text-sm text-[#64748B]">No withdrawals yet.</td></tr>}</tbody>
         </table>
-      </div>}
+      </div>
       <Pager page={wPage} pages={withdrawalPages} total={withdrawalCount} depositsPage={depositsPage}/>
     </section>
  </section>;
