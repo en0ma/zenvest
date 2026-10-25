@@ -11,8 +11,8 @@ export async function POST(request: Request) {
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request" }, { status: 400 }); }
   const parsed = registerSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Check your display name, email and password requirements." }, { status: 400 });
-  const { name, email, password } = parsed.data;
+  if (!parsed.success) return NextResponse.json({ error: "Check your handle, email and password requirements." }, { status: 400 });
+  const { handle, email, password } = parsed.data;
   const existing = await prisma.user.findUnique({where:{email}});
   if (existing?.isActive && !existing.emailVerifiedAt) {
     try {
@@ -27,11 +27,12 @@ export async function POST(request: Request) {
   if (existing) return NextResponse.json({code:"ACCOUNT_EXISTS",error:"An account already exists with this email. If this is your account, please log in."},{status:409});
   const passwordHash = await bcrypt.hash(password, 12);
   try {
-    const user = await prisma.user.create({ data: { name, email, passwordHash, role: "USER" } });
+    const user = await prisma.user.create({ data: { name:handle, handle, email, passwordHash, role: "USER" } });
     try { const token = await issueToken(user.id,"VERIFY_EMAIL"); await sendAccountEmail(email,zenvestEmailSubject("account_activation"),"Activate your account using this link:",tokenLink("/verify-email",token),user.name); } catch { console.error("Activation delivery failed; user can request another link"); }
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      if(Array.isArray(error.meta?.target)&&error.meta.target.includes("handle"))return NextResponse.json({code:"HANDLE_TAKEN",error:"This handle is already taken."},{status:409});
       return NextResponse.json({ code:"ACCOUNT_EXISTS", error: "An account already exists with this email. If this is your account, please log in." }, { status: 409 });
     }
     console.error("Registration storage error");
