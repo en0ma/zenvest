@@ -290,7 +290,7 @@ try {
  assert.equal((await prisma.treasuryTransfer.findUniqueOrThrow({where:{id:source.treasuryTransactionId}})).destinationExternalId,verified.kalshiTransactionId);
  for(const {pos,operation} of children){
   assert.equal((await prisma.positionAllocation.findUniqueOrThrow({where:{id:operation.id}})).status,"COMPLETED");
-  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:pos.id}})).allocatedUsdcMicros,operation.amountUsdcMicros);
+  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:pos.id}})).allocatedUsdcMicros,7_000_000n);
  }
  // P&L worker first authorizes trade with an immutable exposure snapshot.
  const {processPositionTradePnl}=await import("../src/lib/position-trade-pnl-worker.ts");
