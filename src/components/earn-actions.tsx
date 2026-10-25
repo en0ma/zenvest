@@ -9,9 +9,16 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const router=useRouter();
  const [amount,setAmount]=useState("");
  const [strategyId,setStrategyId]=useState("");
- const [allocationPositionId,setAllocationPositionId]=useState("");
- const existingPosition=positions.find(p=>p.id===allocationPositionId&&p.status==="OPEN");
- const strategy=strategies.find(x=>x.id===(allocationPositionId?existingPosition?.strategyId:strategyId));
+ const [side,setSide]=useState<"ALLOCATE"|"DEALLOCATE">("ALLOCATE");
+ const strategy=strategies.find(x=>x.id===strategyId);
+ const existingPosition=positions.find(p=>p.strategyId===strategyId&&(p.status==="OPEN"||p.status==="CLOSING"));
+ const deallocationBalance=existingPosition?.status==="OPEN"?BigInt(existingPosition.principal):0n;
+ const availableBalance=side==="ALLOCATE"?BigInt(available):deallocationBalance;
+ const amountIsValid=/^(0|[1-9]\\d*)(\\.\\d{1,6})?$/.test(amount);
+ const amountMicros=amountIsValid?(()=>{const [w,f=""]=amount.split(".");return BigInt(w)*1000000n+BigInt(f.padEnd(6,"0"));})():0n;
+ const canConfirm=!!strategy&&!working&&amountMicros>0n&&amountMicros<=availableBalance&&(
+  side==="ALLOCATE"?(existingPosition?.status!=="CLOSING"&&amountMicros>=BigInt(strategy.min)&&amountMicros<=BigInt(strategy.max)&&amountMicros<=BigInt(strategy.capacity)):
+  (existingPosition?.status==="OPEN"&&!existingPosition.pending));
  const [selected,setSelected]=useState<Position|null>(null);
  const [reduceAmount,setReduceAmount]=useState("");
  const [working,setWorking]=useState(false);
@@ -41,7 +48,7 @@ export function EarnActions({available,positions,operations,strategies}:{availab
    const data=await response.json();
    if(!response.ok)throw new Error(typeof data.error==="string"?data.error:"Request could not be created");
    setNotice("Request recorded. Capital changes only after independently verified custody movement.");
-   setAmount("");setSelected(null);setReduceAmount("");setAllocationPositionId("");router.refresh();
+   setAmount("");setSelected(null);setReduceAmount("");router.refresh();
   }catch(e){setError(e instanceof Error?e.message:"Request failed");}
   finally{setWorking(false);}
  }
@@ -51,37 +58,32 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const pageControls=(label:string,page:number,pages:number,setPage:(page:number)=>void)=> <nav aria-label={label+" pagination"} className="mt-4 flex items-center justify-between gap-3 text-sm"><span className="text-[#64748B]">Page {page} of {pages}</span><div className="flex gap-2"><button type="button" onClick={()=>setPage(Math.max(1,page-1))} disabled={page<=1} className="rounded-lg border border-[#DEE5EE] px-3 py-2 font-medium disabled:opacity-40">Previous</button><button type="button" onClick={()=>setPage(Math.min(pages,page+1))} disabled={page>=pages} className="rounded-lg border border-[#DEE5EE] px-3 py-2 font-medium disabled:opacity-40">Next</button></div></nav>;
  return <div className="space-y-8">
   <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
-   <h2 className="text-xl font-semibold text-[#11263E]">Allocate</h2>
-   <p className="mt-2 text-sm text-[#64748B]">Allocate available USDC to a new or existing position. Funds stay reserved until strategy funding is verified.</p>
-
-   <form className="mt-4 flex flex-wrap items-end gap-3" onSubmit={e=>{e.preventDefault();if(valid(amount)&&strategy)void submit("/api/earn/allocations",{amount,strategyId:strategy.id,...(allocationPositionId?{positionId:allocationPositionId}:{})});}}>
-    <label className="flex min-w-[220px] flex-col gap-2 text-sm font-semibold text-[#334155]">Position
-     <select aria-label="Existing position or new position" value={allocationPositionId} onChange={e=>{setAllocationPositionId(e.target.value);setStrategyId("");setAmount("");}} className="rounded-xl border border-[#CBD5E1] px-4 py-3 font-normal">
-      <option value="">Open new position</option>
-      {positions.filter(p=>p.status==="OPEN").map(p=><option key={p.id} value={p.id}>{strategies.find(x=>x.id===p.strategyId)?.name??"Position"} · {p.id.slice(0,13)}… ({money(p.principal)})</option>)}
-     </select>
-    </label>
-    {!allocationPositionId&&<label className="flex min-w-[220px] flex-col gap-2 text-sm font-semibold text-[#334155]">Strategy
-     <select required aria-label="Choose strategy" value={strategyId} onChange={e=>{setStrategyId(e.target.value);setAmount("");}} className="rounded-xl border border-[#CBD5E1] px-4 py-3 font-normal"><option value="">Select a strategy</option>{strategies.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>
-    </label>}
-    <label className="flex min-w-[220px] flex-col gap-2 text-sm font-semibold text-[#334155]"><span className="flex w-full items-baseline justify-between gap-3"><span>Amount</span><span className="whitespace-nowrap text-xs font-normal text-[#64748B]">Balance: {money(available)}</span></span><input aria-label="Allocation amount in USDC" required inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0.00" className="rounded-xl border border-[#CBD5E1] px-4 py-3 font-normal"/></label>
-    <button disabled={working||!strategy||!valid(amount)||Number(amount)>Number(available)/1e6||Number(amount)<Number(strategy.min)/1e6||Number(amount)>Math.min(Number(strategy.max)/1e6,Number(strategy.capacity)/1e6)} className="rounded-xl bg-[#635BFF] px-5 py-3 text-sm font-semibold text-white disabled:opacity-40">Allocate</button>
-   </form>
-   {!allocationPositionId&&(strategy?<div className="mt-4 rounded-xl bg-[#F8FAFD] p-4 text-sm text-[#425466]"><p>{strategy.description}</p><p className="mt-2">Minimum: {money(strategy.min)} · Maximum: {money(strategy.max)} · Available capacity: {money(strategy.capacity)}</p></div>:<p className="mt-4 text-xs text-[#64748B]">Choose an active public strategy to see its allocation limits.</p>)}
-   <div className="mt-8 border-t border-[#EDF0F5] pt-7">
-    <h3 className="text-lg font-semibold text-[#11263E]">Allocation history</h3>
-    <div role="region" aria-label="Allocation history scrollable table" tabIndex={0} className="mt-4 max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
-     <table className="w-full min-w-[930px] border-collapse text-left">
-      <thead className="bg-[#F8FAFC]"><tr>{["Requested","Amount","Status","Position ID","Operation ID","Completed"].map(h=><th key={h} scope="col" className={heading}>{h}</th>)}</tr></thead>
-      <tbody className="divide-y divide-[#EDF0F5]">{pagedAllocations.map(o=><tr key={o.id}>
-       <td className={cell}>{o.created}</td><td className={cell+" font-semibold"}>{money(o.amount)}</td>
-       <td className={cell}>{o.status}</td><td className={cell+" font-mono text-xs"}>{o.positionId}</td>
-       <td className={cell+" font-mono text-xs"}>{o.id}</td><td className={cell}>{o.completed??"—"}</td>
-      </tr>)}{allocations.length===0&&<tr><td colSpan={6} className="px-5 py-8 text-sm text-[#64748B]">No allocation requests yet.</td></tr>}</tbody>
-     </table>
-    </div>
-    {pageControls("Allocation history",shownAllocationsPage,allocationPages,setAllocationsPage)}
+   <h2 className="text-xl font-semibold text-[#11263E]">Earn market</h2>
+   <label className="mt-5 block text-sm font-semibold text-[#334155]">Market (strategy)
+    <select aria-label="Select market strategy" value={strategyId} onChange={e=>{setStrategyId(e.target.value);setAmount("");setSide("ALLOCATE");}} className="mt-2 w-full rounded-xl border border-[#CBD5E1] bg-white px-4 py-3 font-normal">
+     <option value="">Select a market</option>{strategies.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
+    </select>
+   </label>
+   <div className="mt-5 min-h-[130px] rounded-xl border border-[#E7EDF4] bg-[#FAFBFD] px-4 py-5">
+    <h3 className="text-sm font-semibold text-[#334155]">Strategy performance</h3>
+    <p className="mt-3 text-sm text-[#64748B]">A verified historical strategy performance chart is not available yet. No simulated prices or returns are shown.</p>
    </div>
+   <div role="group" aria-label="Position action" className="mt-5 grid grid-cols-2 gap-2 rounded-xl bg-[#F1F5F9] p-1">
+    <button type="button" aria-pressed={side==="ALLOCATE"} onClick={()=>{setSide("ALLOCATE");setAmount("");}} className={"rounded-lg px-4 py-3 text-sm font-semibold transition "+(side==="ALLOCATE"?"bg-emerald-600 text-white":"text-[#64748B]")}>Allocate</button>
+    <button type="button" aria-pressed={side==="DEALLOCATE"} onClick={()=>{setSide("DEALLOCATE");setAmount("");}} className={"rounded-lg px-4 py-3 text-sm font-semibold transition "+(side==="DEALLOCATE"?"bg-red-600 text-white":"text-[#64748B]")}>Deallocate</button>
+   </div>
+   {strategy&&<p className="mt-3 text-xs text-[#64748B]">{existingPosition?.status==="OPEN"?"Existing open position: "+existingPosition.id:existingPosition?.status==="CLOSING"?"Position closing; allocations and reductions are blocked until closure is verified.":"No open position in this market; allocating creates one."}</p>}
+   <form className="mt-4 space-y-4" onSubmit={e=>{e.preventDefault();if(!canConfirm||!strategy)return;
+    if(side==="ALLOCATE")void submit("/api/earn/allocations",{amount,strategyId:strategy.id,...(existingPosition?{positionId:existingPosition.id}:{})});
+    else if(existingPosition)void submit("/api/earn/deallocations",{amount,positionId:existingPosition.id});
+   }}>
+    <label className="block text-sm font-semibold text-[#334155]">
+     <span className="flex items-baseline justify-between gap-3"><span>Amount</span><span className="text-xs font-normal text-[#64748B]">Balance: {money(availableBalance.toString())}</span></span>
+     <input aria-label={side==="ALLOCATE"?"Allocation amount in USDC":"Deallocation amount in USDC"} required inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0.00" className="mt-2 w-full rounded-xl border border-[#CBD5E1] px-4 py-3 font-normal"/>
+    </label>
+    <button type="submit" disabled={!canConfirm} className="w-full rounded-xl bg-amber-400 px-5 py-3 text-sm font-bold text-[#11263E] disabled:cursor-not-allowed disabled:opacity-40">Confirm {side==="ALLOCATE"?"allocation":"deallocation"}</button>
+   </form>
+   <p className="mt-3 text-xs leading-5 text-[#64748B]">Confirmation creates a pending request, not a completed custody movement. Deallocation is credited only after authenticated return of funds.</p>
   </section>
   <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <h2 className="text-xl font-semibold text-[#11263E]">Positions</h2>
