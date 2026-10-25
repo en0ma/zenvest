@@ -12,7 +12,7 @@ export function PortfolioValueChart({points}:{points:Point[]}){
   const path=values.map((v,i)=>`${i?"L":"M"} ${pad+i*step} ${height-pad-(v-min)/range*(height-2*pad)}`).join(" ");
   return {path,min,max,first:sorted[0].at,last:sorted[sorted.length-1].at};
  },[points]);
- return <section aria-labelledby="portfolio-history-heading" className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
+ return <section aria-labelledby="portfolio-history-heading" className="min-w-0">
   <h2 id="portfolio-history-heading" className="text-lg font-semibold text-[#11263E]">Historical settled portfolio value</h2>
   <p className="mt-1 text-sm text-[#64748B]">Reconstructed from completed deposits, withdrawals and settled trade P&amp;L. Deposits are not investment profit.</p>
   {chart?<div className="mt-6">
