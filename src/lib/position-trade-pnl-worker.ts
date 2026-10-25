@@ -52,6 +52,30 @@ async function settleTrade(id:string){
    const claimed=await tx.strategyTrade.updateMany({where:{id,status:"SETTLED",isPnlCalculated:false},
     data:{isPnlCalculated:true}});
    if(claimed.count!==1)throw new Error("Trade P&L already applied");
+   // Reconcile requests whose funds have not been submitted to custody.
+   // Keep earlier requests first; a trading loss may invalidate later holds.
+   // Never mark an in-flight or custody-confirmed withdrawal FAILED here.
+   const affectedPositions=[...new Set(rows.map(row=>row.positionId))];
+   for(const positionId of affectedPositions){
+    const position=await tx.investorPosition.findUniqueOrThrow({where:{id:positionId}});
+    const requests=await tx.positionAllocation.findMany({where:{
+     positionId,kind:"DEALLOCATE",
+     status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING",
+      "AWAITING_DEALLOCATION","AWAITING_WITHDRAWAL","REVIEW"]}},
+     orderBy:[{createdAt:"asc"},{id:"asc"}]});
+    let reserved=0n;
+    for(const request of requests){
+     if(request.status!=="PENDING"){
+      reserved+=request.amountUsdcMicros;
+      continue;
+     }
+     if(reserved+request.amountUsdcMicros>position.allocatedUsdcMicros){
+      await tx.positionAllocation.updateMany({where:{
+       id:request.id,status:"PENDING",strategyEventId:null},
+       data:{status:"FAILED"}});
+     }else reserved+=request.amountUsdcMicros;
+    }
+   }
    const closing=await tx.investorPosition.findMany({where:{strategyId:trade.strategyId,status:"CLOSING",lastPnlUpdated:false}});
    for(const pos of closing){
     const unsettled=await tx.positionTradePnl.count({where:{positionId:pos.id,status:"SNAPSHOTTED"}});
