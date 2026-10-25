@@ -94,36 +94,52 @@ export async function applyVerifiedCapitalEvent(eventId:string):Promise<string>{
  */
 export async function reservePendingDeallocationsBeforeSnapshots():Promise<string[]>{
  const requests=await prisma.positionAllocation.findMany({where:{
-  kind:"DEALLOCATE",status:"PENDING",strategyEventId:null},
+  kind:"DEALLOCATE",status:{in:["PENDING","SUBMITTING"]},strategyEventId:null},
   orderBy:[{createdAt:"asc"},{id:"asc"}],take:100,
   select:{id:true,strategyId:true}});
  const outcomes:string[]=[];
  for(const request of requests){
+  // Make the worker claim durable so interrupted runs can resume SUBMITTING.
+  const claimed=await prisma.$transaction(async tx=>{
+   await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${request.strategyId} FOR UPDATE`;
+   const row=await tx.positionAllocation.findUnique({where:{id:request.id}});
+   if(!row||row.kind!=="DEALLOCATE"||row.strategyEventId)return "already_processed";
+   if(row.status==="SUBMITTING")return "claimed";
+   if(row.status!=="PENDING")return "already_processed";
+   const position=await tx.investorPosition.findUnique({where:{id:row.positionId}});
+   if(!position||position.userId!==row.userId||position.strategyId!==row.strategyId||
+    !["OPEN","CLOSING"].includes(position.status))return "not_ready";
+   if(position.status==="CLOSING"&&!position.lastPnlUpdated)return "awaiting_pnl";
+   if(await tx.positionTradePnl.count({where:{
+    positionId:row.positionId,status:"SNAPSHOTTED"}}))return "awaiting_pnl";
+   const update=await tx.positionAllocation.updateMany({where:{id:row.id,status:"PENDING",
+    strategyEventId:null},data:{status:"SUBMITTING"}});
+   return update.count===1?"claimed":"already_processed";
+  },{isolationLevel:SERIALIZABLE,timeout:20000});
+  if(claimed!=="claimed"){outcomes.push(request.id+":"+claimed);continue;}
   const outcome=await prisma.$transaction(async tx=>{
    await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${request.strategyId} FOR UPDATE`;
    const row=await tx.positionAllocation.findUnique({where:{id:request.id}});
-   if(!row||row.status!=="PENDING"||row.strategyEventId)return "already_processed";
+   if(!row||row.status!=="SUBMITTING"||row.strategyEventId)return "already_processed";
    const position=await tx.investorPosition.findUnique({where:{id:row.positionId}});
    if(!position||position.userId!==row.userId||position.strategyId!==row.strategyId||
-      !["OPEN","CLOSING"].includes(position.status))return "not_ready";
+    !["OPEN","CLOSING"].includes(position.status))return "not_ready";
    if(position.status==="CLOSING"&&!position.lastPnlUpdated)return "awaiting_pnl";
-   const exposure=await tx.positionTradePnl.count({where:{
-    positionId:row.positionId,status:"SNAPSHOTTED"}});
-   if(exposure)return "awaiting_pnl";
-   const claim=await tx.positionAllocation.updateMany({where:{id:row.id,status:"PENDING",strategyEventId:null},data:{status:"SUBMITTING"}});
-   if(claim.count!==1)return "already_processed";
+   if(await tx.positionTradePnl.count({where:{
+    positionId:row.positionId,status:"SNAPSHOTTED"}}))return "awaiting_pnl";
    if(position.allocatedUsdcMicros<row.amountUsdcMicros){
-    await tx.positionAllocation.updateMany({where:{id:row.id,status:"SUBMITTING",strategyEventId:null},
-      data:{status:"FAILED"}});
+    await tx.positionAllocation.updateMany({where:{id:row.id,status:"SUBMITTING",
+     strategyEventId:null},data:{status:"FAILED"}});
     return "failed_insufficient_equity";
    }
-   const debited=await tx.investorPosition.updateMany({where:{id:position.id,
+   const debit=await tx.investorPosition.updateMany({where:{id:position.id,
     allocatedUsdcMicros:{gte:row.amountUsdcMicros},status:{in:["OPEN","CLOSING"]}},
     data:{allocatedUsdcMicros:{decrement:row.amountUsdcMicros}}});
-   if(debited.count!==1)throw new Error("Deallocation reservation raced");
-   const reserved=await tx.positionAllocation.updateMany({where:{id:row.id,status:"SUBMITTING",
-    strategyEventId:null},data:{status:"AWAITING_DEALLOCATION"}});
-   if(reserved.count!==1)throw new Error("Deallocation reservation state raced");
+   if(debit.count!==1)throw new Error("Deallocation capital changed");
+   const posted=await tx.positionAllocation.updateMany({where:{id:row.id,
+    status:"SUBMITTING",strategyEventId:null},
+    data:{status:"AWAITING_DEALLOCATION"}});
+   if(posted.count!==1)throw new Error("Deallocation posting raced");
    return "reserved";
   },{isolationLevel:SERIALIZABLE,timeout:20000});
   outcomes.push(request.id+":"+outcome);
