@@ -1,7 +1,7 @@
 export type PortfolioEvent={
  id:string;
  at:Date;
- kind:"DEPOSIT"|"WITHDRAWAL"|"PNL";
+ kind:"DEPOSIT"|"WITHDRAWAL"|"TRANSFER_IN"|"TRANSFER_OUT"|"PNL";
  amountMicros:bigint; // positive deposit, negative withdrawal, signed settled P&L
 };
 export type PortfolioPoint={at:string;valueMicros:string;kind:PortfolioEvent["kind"]|"START"};
@@ -44,6 +44,10 @@ export function reconstructPortfolioPerformance(
     if(!Number.isFinite(rate)||1+rate<0)twrValid=false;
     else twrFactor*=1+rate;
    }
+  }else if(event.kind==="TRANSFER_IN"){
+   if(event.amountMicros<=0n)twrValid=false;
+  }else if(event.kind==="TRANSFER_OUT"){
+   if(event.amountMicros>=0n)twrValid=false;
   }else if(event.kind==="DEPOSIT"){
    if(event.amountMicros<=0n)twrValid=false;
    deposits+=event.amountMicros;

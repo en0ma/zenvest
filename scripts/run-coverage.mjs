@@ -10,6 +10,7 @@ for(const [command,args] of [
  ["node",["scripts/check-withdrawal-worker.mjs"]],
  ["node",["scripts/check-authenticated-routes.mjs"]],
  ["node",["scripts/check-withdrawal-request-route.mjs"]],
+ ["node",["scripts/check-wallet-sends-route.mjs"]],
  ["node",["scripts/check-deallocation-coordinator.mjs"]],
  ["node",["scripts/check-financial-cron-routes.mjs"]],
  ["node",["scripts/check-blockradar-reconciliation.mjs"]],

@@ -27,6 +27,9 @@ export async function POST(request: Request) {
   const input = body as Record<string, unknown>;
   const amount = parseMicros(input.amount);
   const address = input.address;
+  const saveRecipient=input.saveRecipient===true;
+  const recipientName=typeof input.recipientName==="string"?input.recipientName.trim():"";
+  if(saveRecipient&&(!recipientName||recipientName.length>120))return NextResponse.json({error:"Enter a recipient name (up to 120 characters)"},{status:400});
   if (!amount || !isValidSolanaAddress(address))
     return NextResponse.json({error:"Enter a valid USDC amount and Solana address"},{status:400});
 
@@ -47,13 +50,14 @@ export async function POST(request: Request) {
       const balance=await tx.user.findUniqueOrThrow({where:{id:user.id}});
       const [withdrawalHolds,allocationHolds]=await Promise.all([
         tx.withdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
-        tx.positionAllocation.aggregate({where:{userId:user.id,kind:"ALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
+        tx.positionAllocation.aggregate({where:{userId:user.id,kind:"ALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","AWAITING_ALLOCATION","AWAITING_DEALLOCATION","AWAITING_WITHDRAWAL","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
       ]);
       const holds=(withdrawalHolds._sum.grossUsdcMicros??0n)+(allocationHolds._sum.amountUsdcMicros??0n);
       if(balance.unallocated-holds<amount)return null;
       const withdrawal = await tx.withdrawal.create({
         data:{userId:user.id,amountUsdcMicros:net,grossUsdcMicros:amount,asset:"USDC",feeUsdcMicros:totalFee,destinationAddress:address,status:"PENDING"},
       });
+      if(saveRecipient)await tx.userRecipient.create({data:{userId:user.id,kind:"WITHDRAW",name:recipientName,walletAddress:address,network:"solana",status:"COMPLETED"}});
       await tx.investorActivity.create({
         data:{userId:user.id,type:"WITHDRAWAL_REQUESTED",amountKobo:0n,amountUsdcMicros:amount,
           reference:`withdrawal:${withdrawal.id}:requested`,description:"Solana USDC withdrawal requested"},

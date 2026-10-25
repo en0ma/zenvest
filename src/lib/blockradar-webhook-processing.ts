@@ -67,6 +67,9 @@ export async function processVerifiedBlockradarQueueItem(request: Request) {
   if (!mint) return NextResponse.json({error:"USDC mint not configured"},{status:503});
   const id=data.id, recipient=data.recipientAddress, hash=data.hash;
   const amount=parsePositiveUsdcMicros(data.amountPaid ?? data.amount);
+  // Blockradar identifies the originator of the customer deposit separately
+  // from the deposit address and the subsequent treasury sweep sender.
+  const senderAddress=typeof data.senderAddress==="string"&&/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(data.senderAddress)?data.senderAddress:null;
   // A failed sweep is an operational warning, never a reason to release funds.
   // Preserve any existing CONFIRMING record and let later success finalize it.
   if (event.event==="deposit.swept.failed") {
@@ -126,13 +129,17 @@ export async function processVerifiedBlockradarQueueItem(request: Request) {
     const outcome=await prisma.$transaction(async tx=>{
       let prior=await tx.blockchainDeposit.findUnique({where:{providerTransactionId:id}});
       if (prior && (prior.walletId!==wallet.id || prior.transactionHash!==hash ||
-          prior.assetAddress!==mint || prior.amountUsdcMicros!==amount))
+          prior.assetAddress!==mint || prior.amountUsdcMicros!==amount ||
+          (senderAddress!==null && prior.senderAddress!==null && prior.senderAddress!==senderAddress)))
         throw new Error("Deposit identity mismatch");
       if (!prior) {
         prior=await tx.blockchainDeposit.create({data:{
           walletId:wallet.id,providerTransactionId:id,transactionHash:hash,
-          assetAddress:mint,amountUsdcMicros:amount,status:"CONFIRMING",
+          assetAddress:mint,amountUsdcMicros:amount,senderAddress,status:"CONFIRMING",
         }});
+      }
+      if (senderAddress && !prior.senderAddress) {
+        prior=await tx.blockchainDeposit.update({where:{id:prior.id},data:{senderAddress}});
       }
       if (!isSwept) return prior.status==="CONFIRMED" ? "already_confirmed" :
         "confirming";

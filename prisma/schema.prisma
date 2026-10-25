@@ -25,6 +25,9 @@ model User {
   sessionVersion Int @default(0) @map("session_version")
   unallocated BigInt @default(0)
   depositWallet InvestorDepositWallet?
+  sentTransfers Send[] @relation("SentTransfer")
+  receivedTransfers Send[] @relation("ReceivedTransfer")
+  recipients UserRecipient[]
   withdrawals Withdrawal[]
   webhookDeadLater WebhookDeadLater[]
   positions InvestorPosition[]
@@ -191,6 +194,7 @@ model BlockchainDeposit {
   wallet InvestorDepositWallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
   providerTransactionId String @unique @map("provider_transaction_id")
   transactionHash String @map("transaction_hash") @db.VarChar(180)
+  senderAddress String? @map("sender_address") @db.VarChar(128)
   assetAddress String @map("asset_address") @db.VarChar(128)
   amountUsdcMicros BigInt @map("amount_usdc_micros")
   feeUsdcMicros BigInt @default(0) @map("fee_usdc_micros")
@@ -473,3 +477,48 @@ model PositionTradePnl {
   @@map("position_trade_pnl")
 }
 
+
+
+enum RecipientKind {
+  WITHDRAW
+  SEND
+}
+enum RecipientStatus {
+  PENDING
+  COMPLETED
+}
+enum SendStatus {
+  PENDING
+  COMPLETED
+}
+model UserRecipient {
+  id String @id @default(cuid())
+  userId String @map("user_id")
+  user User @relation(fields:[userId],references:[id],onDelete:Restrict)
+  kind RecipientKind
+  name String @db.VarChar(120)
+  handle String? @db.VarChar(8)
+  walletAddress String? @map("wallet_address") @db.VarChar(128)
+  network String? @db.VarChar(32)
+  status RecipientStatus @default(COMPLETED)
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([userId,kind,createdAt])
+  @@map("user_recipients")
+}
+model Send {
+  id String @id @default(cuid())
+  status SendStatus @default(PENDING)
+  createdAt DateTime @default(now()) @map("created_at")
+  senderUserId String @map("sender_user_id")
+  recipientUserId String @map("recipient_user_id")
+  sender User @relation("SentTransfer",fields:[senderUserId],references:[id],onDelete:Restrict)
+  recipient User @relation("ReceivedTransfer",fields:[recipientUserId],references:[id],onDelete:Restrict)
+  amount BigInt @map("amount")
+  note String? @db.VarChar(250)
+  senderHandle String @map("sender_handle") @db.VarChar(8)
+  recipientHandle String @map("recipient_handle") @db.VarChar(8)
+  idempotencyKey String @unique @map("request_key") @db.VarChar(100)
+  @@index([senderUserId,createdAt])
+  @@index([recipientUserId,createdAt])
+  @@map("sends")
+}
