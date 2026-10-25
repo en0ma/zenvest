@@ -29,14 +29,14 @@ export async function POST(request: Request) {
       // Count outstanding requests against the strategy's advertised capacity.
       // Serializable isolation protects the concurrent capacity predicate.
       const outstanding=await tx.positionAllocation.aggregate({
-        where:{kind:"ALLOCATE",position:{strategyId},status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}},
+        where:{kind:"ALLOCATE",position:{strategyId},status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","AWAITING_ALLOCATION","AWAITING_DEALLOCATION","REVIEW"]}},
         _sum:{amountUsdcMicros:true},
       });
 
       const balance=await tx.user.findUniqueOrThrow({where:{id:user.id}});
       const [withdrawalHolds,allocationHolds]=await Promise.all([
         tx.withdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
-        tx.positionAllocation.aggregate({where:{userId:user.id,kind:"ALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
+        tx.positionAllocation.aggregate({where:{userId:user.id,kind:"ALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","AWAITING_ALLOCATION","AWAITING_DEALLOCATION","REVIEW"]}},_sum:{amountUsdcMicros:true}}),
       ]);
       const availableUser=availableUnallocated(balance.unallocated,withdrawalHolds._sum.grossUsdcMicros??0n,allocationHolds._sum.amountUsdcMicros??0n);
       if(!canRequestAllocation({amount,minimum:strategy.minAllocationUsdcMicros,maximum:strategy.maxAllocationUsdcMicros,
