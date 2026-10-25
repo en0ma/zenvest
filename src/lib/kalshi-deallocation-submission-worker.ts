@@ -7,19 +7,19 @@ import {submitMockKalshiWithdrawal} from "./kalshi-withdrawal-mock.ts";
  */
 export async function processMockDeallocationSubmissions(){
  const first=await prisma.positionAllocation.findFirst({where:{
-  kind:"DEALLOCATE",status:"PENDING",strategyEventId:null,
+  kind:"DEALLOCATE",status:"AWAITING_WITHDRAWAL",strategyEventId:null,
   position:{status:{in:["OPEN","CLOSING"]},strategy:{blockRadarAddress:{not:null}}}
  },orderBy:[{createdAt:"asc"},{id:"asc"}],include:{position:{include:{strategy:true}}}});
  if(!first)return "empty";
  const claimed=await prisma.$transaction(async tx=>{
   await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${first.strategyId} FOR UPDATE`;
   const operation=await tx.positionAllocation.findUnique({where:{id:first.id}});
-  if(!operation||operation.status!=="PENDING"||operation.strategyEventId)return null;
+  if(!operation||operation.status!=="AWAITING_WITHDRAWAL"||operation.strategyEventId)return null;
   const event=await tx.strategyEvent.create({data:{
    strategyId:first.strategyId,kind:"DEALLOCATE",status:"PROCESSING",
    amountUsdcMicros:operation.amountUsdcMicros
   }});
-  const changed=await tx.positionAllocation.updateMany({where:{id:operation.id,status:"PENDING",strategyEventId:null},
+  const changed=await tx.positionAllocation.updateMany({where:{id:operation.id,status:"AWAITING_WITHDRAWAL",strategyEventId:null},
    data:{status:"SUBMITTING",strategyEventId:event.id}});
   if(changed.count!==1)throw new Error("Deallocation submission raced");
   return {eventId:event.id,amount:operation.amountUsdcMicros};
