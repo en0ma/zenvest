@@ -278,6 +278,7 @@ enum PositionStatus {
 enum PositionTransferStatus {
   PENDING
   SUBMITTING
+  DEALLOCATING
   PROCESSING
   CONFIRMING
   AWAITING_ALLOCATION
