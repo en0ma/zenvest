@@ -59,6 +59,8 @@ try{
  await assert.rejects(prisma.investorPosition.create({data:{userId,strategyId,status:"OPEN"}}),
   e=>e.code==="P2002","database uniqueness prevents duplicate open position");
 
+ // Settle the fixture reservations before testing separate deallocation and close workflows.
+ await prisma.positionAllocation.updateMany({where:{userId,kind:"ALLOCATE",status:"PENDING"},data:{status:"CANCELLED"}});
  const outside=await prisma.investorPosition.create({data:{userId:"ci_test_user",strategyId,allocatedUsdcMicros:2500000n}});
  const pos=await prisma.investorPosition.update({where:{id:body.positionId},data:{allocatedUsdcMicros:4000000n}});
  const call=(handler,payload)=>handler(new Request("http://ci.local/test",{method:"POST",body:typeof payload==="string"?payload:JSON.stringify(payload)}));
