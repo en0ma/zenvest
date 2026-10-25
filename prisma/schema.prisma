@@ -80,6 +80,8 @@ model Strategy {
   marketId String? @map("market_id") @db.VarChar(200)
   marketName String? @map("market_name") @db.VarChar(200)
   kalshiWalletAddress String? @map("kalshi_wallet_address") @db.VarChar(128)
+  blockRadarAddress String? @unique @map("block_radar_address") @db.VarChar(128)
+  blockRadarAddressId String? @unique @map("block_radar_address_id") @db.VarChar(160)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   positions InvestorPosition[]
