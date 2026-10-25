@@ -28,9 +28,11 @@ export async function POST(request:Request){
  if(!amount||!/^[a-z0-9]{8}$/.test(handle)||!/^[0-9a-f-]{36}$/i.test(key)||(save&&(name.length<1||name.length>120)))
    return NextResponse.json({error:"Valid amount, recipient handle and request key required"},{status:400});
  const existing=await prisma.send.findUnique({where:{idempotencyKey:key}});
- if(existing)return existing.senderUserId===session.id?
-   NextResponse.json({id:existing.id,status:existing.status},{status:200}):
-   NextResponse.json({error:"Request key already used"},{status:409});
+ if(existing){
+  if(existing.senderUserId!==session.id||existing.recipientHandle!==handle||existing.amount!==amount||existing.note!==(note||null))
+   return NextResponse.json({error:"Request key already used with different transfer details"},{status:409});
+  return NextResponse.json({id:existing.id,status:existing.status},{status:200});
+ }
  try{
   const result=await prisma.$transaction(async tx=>{
    const sender=await tx.user.findUniqueOrThrow({where:{id:session.id},select:{id:true,handle:true,unallocated:true,isActive:true,emailVerifiedAt:true}});
