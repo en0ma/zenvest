@@ -2,7 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 type Strategy = {id:string;name:string;description:string;min:string;max:string;capacity:string};
-type Position = {id:string;strategyId:string;principal:string;status:string;created:string;pending:boolean};
+type Position = {id:string;strategyId:string;principal:string;reserved:string;status:string;created:string;pending:boolean};
 type Operation = {id:string;positionId:string;type:string;amount:string;status:string;created:string;completed:string|null};
 const money=(raw:string)=> (Number(raw)/1e6).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:6})+" USDC";
 export function EarnActions({available,positions,operations,strategies}:{available:string;positions:Position[];operations:Operation[];strategies:Strategy[]}){
@@ -13,7 +13,7 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const [chartRange,setChartRange]=useState("1M");
  const strategy=strategies.find(x=>x.id===strategyId);
  const existingPosition=positions.find(p=>p.strategyId===strategyId&&(p.status==="OPEN"||p.status==="CLOSING"));
- const deallocationBalance=existingPosition?.status==="OPEN"?BigInt(existingPosition.principal):0n;
+ const deallocationBalance=existingPosition?.status==="OPEN"&&!existingPosition.pending?(()=>{const remaining=BigInt(existingPosition.principal)-BigInt(existingPosition.reserved);return remaining>0n?remaining:0n;})():0n;
  const availableBalance=side==="ALLOCATE"?BigInt(available):deallocationBalance;
  const amountIsValid=/^(0|[1-9]\d*)(\.\d{1,6})?$/.test(amount);
  const amountMicros=amountIsValid?(()=>{const [w,f=""]=amount.split(".");return BigInt(w)*1000000n+BigInt(f.padEnd(6,"0"));})():0n;
