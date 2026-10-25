@@ -17,7 +17,7 @@ try {
  // Verify the real PostgreSQL enum values after migration.
  for(const name of ['WithdrawalStatus','PositionTransferStatus']){
   const rows=await prisma.$queryRawUnsafe('SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid WHERE t.typname=$1',name);
-  assert.deepEqual(rows.map(r=>r.enumlabel).sort(),[...['PENDING','SUBMITTING','PROCESSING','REVIEW','COMPLETED','FAILED','CANCELLED'],...(name==='PositionTransferStatus'?['CONFIRMING','AWAITING_ALLOCATION','AWAITING_DEALLOCATION','AWAITING_WITHDRAWAL']:[])].sort());
+  assert.deepEqual(rows.map(r=>r.enumlabel).sort(),[...['PENDING','SUBMITTING','PROCESSING','REVIEW','COMPLETED','FAILED','CANCELLED'],...(name==='PositionTransferStatus'?['CONFIRMING','AWAITING_ALLOCATION','AWAITING_DEALLOCATION','AWAITING_WITHDRAWAL','DEALLOCATING']:[])].sort());
  }
  const schemaTables=await prisma.$queryRawUnsafe(`SELECT tablename FROM pg_tables WHERE schemaname='public'`);
  const tableNames=new Set(schemaTables.map(x=>x.tablename));
@@ -365,7 +365,7 @@ try {
  const {settleVerifiedStrategyReturn}=await import("../src/lib/strategy-return-settlement.ts");
  const closing=children[1].pos;
  const finalValue=(await prisma.investorPosition.findUniqueOrThrow({where:{id:closing.id}})).allocatedUsdcMicros;
- await prisma.investorPosition.update({where:{id:closing.id},data:{status:"CLOSING",lastPnlUpdated:true}});
+ await prisma.investorPosition.update({where:{id:closing.id},data:{status:"CLOSING",lastPnlUpdated:true,allocatedUsdcMicros:0n}});
  const returnEvent=await prisma.strategyEvent.create({data:{
   strategyId:strategy.id,kind:"DEALLOCATE",status:"CONFIRMING",
   amountUsdcMicros:finalValue,
@@ -393,9 +393,8 @@ try {
  await prisma.strategyEvent.update({where:{id:returnEvent.id},data:{sourceConfirmed:true,
   kalshiWithdrawalId:receipt.kalshiWithdrawalId}});
  const userBeforeReturn=(await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated;
- assert.equal(await settleVerifiedStrategyReturn(receipt),"awaiting_deallocation");
- assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,userBeforeReturn,"verified return must await the capital boundary");
- assert.equal(await applyVerifiedCapitalEvent(returnEvent.id),"applied");
+ assert.equal(await settleVerifiedStrategyReturn(receipt),"completed");
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,userBeforeReturn+finalValue);
  assert.equal(await settleVerifiedStrategyReturn(receipt),"duplicate");
  assert.equal(await settleVerifiedStrategyReturn({...receipt,masterReceiptId:"different"}),"mismatch");
  assert.equal(await settleVerifiedStrategyReturn({...receipt,kalshiWithdrawalId:"different"}),"mismatch");
