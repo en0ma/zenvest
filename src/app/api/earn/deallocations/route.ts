@@ -23,7 +23,7 @@ export async function POST(request:Request){
    const pos=await tx.investorPosition.findFirst({where:{id:positionId,userId:user.id,status:"OPEN"}});
    if(!pos)return "INVALID";
    // One unsettled reduction per position keeps principal ownership unambiguous.
-   const other=await tx.positionAllocation.count({where:{positionId,kind:"DEALLOCATE",status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}}});
+   const other=await tx.positionAllocation.count({where:{positionId,kind:{in:["ALLOCATE","DEALLOCATE"]},status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","REVIEW"]}}});
    if(other)return "BUSY";
    if(amount>pos.allocatedUsdcMicros)return "EXCEEDS";
    const op=await tx.positionAllocation.create({data:{
