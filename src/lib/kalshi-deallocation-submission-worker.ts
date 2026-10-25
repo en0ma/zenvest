@@ -31,11 +31,11 @@ export async function processMockDeallocationSubmissions(){
   const response=await submitMockKalshiWithdrawal({eventId:claimed.eventId,amountUsdcMicros:claimed.amount,
    destination:master.walletAddress});
   if(response.status!==200||!response.mocked)throw new Error("Invalid mock response");
-  // The simulated acceptance does not demonstrate that Kalshi withdrew funds.
-  // Remain in REVIEW until a real, authenticated provider integration is built.
+  // A stub HTTP 200 means accepted for processing, NOT transferred or received.
+  // Neither CONFIRMING nor AWAITING_DEALLOCATION can be reached from this response.
   await prisma.positionAllocation.updateMany({where:{strategyEventId:claimed.eventId,status:"SUBMITTING"},
-   data:{status:"REVIEW"}});
-  return "mock_submitted_requires_real_custody_proof";
+   data:{status:"PROCESSING"}});
+  return "mock_accepted_processing";
  }catch{
   await prisma.positionAllocation.updateMany({where:{strategyEventId:claimed.eventId,status:"SUBMITTING"},
    data:{status:"REVIEW"}});
