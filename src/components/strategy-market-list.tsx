@@ -11,7 +11,6 @@ export function StrategyMarketList({rows}:{rows:Row[]}){
  const sorted=[...rows].sort((a,b)=>BigInt(b.allocation)>BigInt(a.allocation)?1:BigInt(b.allocation)<BigInt(a.allocation)?-1:0);
  return <section className="overflow-hidden rounded-2xl border border-[#E3E8EE] bg-white text-[#14253D]" aria-label="Strategy market">
   <header className="border-b border-[#EDF0F5] px-5 py-5 sm:px-7"><h1 className="text-lg font-semibold">Strategies</h1></header>
-  <div className="flex items-center justify-between border-b border-[#EDF0F5] bg-[#F8FAFC] px-5 py-3 text-xs text-[#64748B] sm:px-7"><span>Strategy</span><span>24h P&amp;L</span></div>
   {sorted.map(row=>{
    const open=expanded===row.id;
    const href="/earn/strategies/"+encodeURIComponent(row.id);
