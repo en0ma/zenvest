@@ -56,8 +56,9 @@ try{
  assert.equal(increase.status,201,"a second allocation can create its own position");
  assert.notEqual((await increase.json()).positionId,body.positionId,"new allocation creates a distinct position");
  assert.equal(await prisma.investorPosition.count({where:{userId,strategyId,status:"OPEN"}}),2);
- await assert.rejects(prisma.investorPosition.create({data:{userId,strategyId,status:"OPEN"}}),
-  e=>e.code==="P2002","database uniqueness prevents duplicate open position");
+ const topUp=await post({strategyId,amount:"1.000000",positionId:body.positionId});
+ assert.equal(topUp.status,201,"explicitly selected existing position can be topped up");
+ assert.equal((await topUp.json()).positionId,body.positionId);
 
  // Settle the fixture reservations before testing separate deallocation and close workflows.
  await prisma.positionAllocation.updateMany({where:{userId,kind:"ALLOCATE",status:"PENDING"},data:{status:"CANCELLED"}});
