@@ -53,9 +53,9 @@ try{
  assert.equal(await prisma.positionAllocation.count({where:{userId}}),1,
   "failed requests cannot persist allocation records");
  const increase=await post({strategyId,amount:"1.000000"});
- assert.equal(increase.status,201,"a second allocation to the same market must reuse the open position");
- assert.equal((await increase.json()).positionId,body.positionId,"allocation must not create a second open position");
- assert.equal(await prisma.investorPosition.count({where:{userId,strategyId,status:"OPEN"}}),1);
+ assert.equal(increase.status,201,"a second allocation can create its own position");
+ assert.notEqual((await increase.json()).positionId,body.positionId,"new allocation creates a distinct position");
+ assert.equal(await prisma.investorPosition.count({where:{userId,strategyId,status:"OPEN"}}),2);
  await assert.rejects(prisma.investorPosition.create({data:{userId,strategyId,status:"OPEN"}}),
   e=>e.code==="P2002","database uniqueness prevents duplicate open position");
 
