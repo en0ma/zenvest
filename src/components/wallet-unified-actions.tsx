@@ -5,7 +5,7 @@ import {WithdrawalForm} from "@/components/withdrawal-actions";
 
 type Contact={id:string;name:string;handle:string|null;walletAddress:string|null;kind:"SEND"|"WITHDRAW"};
 function amountMicros(value:string):bigint|null{
- if(!/^(0|[1-9]\\d*)(\\.\\d{1,6})?$/.test(value))return null;
+ if(!/^(0|[1-9]\d*)(\.\d{1,6})?$/.test(value))return null;
  const [whole,fraction=""]=value.split(".");
  const v=BigInt(whole)*1000000n+BigInt(fraction.padEnd(6,"0"));
  return v>0n?v:null;
