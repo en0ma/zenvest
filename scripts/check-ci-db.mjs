@@ -389,6 +389,9 @@ try {
  assert.equal(await settleVerifiedStrategyReturn({...receipt,strategyEventId:"nonexistent"}),"unrelated");
  assert.equal(await settleVerifiedStrategyReturn({...receipt,amountUsdcMicros:finalValue+1n}),"mismatch");
  assert.equal((await prisma.investorPosition.findUniqueOrThrow({where:{id:closing.id}})).status,"CLOSING");
+ // Simulate independently authenticated Kalshi withdraw.success, never a mock 200.
+ await prisma.strategyEvent.update({where:{id:returnEvent.id},data:{sourceConfirmed:true,
+  kalshiWithdrawalId:receipt.kalshiWithdrawalId}});
  const userBeforeReturn=(await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated;
  assert.equal(await settleVerifiedStrategyReturn(receipt),"awaiting_deallocation");
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,userBeforeReturn,"verified return must await the capital boundary");
