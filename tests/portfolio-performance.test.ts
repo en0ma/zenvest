@@ -76,3 +76,22 @@ test("a total loss is exactly minus 100 percent and not a negative equity",()=>{
  assert.equal(result.twrPercent,-100);
  assert.equal(result.simplePnlPercent,-100);
 });
+
+test("internal wallet sends are external cash flows, not profit or deposit denominator",()=>{
+ const events=[
+  {id:"a",kind:"DEPOSIT" as const,at:at("2026-01-01T00:00:00Z"),amountMicros:100_000_000n},
+  {id:"b",kind:"TRANSFER_OUT" as const,at:at("2026-01-01T01:00:00Z"),amountMicros:-20_000_000n},
+  {id:"c",kind:"TRANSFER_IN" as const,at:at("2026-01-01T02:00:00Z"),amountMicros:10_000_000n},
+ ];
+ const result=reconstructPortfolioPerformance(90_000_000n,events);
+ assert.equal(result.completeHistory,true);
+ assert.equal(result.twrPercent,0);
+ assert.equal(result.simplePnlPercent,0);
+ assert.equal(result.points.at(-1)?.valueMicros,"90000000");
+});
+test("invalid directions of internal transfer flows invalidate performance",()=>{
+ const incoming=reconstructPortfolioPerformance(-1n,[{id:"x",kind:"TRANSFER_IN",at:at("2026-01-01T00:00:00Z"),amountMicros:-1n}]);
+ const outgoing=reconstructPortfolioPerformance(1n,[{id:"x",kind:"TRANSFER_OUT",at:at("2026-01-01T00:00:00Z"),amountMicros:1n}]);
+ assert.equal(incoming.twrPercent,null);
+ assert.equal(outgoing.twrPercent,null);
+});
