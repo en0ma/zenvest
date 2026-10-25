@@ -65,8 +65,7 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
    </div>}
    <div className="mt-10 border-t border-[#E3E8EE] pt-7">
      <div><h3 className="text-lg font-semibold tracking-tight">Deposits</h3><p className="mt-2 text-sm text-[#64748B]">Track deposit confirmations and incoming USDC.</p></div>
-     {history.length===0?<p className="mt-5 text-sm text-[#64748B]">Your deposits will appear here.</p>:
-       <div role="region" aria-label="Deposits table" tabIndex={0} className="mt-5 w-full overflow-x-auto rounded-xl border border-[#E7EDF4]">
+     <div role="region" aria-label="Deposits table" tabIndex={0} className="mt-5 w-full max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
          <table className="w-full min-w-[900px] border-collapse text-left">
            <thead className="bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wide text-[#64748B]"><tr>
              <th className="px-5 py-3">Received</th><th className="px-5 py-3">Amount</th><th className="px-5 py-3">Status</th>
@@ -78,9 +77,9 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
              <td className="whitespace-nowrap px-5 py-4"><span className={item.status==="CONFIRMED"?"rounded-full bg-[#ECF7F1] px-3 py-1 text-xs font-semibold text-[#317054]":"rounded-full bg-[#F5F1E9] px-3 py-1 text-xs font-semibold text-[#8B6F43]"}>{item.status==="CONFIRMED"?"Confirmed":"Confirming"}</span></td>
              <td className="whitespace-nowrap px-5 py-4 font-mono text-xs text-[#64748B]" title={item.transactionHash}>{item.transactionHash}</td>
              <td className="whitespace-nowrap px-5 py-4 text-sm text-[#64748B]">{item.creditedAt?item.creditedAt.toLocaleString("en-US",{timeZone:"UTC",dateStyle:"medium",timeStyle:"short"})+" UTC":"—"}</td>
-           </tr>)}</tbody>
+           </tr>)}{history.length===0&&<tr><td colSpan={5} className="px-5 py-8 text-sm text-[#64748B]">No deposits yet.</td></tr>}</tbody>
          </table>
-       </div>}
+       </div>
      <nav aria-label="Deposit history pages" className="mt-4 flex flex-wrap items-center justify-between gap-3">
        <span className="text-xs text-[#64748B]">{depositCount===0?"0 results":`Showing ${(page-1)*PAGE_SIZE+1}–${Math.min(page*PAGE_SIZE,depositCount)} of ${depositCount}`}</span>
        <div className="flex items-center gap-2 text-xs font-semibold">
