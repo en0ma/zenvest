@@ -68,13 +68,13 @@ export async function settleVerifiedStrategyReturn(receipt:VerifiedStrategyRetur
   // unchanged until all earlier frozen trade exposure has settled.
   const changed=await tx.strategyEvent.updateMany({where:{id:event.id,status:"CONFIRMING",
    sourceConfirmed:true,destinationConfirmed:false,treasuryTransactionId:null},
-   data:{destinationConfirmed:true,treasuryTransactionId:transfer.id}});
+   data:{destinationConfirmed:true,treasuryTransactionId:transfer.id,status:"COMPLETED"}});
   if(changed.count!==1)throw new Error("Concurrent strategy return settlement");
   const queued=await tx.positionAllocation.updateMany({where:{
    strategyEventId:event.id,kind:"DEALLOCATE",status:"CONFIRMING"},
-   data:{status:"AWAITING_DEALLOCATION"}});
+   data:{status:"COMPLETED"}});
   if(queued.count!==rows.length)throw new Error("Return batch changed");
-  return "awaiting_deallocation";
+  return "completed";
 
  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,timeout:20000});
 }
