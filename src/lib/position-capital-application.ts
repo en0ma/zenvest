@@ -37,6 +37,8 @@ export async function applyVerifiedCapitalEvent(eventId:string):Promise<string>{
   if(event.kind==="DEALLOCATE"){
    for(const [id,amount] of totals){
     if((byId.get(id)?.allocatedUsdcMicros??0n)<amount)return "insufficient_equity_reconcile";
+    const position=byId.get(id)!;
+    if(position.status==="CLOSING"&&position.allocatedUsdcMicros!==amount)return "closing_equity_mismatch";
    }
   }
   const claimed=await tx.positionAllocation.updateMany({where:{
@@ -85,7 +87,6 @@ export async function applyVerifiedCapitalEvent(eventId:string):Promise<string>{
    for(const [id,amount] of totals){
     const original=byId.get(id)!;
     if(original.status==="CLOSING"){
-     if(original.allocatedUsdcMicros!==amount)return "closing_equity_mismatch";
      const closed=await tx.investorPosition.updateMany({where:{
       id,status:"CLOSING",allocatedUsdcMicros:0n,lastPnlUpdated:true},
       data:{status:"CLOSED",closedAt:new Date()}});
