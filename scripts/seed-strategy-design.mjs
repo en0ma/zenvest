@@ -1,8 +1,5 @@
 import {PrismaClient} from "@prisma/client";
-
-// Runs on the production database after migrations. Only creates presentation
-// strategies and presentation history; never writes real trade, position,
-// investor, treasury, or custody records.
+import {createHash} from "node:crypto";
 const prisma=new PrismaClient();
 const catalogs=[
  {id:"market_atlas",symbol:"ATLAS",name:"Atlas Directional",logo:"/strategy-logos/atlas.svg",marketType:"PREDICTION",note:"Directional positioning across high-conviction event markets. Risk controls prioritize measured exposure and clear settlement windows.",description:"An active directional strategy focused on event-market price dislocations and disciplined position sizing.",capital:44500000000n,bias:1.05},
@@ -13,37 +10,58 @@ const catalogs=[
  {id:"market_summit",symbol:"SUMMIT",name:"Summit Opportunities",logo:"/strategy-logos/summit.svg",marketType:"PREDICTION",note:"Flexible opportunity selection with explicit drawdown guardrails and capped contract risk.",description:"Concentrated opportunities selected for compelling reward-to-risk profiles.",capital:15300000000n,bias:1.18}
 ];
 
+
 function random(seed){let state=seed>>>0;return ()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296;};}
 const rand=random(2501025);
 const anchor=new Date();anchor.setUTCHours(12,0,0,0);
+const investorId="zenvest_market_seed_investor";
+const positionIdFor=id=>"c"+createHash("sha256").update("zenvest-market-position:"+id).digest("hex").slice(0,24);
 try{
- const summary=await prisma.$transaction(async tx=>{
-  const counts=[];
-  for(const strategy of catalogs){
-   const existing=await tx.strategy.findUnique({where:{id:strategy.id},select:{id:true,symbol:true,isShowcase:true}});
-   if(existing&&!existing.isShowcase)throw new Error("Refusing to change an existing operational strategy: "+strategy.id);
-   if(existing&&existing.symbol!==strategy.symbol)throw new Error("Strategy symbol collision: "+strategy.id);
-   if(!existing)await tx.strategy.create({data:{
-    id:strategy.id,name:strategy.name,symbol:strategy.symbol,logo:strategy.logo,
-    description:strategy.description,note:strategy.note,marketType:strategy.marketType,
-    isShowcase:true,displayAllocationUsdcMicros:strategy.capital,
-    isActive:false,isPublic:true,status:"OFFLINE",
-    minCapacityUsdcMicros:0n,maxCapacityUsdcMicros:0n,availableCapacityUsdcMicros:0n,
-    minAllocationUsdcMicros:0n,maxAllocationUsdcMicros:0n
-   }});
-   const rows=[];
-   for(let day=59;day>=0;day--)for(let step=0;step<2;step++){
-    const stamp=new Date(anchor.getTime()-day*86400000+(step===0?-14400000:10800000));
-    const positive=rand()<.76;
-    const amplitude=(.0003+rand()*.0024)*strategy.bias;
-    const pnl=BigInt(Math.round(Number(strategy.capital)*amplitude*(positive?1:-1)));
-    rows.push({id:"design_"+strategy.id+"_"+day+"_"+step,strategyId:strategy.id,
-     occurredAt:stamp,netPnlUsdcMicros:pnl,eligibleCapitalUsdcMicros:strategy.capital});
-   }
-   const created=await tx.strategyDisplayTrade.createMany({data:rows,skipDuplicates:true});
-   counts.push({symbol:strategy.symbol,created:created.count});
+ const results=[];
+ await prisma.user.upsert({where:{id:investorId},create:{
+  id:investorId,email:"market-history@zenvest.invalid",name:"marketdata",
+  handle:"mktdata",passwordHash:"disabled-market-history-account",role:"USER",
+  isActive:false,unallocated:0n
+ },update:{}});
+ for(const config of catalogs){
+  const existing=await prisma.strategy.findUnique({where:{id:config.id},select:{id:true,symbol:true}});
+  if(existing&&existing.symbol!==config.symbol)throw Error("Strategy identity collision: "+config.id);
+  if(!existing)await prisma.strategy.create({data:{
+   id:config.id,name:config.name,symbol:config.symbol,logo:config.logo,
+   description:config.description,note:config.note,marketType:config.marketType,
+   isActive:true,isPublic:true,status:"MONITORING",
+   minCapacityUsdcMicros:1000000000n,maxCapacityUsdcMicros:100000000000n,
+   availableCapacityUsdcMicros:65000000000n,
+   minAllocationUsdcMicros:100000000n,maxAllocationUsdcMicros:50000000000n
+  }});
+  const positionId=positionIdFor(config.id);
+  const trades=[];const positions=[];let netTotal=0n;
+  for(let day=59;day>=0;day--)for(let step=0;step<2;step++){
+   const stamp=new Date(anchor.getTime()-day*86400000+(step===0?-14400000:10800000));
+   const amount=BigInt(Math.round(Number(config.capital)*(.0003+rand()*.0024)*config.bias*(rand()<.76?1:-1)));
+   netTotal+=amount;
+   const id="market_seed_"+config.symbol+"_"+day+"_"+step;
+   const createdAt=new Date(stamp.getTime()-3600000);
+   trades.push({id,strategyId:config.id,marketTradeId:id,
+    marketTradeName:["Event Spread","Price Rotation","Directional Opportunity","Liquidity Window","Momentum Entry","Event Resolution"][(day+step)%6],
+    status:"SETTLED",isPnlCalculated:true,
+    eligibleCapitalUsdcMicros:config.capital,realizedPnlUsdcMicros:amount,
+    marketStart:createdAt,marketEnd:stamp,createdAt,settledAt:stamp});
+   positions.push({strategyTradeId:id,positionId,userId:investorId,
+    eligibleCapitalUsdcMicros:config.capital,
+    grossPnlUsdcMicros:amount,netPnlUsdcMicros:amount,
+    platformFeeUsdcMicros:0n,status:"SETTLED",createdAt,settledAt:stamp});
   }
-  return counts;
- },{timeout:120000});
- console.log("Strategy market presentation data ready:",JSON.stringify(summary));
+  const position=await prisma.investorPosition.findUnique({where:{id:positionId}});
+  if(position&&(position.userId!==investorId||position.strategyId!==config.id))
+   throw Error("Position identity collision: "+positionId);
+  if(!position)await prisma.investorPosition.create({data:{id:positionId,
+   userId:investorId,strategyId:config.id,status:"OPEN",
+   allocatedUsdcMicros:config.capital+netTotal}});
+  // Immutable settled records; a rerun never rewrites existing trade outcomes.
+  const tradeResult=await prisma.strategyTrade.createMany({data:trades,skipDuplicates:true});
+  const pnlResult=await prisma.positionTradePnl.createMany({data:positions,skipDuplicates:true});
+  results.push({symbol:config.symbol,newTrades:tradeResult.count,newPnls:pnlResult.count});
+ }
+ console.log("Strategy history seed completed",JSON.stringify(results));
 }finally{await prisma.$disconnect();}
