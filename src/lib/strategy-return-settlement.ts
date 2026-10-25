@@ -39,8 +39,8 @@ export async function settleVerifiedStrategyReturn(receipt:VerifiedStrategyRetur
    event.positionEvents.reduce((sum,row)=>sum+row.amountUsdcMicros,0n)!==receipt.amountUsdcMicros||
    event.positionEvents.some(row=>row.kind!=="DEALLOCATE"||
     row.strategyId!==event.strategyId||row.status!=="CONFIRMING"))return "mismatch";
-  if(event.treasuryTransactionId||event.sourceConfirmed||event.destinationConfirmed||
-   event.status!=="CONFIRMING")return "not_ready";
+  if(event.treasuryTransactionId||!event.sourceConfirmed||event.destinationConfirmed||
+   event.status!=="CONFIRMING"||event.kalshiWithdrawalId!==receipt.kalshiWithdrawalId)return "not_ready";
   // The IDs supplied by the independently authenticated caller must be globally unique.
   const prior=await tx.treasuryTransfer.findFirst({where:{direction:"DEALLOCATE",
    OR:[{originExternalId:receipt.kalshiWithdrawalId},
@@ -67,8 +67,8 @@ export async function settleVerifiedStrategyReturn(receipt:VerifiedStrategyRetur
   // Custody is independently confirmed, but the position's capital stays
   // unchanged until all earlier frozen trade exposure has settled.
   const changed=await tx.strategyEvent.updateMany({where:{id:event.id,status:"CONFIRMING",
-   sourceConfirmed:false,destinationConfirmed:false,treasuryTransactionId:null},
-   data:{sourceConfirmed:true,destinationConfirmed:true,treasuryTransactionId:transfer.id}});
+   sourceConfirmed:true,destinationConfirmed:false,treasuryTransactionId:null},
+   data:{destinationConfirmed:true,treasuryTransactionId:transfer.id}});
   if(changed.count!==1)throw new Error("Concurrent strategy return settlement");
   const queued=await tx.positionAllocation.updateMany({where:{
    strategyEventId:event.id,kind:"DEALLOCATE",status:"CONFIRMING"},
