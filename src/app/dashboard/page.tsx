@@ -126,22 +126,21 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
    </div>
    <p className="border-t border-[#EDF0F5] bg-[#FAFBFD] px-5 py-3 text-xs leading-5 text-[#64748B] sm:px-7">Values are realized net USDC profit or loss from settled trades. Deposits and withdrawals are excluded; these are not percentage returns.</p>
   </section>
-  <section aria-label="Trade analytics" className="rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
-   <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
-    {[{label:"Settled events",value:String(settled.length)},{label:"Event win rate",value:winning+losing>0?(winning*100/(winning+losing)).toFixed(1)+"%":"—"}].map((x,index)=>
-     <div key={x.label} className={index>0?"border-t border-[#EDF0F5] pt-5 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0":""}>
-      <p className="text-sm text-[#64748B]">{x.label}</p>
-      <p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p>
-     </div>)}
+  <section aria-labelledby="settlement-highlights-heading" className="overflow-hidden rounded-[24px] border border-[#E3E8EE] bg-white">
+   <div className="border-b border-[#EDF0F5] px-5 py-5 sm:px-7">
+    <h2 id="settlement-highlights-heading" className="text-lg font-semibold tracking-tight text-[#11263E]">Settlement highlights</h2>
+    <p className="mt-1 text-xs text-[#64748B]">Performance across settled trading events</p>
    </div>
-  </section>
-  <section aria-label="Detailed trading statistics" className="rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
-   <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
-    {[{label:"Best settled event",value:best===null?"—":formatUsdc(best)},
-      {label:"Worst settled event",value:worst===null?"—":formatUsdc(worst)}].map((x,index)=>
-     <div key={x.label} className={index===1?"border-t border-[#EDF0F5] pt-5 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0":""}>
-      <p className="text-sm text-[#64748B]">{x.label}</p>
-      <p className="mt-2 text-xl font-semibold text-[#11263E]">{x.value}</p>
+   <div className="grid grid-cols-2">
+    {[
+     {label:"Settled events",value:String(settled.length),tone:"text-[#11263E]"},
+     {label:"Win rate",value:winning+losing>0?(winning*100/(winning+losing)).toFixed(1)+"%":"—",tone:"text-[#11263E]"},
+     {label:"Best event",value:best===null?"—":formatUsdc(best),tone:best===null?"text-[#11263E]":best>=0n?"text-emerald-700":"text-red-600"},
+     {label:"Worst event",value:worst===null?"—":formatUsdc(worst),tone:worst===null?"text-[#11263E]":worst<0n?"text-red-600":"text-emerald-700"},
+    ].map((metric,index)=>
+     <div key={metric.label} className={"min-w-0 px-4 py-5 sm:px-7 sm:py-6 "+(index%2===1?"border-l border-[#EDF0F5] ":"")+(index>=2?"border-t border-[#EDF0F5] ":"")}>
+      <p className="text-xs font-medium text-[#64748B] sm:text-sm">{metric.label}</p>
+      <p className={"mt-2 break-words text-xl font-semibold tabular-nums tracking-tight sm:text-2xl "+metric.tone}>{metric.value}</p>
      </div>)}
    </div>
   </section>

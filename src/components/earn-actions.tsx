@@ -10,6 +10,7 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const [amount,setAmount]=useState("");
  const [strategyId,setStrategyId]=useState("");
  const [side,setSide]=useState<"ALLOCATE"|"DEALLOCATE">("ALLOCATE");
+ const [chartRange,setChartRange]=useState("1M");
  const strategy=strategies.find(x=>x.id===strategyId);
  const existingPosition=positions.find(p=>p.strategyId===strategyId&&(p.status==="OPEN"||p.status==="CLOSING"));
  const deallocationBalance=existingPosition?.status==="OPEN"?BigInt(existingPosition.principal):0n;
@@ -56,37 +57,48 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const pageControls=(label:string,page:number,pages:number,setPage:(page:number)=>void)=> <nav aria-label={label+" pagination"} className="mt-4 flex items-center justify-between gap-3 text-sm"><span className="text-[#64748B]">Page {page} of {pages}</span><div className="flex gap-2"><button type="button" onClick={()=>setPage(Math.max(1,page-1))} disabled={page<=1} className="rounded-lg border border-[#DEE5EE] px-3 py-2 font-medium disabled:opacity-40">Previous</button><button type="button" onClick={()=>setPage(Math.min(pages,page+1))} disabled={page>=pages} className="rounded-lg border border-[#DEE5EE] px-3 py-2 font-medium disabled:opacity-40">Next</button></div></nav>;
  return <div className="space-y-8">
   <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
-   <h2 className="text-xl font-semibold text-[#11263E]">Earn market</h2>
-   <label className="mt-5 block text-sm font-semibold text-[#334155]">Market (strategy)
-    <select aria-label="Select market strategy" value={strategyId} onChange={e=>{setStrategyId(e.target.value);setAmount("");setSide("ALLOCATE");setPositionFilter("OPEN");setPositionsPage(1);setTradesPage(1);}} className="mt-2 w-full rounded-xl border border-[#CBD5E1] bg-white px-4 py-3 font-normal">
-     <option value="">Select a market</option>{strategies.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
+   <label className="block text-sm font-semibold text-[#334155]">Strategy
+    <select aria-label="Select strategy" value={strategyId} onChange={e=>{setStrategyId(e.target.value);setAmount("");setSide("ALLOCATE");setPositionFilter("OPEN");setPositionsPage(1);setTradesPage(1);}} className="mt-2 w-full rounded-xl border border-[#CBD5E1] bg-white px-4 py-3 font-normal">
+     <option value="">Select a strategy</option>{strategies.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
     </select>
    </label>
-   <div className="mt-5 overflow-hidden rounded-xl border border-[#E7EDF4] bg-white">
-    <div className="flex items-center justify-between gap-3 border-b border-[#EDF0F5] px-4 py-3">
-     <h3 className="text-sm font-semibold text-[#334155]">Strategy performance</h3>
-     <span className="text-xs text-[#64748B]">USDC · Historical</span>
+   <div className="mt-5 overflow-hidden rounded-xl border border-[#293341] bg-[#1F2632] text-[#E9EDF3]">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#35404E] px-4 py-3">
+     <div><h3 className="text-sm font-semibold">Strategy chart</h3><p className="mt-0.5 text-xs text-[#91A0B2]">{strategy?.name??"Select a strategy"} · Performance</p></div>
+     <span className="rounded-md bg-[#2B3645] px-2 py-1 text-xs text-[#B9C3D1]">USDC</span>
     </div>
-    <div role="img" aria-label="Empty historical strategy performance chart. No verified data is available yet." className="relative h-56 w-full sm:h-72">
-     <svg viewBox="0 0 700 240" preserveAspectRatio="none" className="h-full w-full" aria-hidden="true">
-      {[40,85,130,175,220].map(y=><line key={y} x1="18" x2="680" y1={y} y2={y} stroke="#E8EDF4" strokeWidth="1"/>)}
-      {[120,240,360,480,600].map(x=><line key={x} x1={x} x2={x} y1="16" y2="220" stroke="#F0F3F8" strokeWidth="1"/>)}
-      <line x1="18" x2="680" y1="220" y2="220" stroke="#CBD5E1" strokeWidth="1.5"/>
-      <line x1="18" x2="18" y1="16" y2="220" stroke="#CBD5E1" strokeWidth="1.5"/>
-     </svg>
-     <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6">
-      <div className="rounded-lg bg-white/90 px-4 py-3 text-center shadow-sm ring-1 ring-[#E7EDF4]">
-       <p className="text-sm font-medium text-[#475569]">No performance data yet</p>
-       <p className="mt-1 text-xs text-[#94A3B8]">Verified strategy results will appear here</p>
-      </div>
+    <div className="flex items-center justify-between gap-3 border-b border-[#35404E] px-3 py-2 sm:px-4">
+     <div role="group" aria-label="Chart time range" className="flex min-w-0 flex-wrap items-center gap-1">
+      {["1D","1W","1M","3M","1Y","ALL"].map(range=><button key={range} type="button" aria-pressed={chartRange===range} onClick={()=>setChartRange(range)} className={"rounded px-2 py-1.5 text-xs font-medium "+(chartRange===range?"bg-[#354355] text-white":"text-[#94A3B8] hover:bg-[#2C3645] hover:text-white")}>{range}</button>)}
      </div>
+     <span className="shrink-0 text-xs text-[#8290A3]">Historical</span>
+    </div>
+    <div className="flex items-center gap-4 border-b border-[#35404E] px-4 py-2 text-[11px] text-[#8290A3]">
+     <span>Performance</span><span>Net P&amp;L</span><span>USDC</span>
+    </div>
+    <div role="img" aria-label="Empty strategy performance chart for the selected date range: grid and axes only, with no fabricated prices or returns." className="relative h-64 w-full sm:h-[340px]">
+     <svg viewBox="0 0 700 300" preserveAspectRatio="none" className="h-full w-full" aria-hidden="true">
+      {[36,89,142,195,248].map(y=><line key={y} x1="14" x2="635" y1={y} y2={y} stroke="#35404E" strokeWidth="1"/>)}
+      {[14,138,262,386,510,635].map(x=><line key={x} x1={x} x2={x} y1="12" y2="266" stroke="#35404E" strokeWidth="1"/>)}
+      <line x1="14" x2="635" y1="266" y2="266" stroke="#526073" strokeWidth="1"/>
+      <line x1="635" x2="635" y1="12" y2="266" stroke="#526073" strokeWidth="1"/>
+      {[36,89,142,195,248].map(y=><line key={"tick"+y} x1="635" x2="642" y1={y} y2={y} stroke="#708096" strokeWidth="1"/>)}
+     </svg>
+     <div className="pointer-events-none absolute inset-x-4 top-1/2 -translate-y-1/2 text-center">
+      <span className="inline-block rounded-lg border border-[#435165] bg-[#263241]/95 px-4 py-3 text-xs text-[#B7C3D2]">No verified performance data yet</span>
+     </div>
+     <span className="pointer-events-none absolute bottom-3 left-4 text-[10px] text-[#8290A3]">{chartRange} view</span>
+     <span className="pointer-events-none absolute bottom-3 right-4 text-[10px] text-[#8290A3]">Awaiting historical results</span>
+    </div>
+    <div className="flex items-center gap-4 overflow-x-auto border-t border-[#35404E] px-4 py-3 text-xs text-[#A5B1C1]">
+     <span className="font-semibold text-[#E9EDF3]">Performance</span><span>Allocations</span><span>Realized P&amp;L</span>
     </div>
    </div>
    <div role="group" aria-label="Position action" className="mt-5 grid grid-cols-2 gap-3">
-    <button type="button" aria-pressed={side==="ALLOCATE"} onClick={()=>{setSide("ALLOCATE");setAmount("");}} className={"rounded-lg px-4 py-3 text-sm font-semibold transition "+(side==="ALLOCATE"?"bg-emerald-600 text-white shadow-sm":"border border-[#DCE3EC] bg-[#F4F6FA] text-[#64748B] hover:bg-[#E9EEF5]")}>Allocate</button>
-    <button type="button" aria-pressed={side==="DEALLOCATE"} onClick={()=>{setSide("DEALLOCATE");setAmount("");}} className={"rounded-lg px-4 py-3 text-sm font-semibold transition "+(side==="DEALLOCATE"?"bg-red-600 text-white shadow-sm":"border border-[#DCE3EC] bg-[#F4F6FA] text-[#64748B] hover:bg-[#E9EEF5]")}>Deallocate</button>
+    <button type="button" aria-pressed={side==="ALLOCATE"} onClick={()=>{setSide("ALLOCATE");setAmount("");}} className={"rounded-lg border-2 px-4 py-3 text-sm font-semibold transition-colors "+(side==="ALLOCATE"?"border-emerald-600 bg-emerald-600 text-white shadow-sm":"border-[#94A3B8] bg-white text-[#475569] hover:border-[#64748B] hover:bg-[#F8FAFC]")}>Allocate</button>
+    <button type="button" aria-pressed={side==="DEALLOCATE"} onClick={()=>{setSide("DEALLOCATE");setAmount("");}} className={"rounded-lg border-2 px-4 py-3 text-sm font-semibold transition-colors "+(side==="DEALLOCATE"?"border-red-600 bg-red-600 text-white shadow-sm":"border-[#94A3B8] bg-white text-[#475569] hover:border-[#64748B] hover:bg-[#F8FAFC]")}>Deallocate</button>
    </div>
-   {strategy&&<p className="mt-3 text-xs text-[#64748B]">{existingPosition?.status==="OPEN"?"Existing open position: "+existingPosition.id:existingPosition?.status==="CLOSING"?"Position closing; allocations and reductions are blocked until closure is verified.":"No open position in this market; allocating creates one."}</p>}
+   {strategy&&<p className="mt-3 text-xs text-[#64748B]">{existingPosition?.status==="OPEN"?"Existing open position: "+existingPosition.id:existingPosition?.status==="CLOSING"?"Position closing; allocations and reductions are blocked until closure is verified.":"No open position in this strategy; allocating creates one."}</p>}
    <form className="mt-4 space-y-4" onSubmit={e=>{e.preventDefault();if(!canConfirm||!strategy)return;
     if(side==="ALLOCATE")void submit("/api/earn/allocations",{amount,strategyId:strategy.id,...(existingPosition?{positionId:existingPosition.id}:{})});
     else if(existingPosition)void submit("/api/earn/deallocations",{amount,positionId:existingPosition.id});
@@ -100,8 +112,8 @@ export function EarnActions({available,positions,operations,strategies}:{availab
    <p className="mt-3 text-xs leading-5 text-[#64748B]">Confirmation creates a pending request, not a completed custody movement. Deallocation is credited only after authenticated return of funds.</p>
   </section>
 
-  <section aria-label="Market positions and trades" className="overflow-hidden rounded-[24px] border border-[#E3E8EE] bg-white">
-   <div role="tablist" aria-label="Market activity" className="flex items-center justify-between gap-3 border-b border-[#E3E8EE] px-5 sm:px-7">
+  <section aria-label="Strategy positions and trades" className="overflow-hidden rounded-[24px] border border-[#E3E8EE] bg-white">
+   <div role="tablist" aria-label="Strategy activity" className="flex items-center justify-between gap-3 border-b border-[#E3E8EE] px-5 sm:px-7">
     <div className="flex min-w-0 items-center gap-6">
     <button type="button" id="positions-tab" role="tab" aria-selected={activityTab==="POSITIONS"} aria-controls="market-activity-panel" onClick={()=>setActivityTab("POSITIONS")} className={"border-b-[3px] py-5 text-sm font-semibold transition-colors "+(activityTab==="POSITIONS"?"border-[#635BFF] text-[#11263E]":"border-transparent text-[#64748B] hover:text-[#11263E]")}>Positions <span className="ml-1 text-xs text-[#94A3B8]">({marketPositions.filter(p=>p.status!=="CLOSED").length})</span></button>
     <button type="button" id="trades-tab" role="tab" aria-selected={activityTab==="TRADES"} aria-controls="market-activity-panel" onClick={()=>setActivityTab("TRADES")} className={"border-b-[3px] py-5 text-sm font-semibold transition-colors "+(activityTab==="TRADES"?"border-[#635BFF] text-[#11263E]":"border-transparent text-[#64748B] hover:text-[#11263E]")}>Trades <span className="ml-1 text-xs text-[#94A3B8]">({marketOperations.length})</span></button>
@@ -110,8 +122,8 @@ export function EarnActions({available,positions,operations,strategies}:{availab
    </div>
    <div id="market-activity-panel" role="tabpanel" aria-labelledby={activityTab==="POSITIONS"?"positions-tab":"trades-tab"} className="p-5 sm:p-7">
     {activityTab==="POSITIONS"?<>
-     <div className="mb-4"><h2 className="text-base font-semibold text-[#11263E]">Positions</h2><p className="mt-1 text-xs text-[#64748B]">{strategy?strategy.name:"Select a market to view positions"}</p></div>
-     <div role="region" aria-label="Positions for selected market" tabIndex={0} className="max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
+     <p className="mb-3 text-xs text-[#64748B]">View and manage positions for the selected strategy.</p>
+     <div role="region" aria-label="Positions for selected strategy" tabIndex={0} className="max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
       <table className="w-full min-w-[800px] border-collapse text-left">
        <thead className="bg-[#F8FAFC]"><tr>{["Position ID","Allocated","Status","Created","Action"].map(h=><th key={h} scope="col" className={heading}>{h}</th>)}</tr></thead>
        <tbody className="divide-y divide-[#EDF0F5]">
@@ -125,23 +137,23 @@ export function EarnActions({available,positions,operations,strategies}:{availab
           <button type="button" disabled={working||p.status!=="OPEN"} onClick={()=>void submit("/api/earn/positions/close",{positionId:p.id})} className="ml-2 rounded-lg border px-3 py-2 font-semibold disabled:opacity-40">Close</button>
          </>}</td>
         </tr>)}
-        {filteredPositions.length===0&&<tr><td colSpan={5} className="px-5 py-8 text-sm text-[#64748B]">{!strategyId?"Select a market above to view positions.":positionFilter==="OPEN"?"No open positions in this market.":"No positions in this market yet."}</td></tr>}
+        {filteredPositions.length===0&&<tr><td colSpan={5} className="px-5 py-8 text-sm text-[#64748B]">{!strategyId?"Select a strategy above to view positions.":positionFilter==="OPEN"?"No open positions for this strategy.":"No positions for this strategy yet."}</td></tr>}
        </tbody>
       </table>
      </div>
      {pageControls("Market positions",shownPositionsPage,positionPages,setPositionsPage)}
     </>:<>
-     <div className="mb-4"><h2 className="text-base font-semibold text-[#11263E]">Trades</h2><p className="mt-1 text-xs text-[#64748B]">Allocation and deallocation activity{strategy?" · "+strategy.name:" for the selected market"}</p></div>
-     <div role="region" aria-label="Trades for selected market" tabIndex={0} className="max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
+     <p className="mb-3 text-xs text-[#64748B]">Allocation and deallocation history for the selected strategy.</p>
+     <div role="region" aria-label="Trades for selected strategy" tabIndex={0} className="max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-[#E7EDF4]">
       <table className="w-full min-w-[940px] border-collapse text-left">
        <thead className="bg-[#F8FAFC]"><tr>{["Requested","Type","Amount","Status","Position ID","Operation ID","Completed"].map(h=><th key={h} scope="col" className={heading}>{h}</th>)}</tr></thead>
        <tbody className="divide-y divide-[#EDF0F5]">
         {pagedTrades.map(o=><tr key={o.id}><td className={cell}>{o.created}</td><td className={cell}><span className={o.type==="ALLOCATE"?"font-semibold text-emerald-700":"font-semibold text-red-600"}>{o.type==="ALLOCATE"?"Allocate":"Deallocate"}</span></td><td className={cell}>{money(o.amount)}</td><td className={cell}>{o.status}</td><td className={cell+" font-mono text-xs"}>{o.positionId}</td><td className={cell+" font-mono text-xs"}>{o.id}</td><td className={cell}>{o.completed??"—"}</td></tr>)}
-        {marketOperations.length===0&&<tr><td colSpan={7} className="px-5 py-8 text-sm text-[#64748B]">{strategyId?"No trades recorded for this market yet.":"Select a market above to view trade history."}</td></tr>}
+        {marketOperations.length===0&&<tr><td colSpan={7} className="px-5 py-8 text-sm text-[#64748B]">{strategyId?"No trades recorded for this strategy yet.":"Select a strategy above to view trade history."}</td></tr>}
        </tbody>
       </table>
      </div>
-     {pageControls("Market trades",shownTradesPage,tradePages,setTradesPage)}
+     {pageControls("Strategy trades",shownTradesPage,tradePages,setTradesPage)}
     </>}
    </div>
   </section>

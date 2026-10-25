@@ -1,4 +1,3 @@
-import { ArrowUpFromLine, Clock3, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import QRCode from "qrcode";
@@ -16,8 +15,7 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
  const requestedPage=Number.isSafeInteger(rawPage)&&rawPage>0?Math.min(rawPage,100000):1;
  const user=await requireUser();
  const account=await prisma.user.findUniqueOrThrow({where:{id:user.id},select:{unallocated:true}});
- const [positions, depositWallet, depositCount, pendingWithdrawals, pendingAllocations]=await Promise.all([
-  prisma.investorPosition.findMany({where:{userId:user.id}}),
+ const [depositWallet, depositCount, pendingWithdrawals, pendingAllocations]=await Promise.all([
   prisma.investorDepositWallet.findUnique({where:{userId:user.id}}),
   prisma.blockchainDeposit.count({where:{wallet:{userId:user.id}}}),
   prisma.withdrawal.aggregate({where:{userId:user.id,status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{grossUsdcMicros:true}}),
@@ -29,28 +27,6 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{d
  const qr = depositWallet?.status === "ACTIVE" && depositWallet.address ? await QRCode.toDataURL(depositWallet.address, {errorCorrectionLevel:"M",width:220,margin:2}) : null;
  return <Shell><div className="mx-auto max-w-5xl">
   <p className="mb-6 text-sm text-[#425466]">Manage your Solana USDC deposits, withdrawals, and balances.</p>
-  <section aria-labelledby="capital-breakdown-heading" className="mt-8 rounded-2xl border border-[#E3E8EE] bg-white p-5 sm:p-6">
-      <h2 id="capital-breakdown-heading" className="text-xl font-semibold tracking-tight text-[#11263E]">Capital breakdown</h2>
-      <p className="mt-1 text-sm text-[#64748B]">Your allocated and unallocated balances at a glance.</p>
-      <div className="mt-5 grid gap-5 sm:grid-cols-2 sm:gap-0">
-        <div className="min-w-0 pb-5 sm:pb-0 sm:pr-6">
-          <p className="flex items-center gap-2 text-sm font-medium text-[#5B6B7F]"><ShieldCheck size={17}/>Allocated capital</p>
-          <p className="mt-3 text-2xl font-bold tracking-tight text-[#11263E] sm:text-3xl">{formatUsdc(positions.reduce((sum,p)=>sum+p.allocatedUsdcMicros,0n))}</p>
-          <p className="mt-2 text-xs text-[#7A889A]">May require deallocation</p>
-        </div>
-        <div className="min-w-0 border-t border-[#EDF1F6] pt-5 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
-          <p className="flex items-center gap-2 text-sm font-medium text-[#5B6B7F]"><ArrowUpFromLine size={17}/>Unallocated capital</p>
-          <p className="mt-3 text-2xl font-bold tracking-tight text-[#11263E] sm:text-3xl">{formatUsdc(account.unallocated)}</p>
-          <p className="mt-2 text-xs text-[#7A889A]">Not currently allocated</p>
-        </div>
-      </div>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#EDF1F6] pt-4">
-        <p className="flex items-center gap-2 text-sm text-[#78869A]"><Clock3 size={15}/>Pending withdrawals</p>
-        <p className="text-sm font-semibold tabular-nums text-[#5B6B7F]">{formatUsdc(pendingWithdrawals._sum.grossUsdcMicros??0n)}</p>
-      </div>
-      <p className="mt-1 text-xs text-[#8A97A8]">Withdrawal and allocation requests reserve unallocated capital and reduce the available balance.</p>
-      <p className="mt-2 text-xs text-[#8A97A8]">Pending allocations: {formatUsdc(pendingAllocations._sum.amountUsdcMicros??0n)}</p>
-    </section>
   <section className="mt-8 rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-2xl font-semibold tracking-tight">Deposit USDC</h2><p className="mt-2 text-sm text-[#425466]">Use your personal Solana deposit address to add funds.</p></div><span className="rounded-full bg-[#F0EEFF] px-3 py-1.5 text-xs font-semibold text-[#635BFF]">Solana · USDC</span></div>
    {depositWallet?.status === "ACTIVE" && depositWallet.address ? <div className="mt-5 space-y-4">
