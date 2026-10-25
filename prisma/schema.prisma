@@ -435,7 +435,7 @@ model WebhookQueue {
   id String @id @default(cuid())
   source WebhookSource
   eventType String @map("event_type") @db.VarChar(120)
-  idempotencyKey String @map("idempotency_key") @db.VarChar(200)
+  idempotencyKey String @map("request_key") @db.VarChar(200)
   payload Json
   status WebhookQueueStatus @default(PENDING)
   createdAt DateTime @default(now()) @map("created_at")
@@ -515,7 +515,7 @@ model Send {
   amount BigInt @map("amount")
   senderHandle String @map("sender_handle") @db.VarChar(8)
   recipientHandle String @map("recipient_handle") @db.VarChar(8)
-  idempotencyKey String @unique @map("idempotency_key") @db.VarChar(100)
+  idempotencyKey String @unique @map("request_key") @db.VarChar(100)
   @@index([senderUserId,createdAt])
   @@index([recipientUserId,createdAt])
   @@map("sends")
