@@ -10,9 +10,11 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const [amount,setAmount]=useState("");
  const [strategyId,setStrategyId]=useState("");
  const [side,setSide]=useState<"ALLOCATE"|"DEALLOCATE">("ALLOCATE");
+ const [targetPositionId,setTargetPositionId]=useState("");
  const [chartRange,setChartRange]=useState("1M");
  const strategy=strategies.find(x=>x.id===strategyId);
- const existingPosition=positions.find(p=>p.strategyId===strategyId&&(p.status==="OPEN"||p.status==="CLOSING"));
+ const strategyPositions=positions.filter(p=>p.strategyId===strategyId&&p.status==="OPEN");
+ const existingPosition=strategyPositions.find(p=>p.id===targetPositionId);
  const deallocationBalance=existingPosition?.status==="OPEN"?(()=>{const remaining=BigInt(existingPosition.principal)-BigInt(existingPosition.reserved);return remaining>0n?remaining:0n;})():0n;
  const availableBalance=side==="ALLOCATE"?BigInt(available):deallocationBalance;
  const amountIsValid=/^(0|[1-9]\d*)(\.\d{1,6})?$/.test(amount);
@@ -23,7 +25,7 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
  const canConfirm=!!strategy&&!working&&amountMicros>0n&&amountMicros<=availableBalance&&(
-  side==="ALLOCATE"?(existingPosition?.status!=="CLOSING"&&amountMicros>=BigInt(strategy.min)&&amountMicros<=BigInt(strategy.max)&&amountMicros<=BigInt(strategy.capacity)):
+  side==="ALLOCATE"?(amountMicros>=BigInt(strategy.min)&&amountMicros<=BigInt(strategy.max)&&amountMicros<=BigInt(strategy.capacity)):
   (existingPosition?.status==="OPEN"));
 
  const [activityTab,setActivityTab]=useState<"POSITIONS"|"TRADES">("POSITIONS");
@@ -58,7 +60,7 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  return <div className="space-y-8">
   <section className="rounded-[24px] border border-[#E3E8EE] bg-white p-6 sm:p-8">
    <div>
-    <select aria-label="Select strategy" value={strategyId} onChange={e=>{setStrategyId(e.target.value);setAmount("");setSide("ALLOCATE");setPositionFilter("OPEN");setPositionsPage(1);setTradesPage(1);}} className="w-full rounded-xl border border-[#CBD5E1] bg-white px-4 py-3 font-normal">
+    <select aria-label="Select strategy" value={strategyId} onChange={e=>{setStrategyId(e.target.value);setTargetPositionId("");setAmount("");setSide("ALLOCATE");setPositionFilter("OPEN");setPositionsPage(1);setTradesPage(1);}} className="w-full rounded-xl border border-[#CBD5E1] bg-white px-4 py-3 font-normal">
      <option value="">Select a strategy</option>{strategies.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
     </select>
    </div>
@@ -95,10 +97,18 @@ export function EarnActions({available,positions,operations,strategies}:{availab
     </div>
    </div>
    <div role="group" aria-label="Position action" className="mt-5 grid grid-cols-2 gap-3">
-    <button type="button" aria-pressed={side==="ALLOCATE"} onClick={()=>{setSide("ALLOCATE");setAmount("");}} className={"rounded-lg border-2 px-4 py-3 text-sm font-semibold transition-colors "+(side==="ALLOCATE"?"border-emerald-600 bg-emerald-600 text-white shadow-sm":"border-[#94A3B8] bg-white text-[#475569] hover:border-[#64748B] hover:bg-[#F8FAFC]")}>Allocate</button>
-    <button type="button" aria-pressed={side==="DEALLOCATE"} onClick={()=>{setSide("DEALLOCATE");setAmount("");}} className={"rounded-lg border-2 px-4 py-3 text-sm font-semibold transition-colors "+(side==="DEALLOCATE"?"border-red-600 bg-red-600 text-white shadow-sm":"border-[#94A3B8] bg-white text-[#475569] hover:border-[#64748B] hover:bg-[#F8FAFC]")}>Deallocate</button>
+    <button type="button" aria-pressed={side==="ALLOCATE"} onClick={()=>{setSide("ALLOCATE");setTargetPositionId("");setAmount("");}} className={"rounded-lg border-2 px-4 py-3 text-sm font-semibold transition-colors "+(side==="ALLOCATE"?"border-emerald-600 bg-emerald-600 text-white shadow-sm":"border-[#94A3B8] bg-white text-[#475569] hover:border-[#64748B] hover:bg-[#F8FAFC]")}>Allocate</button>
+    <button type="button" aria-pressed={side==="DEALLOCATE"} onClick={()=>{setSide("DEALLOCATE");setTargetPositionId("");setAmount("");}} className={"rounded-lg border-2 px-4 py-3 text-sm font-semibold transition-colors "+(side==="DEALLOCATE"?"border-red-600 bg-red-600 text-white shadow-sm":"border-[#94A3B8] bg-white text-[#475569] hover:border-[#64748B] hover:bg-[#F8FAFC]")}>Deallocate</button>
    </div>
-   {strategy&&<p className="mt-3 text-xs text-[#64748B]">{existingPosition?.status==="OPEN"?"Existing open position: "+existingPosition.id:existingPosition?.status==="CLOSING"?"Position closing; allocations and reductions are blocked until closure is verified.":"No open position in this strategy; allocating creates one."}</p>}
+   {strategy&&<div className="mt-4">
+    <label className="block text-sm font-semibold text-[#334155]">{side==="ALLOCATE"?"Allocate to":"Deallocate from"}
+     <select aria-label="Select position" className="mt-2 w-full rounded-xl border border-[#CBD5E1] bg-white px-4 py-3 font-normal"
+      value={targetPositionId} onChange={e=>{setTargetPositionId(e.target.value);setAmount("");}}>
+      <option value="">{side==="ALLOCATE"?"Create a new position":"Select an open position"}</option>
+      {strategyPositions.map(p=><option key={p.id} value={p.id}>{p.id} · {money(p.principal)}</option>)}
+     </select>
+    </label>
+   </div>}
    <form className="mt-4 space-y-4" onSubmit={e=>{e.preventDefault();if(!canConfirm||!strategy)return;
     if(side==="ALLOCATE")void submit("/api/earn/allocations",{amount,strategyId:strategy.id,...(existingPosition?{positionId:existingPosition.id}:{})});
     else if(existingPosition)void submit("/api/earn/deallocations",{amount,positionId:existingPosition.id});
