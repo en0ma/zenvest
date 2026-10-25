@@ -28,6 +28,7 @@ CREATE TABLE "sends" (
   "sender_user_id" TEXT NOT NULL,
   "recipient_user_id" TEXT NOT NULL,
   "amount" BIGINT NOT NULL,
+  "note" VARCHAR(250),
   "sender_handle" VARCHAR(8) NOT NULL,
   "recipient_handle" VARCHAR(8) NOT NULL,
   "request_key" VARCHAR(100) NOT NULL,
