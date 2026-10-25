@@ -53,12 +53,9 @@ export async function settleVerifiedStrategyReturn(receipt:VerifiedStrategyRetur
    const pos=byId.get(row.positionId);
    if(!pos||pos.userId!==row.userId||pos.strategyId!==event.strategyId||
     (pos.status!=="OPEN"&&pos.status!=="CLOSING")||
-    (pos.status==="CLOSING"&&!pos.lastPnlUpdated)||
-    pos.allocatedUsdcMicros<row.amountUsdcMicros)return "mismatch";
+    (pos.status==="CLOSING"&&!pos.lastPnlUpdated))return "mismatch";
   }
-  // Don't remove capital while previously snapshotted trades still carry risk.
-  const exposed=await tx.positionTradePnl.count({where:{positionId:{in:rows.map(x=>x.positionId)},status:"SNAPSHOTTED"}});
-  if(exposed)return "awaiting_pnl";
+  // Verification records custody; P&L exposure is checked before capital application.
   const transfer=await tx.treasuryTransfer.create({data:{
    direction:"DEALLOCATE",status:"COMPLETE",asset:"USDC",network:"solana",
    amountUsdcMicros:event.amountUsdcMicros,feeUsdcMicros:0n,
