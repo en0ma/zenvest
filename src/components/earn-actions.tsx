@@ -28,8 +28,6 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const [activityTab,setActivityTab]=useState<"POSITIONS"|"TRADES">("POSITIONS");
  const [positionFilter,setPositionFilter]=useState<"OPEN"|"ALL">("OPEN");
  const [positionsPage,setPositionsPage]=useState(1);
- const [allocationsPage,setAllocationsPage]=useState(1);
- const [deallocationsPage,setDeallocationsPage]=useState(1);
  const PAGE_SIZE=10;
  const marketPositions=positions.filter(p=>p.strategyId===strategyId);
  const filteredPositions=marketPositions.filter(p=>positionFilter==="ALL"||p.status==="OPEN"||p.status==="CLOSING");
@@ -41,14 +39,6 @@ export function EarnActions({available,positions,operations,strategies}:{availab
  const [tradesPage,setTradesPage]=useState(1);
  const shownTradesPage=Math.min(tradesPage,tradePages);
  const pagedTrades=marketOperations.slice((shownTradesPage-1)*PAGE_SIZE,shownTradesPage*PAGE_SIZE);
- const allocations=operations.filter(o=>o.type==="ALLOCATE");
- const deallocations=operations.filter(o=>o.type==="DEALLOCATE");
- const allocationPages=Math.max(1,Math.ceil(allocations.length/PAGE_SIZE));
- const deallocationPages=Math.max(1,Math.ceil(deallocations.length/PAGE_SIZE));
- const shownAllocationsPage=Math.min(allocationsPage,allocationPages);
- const shownDeallocationsPage=Math.min(deallocationsPage,deallocationPages);
- const pagedAllocations=allocations.slice((shownAllocationsPage-1)*PAGE_SIZE,shownAllocationsPage*PAGE_SIZE);
- const pagedDeallocations=deallocations.slice((shownDeallocationsPage-1)*PAGE_SIZE,shownDeallocationsPage*PAGE_SIZE);
  async function submit(path:string,payload:Record<string,string>){
   setError("");setNotice("");setWorking(true);
   try{
