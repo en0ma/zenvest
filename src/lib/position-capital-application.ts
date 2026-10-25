@@ -34,13 +34,6 @@ export async function applyVerifiedCapitalEvent(eventId:string):Promise<string>{
   if(exposed)return "awaiting_pnl";
   const totals=new Map<string,bigint>();
   for(const row of rows)totals.set(row.positionId,(totals.get(row.positionId)??0n)+row.amountUsdcMicros);
-  if(event.kind==="DEALLOCATE"){
-   for(const [id,amount] of totals){
-    if((byId.get(id)?.allocatedUsdcMicros??0n)<amount)return "insufficient_equity_reconcile";
-    const position=byId.get(id)!;
-    if(position.status==="CLOSING"&&position.allocatedUsdcMicros!==amount)return "closing_equity_mismatch";
-   }
-  }
   const claimed=await tx.positionAllocation.updateMany({where:{
    strategyEventId:event.id,kind:event.kind,status:desired},
    data:{status:"COMPLETED"}});
@@ -55,11 +48,6 @@ export async function applyVerifiedCapitalEvent(eventId:string):Promise<string>{
      data:{allocatedUsdcMicros:{increment:row.amountUsdcMicros}}});
     if(credited.count!==1)throw new Error("Position state changed during funding");
    }else{
-    const debited=await tx.investorPosition.updateMany({where:{id:row.positionId,
-     userId:row.userId,strategyId:event.strategyId,status:{in:["OPEN","CLOSING"]},
-     allocatedUsdcMicros:{gte:row.amountUsdcMicros}},
-     data:{allocatedUsdcMicros:{decrement:row.amountUsdcMicros}}});
-    if(debited.count!==1)throw new Error("Position equity changed during return");
     await tx.user.update({where:{id:row.userId},data:{unallocated:{increment:row.amountUsdcMicros}}});
    }
    await tx.investorActivity.create({data:{
