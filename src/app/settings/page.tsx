@@ -1,23 +1,76 @@
 import Link from "next/link";
-import { CheckCircle2, KeyRound, LockKeyhole, ShieldCheck, UserRound } from "lucide-react";
-import { Shell } from "@/components/shell";
-import { PageIntro, DetailPanel } from "@/components/investor-ui";
-import { requireUser } from "@/lib/access";
-import { prisma } from "@/lib/db";
+import {CalendarDays,CheckCircle2,ChevronRight,CircleHelp,KeyRound,LifeBuoy,LockKeyhole,Settings2,ShieldCheck,UsersRound,UserRound,Send,ArrowUpFromLine} from "lucide-react";
+import {Shell} from "@/components/shell";
+import {requireUser} from "@/lib/access";
+import {prisma} from "@/lib/db";
+
 export const dynamic="force-dynamic";
+
+const surface="rounded-2xl border border-[#E2E7EF] bg-white";
+const iconTile="flex h-10 w-10 shrink-0 items-center justify-center rounded-full";
+function shortAddress(s:string){return s.length>20?s.slice(0,7)+"…"+s.slice(-5):s;}
+function SettingRow({icon:Icon,title,description,href,status,tint="violet"}:{icon:typeof UserRound;title:string;description:string;href?:string;status?:string;tint?:"violet"|"green"}){
+ const row=<div className="flex min-w-0 items-center gap-3 py-4 sm:py-5">
+  <span className={iconTile+(tint==="green"?" bg-[#E8F8F1] text-[#07875D]":" bg-[#F1EEFF] text-[#635BFF]")}><Icon size={20} strokeWidth={1.9}/></span>
+  <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-[#14253D]">{title}</p><p className="mt-1 text-xs leading-5 text-[#64748B]">{description}</p></div>
+  {status&&<span className="hidden shrink-0 items-center gap-1 rounded-full bg-[#E8F8F1] px-2.5 py-1 text-xs font-medium text-[#07875D] sm:inline-flex"><CheckCircle2 size={13}/>{status}</span>}
+  {href&&<ChevronRight size={18} className="shrink-0 text-[#60718B]"/>}
+ </div>;
+ return href?<Link href={href} className="block rounded-lg transition hover:bg-[#FAFAFF] focus-visible:outline-2 focus-visible:outline-[#635BFF]">{row}</Link>:row;
+}
 export default async function SettingsPage(){
  const session=await requireUser();
  const [user,recipients]=await Promise.all([
   prisma.user.findUnique({where:{id:session.id},select:{handle:true,email:true,emailVerifiedAt:true,createdAt:true}}),
   prisma.userRecipient.findMany({where:{userId:session.id},orderBy:[{createdAt:"desc"},{id:"desc"}],select:{id:true,kind:true,name:true,handle:true,walletAddress:true,network:true,status:true,createdAt:true}})
  ]);
- if(!user)return <Shell><PageIntro eyebrow="Investor portal / Account" title="Settings" description="Your account details are temporarily unavailable."/></Shell>;
- return <Shell><PageIntro eyebrow="Investor portal / Account" title="Settings" description="Your profile, sign-in security and account preferences in one place."/>
- <section className="rounded-2xl border border-[#DEE3ED] bg-white p-7 sm:p-9"><div className="flex items-center gap-3"><span className="rounded-xl bg-[#EEEAFE] p-3 text-[#5145A8]"><UserRound size={22}/></span><h2 className="text-xl font-semibold">Profile details</h2></div><dl className="mt-7 grid gap-6 sm:grid-cols-2"><div><dt className="text-xs font-semibold uppercase tracking-wide text-[#917f70]">Handle</dt><dd className="mt-2 font-semibold text-[#14253D]">@{user.handle}</dd></div><div><dt className="text-xs font-semibold uppercase tracking-wide text-[#917f70]">Email address</dt><dd className="mt-2 break-all font-semibold text-[#14253D]">{user.email}</dd></div><div><dt className="text-xs font-semibold uppercase tracking-wide text-[#917f70]">Email verification</dt><dd className="mt-2 flex items-center gap-2 text-[#14253D]">{user.emailVerifiedAt?<><CheckCircle2 size={17} className="text-[#5145A8]"/> Verified</>:"Pending verification"}</dd></div><div><dt className="text-xs font-semibold uppercase tracking-wide text-[#917f70]">Member since</dt><dd className="mt-2 font-semibold text-[#14253D]">{new Intl.DateTimeFormat("en-GB",{dateStyle:"medium",timeZone:"UTC"}).format(user.createdAt)}</dd></div></dl><p className="mt-7 border-t border-[#eee6dd] pt-5 text-sm text-[#52637B]">Your registered details are shown here for review. Changes to your email and handle aren't available yet.</p></section>
- <section aria-labelledby="recipients-title" className="mt-6 rounded-2xl border border-[#DEE3ED] bg-white p-5 sm:p-7">
- <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 id="recipients-title" className="text-lg font-semibold text-[#14253D]">Saved recipients</h2><p className="mt-1 text-sm text-[#64748B]">Read-only contacts saved during wallet transfers and withdrawals.</p></div><span className="rounded-full bg-[#F2F3FF] px-3 py-1 text-xs font-medium text-[#635BFF]">{recipients.length} saved</span></div>
- {recipients.length===0?<p className="mt-4 rounded-xl bg-[#F8FAFC] px-4 py-5 text-sm text-[#64748B]">No saved recipients yet. You can save a recipient when sending or withdrawing USDC.</p>:<div className="mt-4 divide-y divide-[#EDF0F5]">{recipients.map(r=><div key={r.id} className="grid gap-2 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><div className="min-w-0"><p className="text-sm font-semibold text-[#14253D]">{r.name}</p><p className="mt-1 break-all font-mono text-xs text-[#64748B]">{r.kind==="SEND"?"@"+r.handle:r.walletAddress}</p></div><div className="flex flex-wrap items-center gap-2 text-[11px]"><span className="rounded-full bg-[#F2F3FF] px-2.5 py-1 font-semibold text-[#635BFF]">{r.kind==="SEND"?"Send @":"Withdraw"}</span>{r.network&&<span className="text-[#64748B]">{r.network}</span>}<span className="text-[#64748B]">{r.status}</span></div></div>)}</div>}
- </section>
- <div className="mt-6 grid gap-5 lg:grid-cols-2"><DetailPanel icon={KeyRound} title="Password & account recovery" description="Keep your password private. If you need to choose a new one, use the secure email recovery flow." link="/forgot-password" linkText="Reset password"/><DetailPanel icon={ShieldCheck} title="Account security" description="Your account requires a verified email to sign in. Never share one-time email links or your password with anyone."/></div>
- <section className="mt-6 rounded-2xl border border-[#DEE3ED] bg-[#F6F8FB] p-6"><div className="flex gap-3 items-center text-[#14253D]"><LockKeyhole size={18}/><h2 className="font-semibold">Privacy & support</h2></div><p className="mt-3 text-sm text-[#52637B] leading-7">Review how your information is handled and the terms that apply to your account.</p><div className="mt-4 flex flex-wrap gap-5 text-sm font-bold text-[#5145A8]"><Link href="/privacy" className="hover:underline">Privacy notice</Link><Link href="/terms" className="hover:underline">Terms and conditions</Link><Link href="/risk" className="hover:underline">Risk disclosure</Link></div></section></Shell>;
+ if(!user)return <Shell><main className="mx-auto max-w-4xl px-1"><h1 className="text-2xl font-semibold">Settings</h1><p className="mt-2 text-sm text-[#64748B]">Your account details are temporarily unavailable.</p></main></Shell>;
+ const sendRecipients=recipients.filter(r=>r.kind==="SEND");
+ const withdrawalRecipients=recipients.filter(r=>r.kind==="WITHDRAW");
+ const date=new Intl.DateTimeFormat("en-GB",{dateStyle:"medium",timeZone:"UTC"}).format(user.createdAt);
+ const verified=!!user.emailVerifiedAt;
+ return <Shell><main className="mx-auto max-w-4xl space-y-4 pb-8 text-[#14253D] sm:space-y-5">
+  <header className="px-1 pb-1"><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Settings</h1><p className="mt-1 text-sm text-[#64748B]">Manage your profile, security and preferences.</p></header>
+  <section id="profile" className={surface+" scroll-mt-24 p-4 sm:p-6"} aria-label="Profile">
+   <div className="flex min-w-0 items-center gap-3 sm:gap-5">
+    <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#EEEAFE] text-[#5145A8] sm:h-20 sm:w-20"><UserRound size={30} strokeWidth={1.7}/></span>
+    <div className="min-w-0 flex-1">
+     <p className="text-base font-bold text-[#14253D]">@{user.handle}</p>
+     <p className="mt-0.5 break-all text-sm text-[#64748B]">{user.email}</p>
+     <div className="mt-2 flex flex-wrap items-center gap-2">
+      <span className={"inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium "+(verified?"bg-[#E8F8F1] text-[#07875D]":"bg-[#FFF7E8] text-[#946A22]")}><CheckCircle2 size={13}/>{verified?"Email verified":"Verification pending"}</span>
+      <span className="inline-flex items-center gap-1 rounded-full bg-[#F5F7FA] px-2.5 py-1 text-[11px] text-[#64748B]"><CalendarDays size={13}/>Joined {date}</span>
+     </div>
+    </div>
+   </div>
+  </section>
+  <section className={surface+" p-4 sm:p-5"} aria-label="Quick actions">
+   <h2 className="mb-3 text-base font-bold">Quick actions</h2>
+   <div className="grid grid-cols-4 gap-2">
+    {([{name:"Security",icon:LockKeyhole,href:"#security"},{name:"Recipients",icon:UsersRound,href:"#recipients"},{name:"Preferences",icon:Settings2,href:"#preferences"},{name:"Support",icon:LifeBuoy,href:"#support"}] as const).map(a=><Link href={a.href} key={a.name} className="flex min-w-0 flex-col gap-2 rounded-xl bg-[#F5F5FF] px-2 py-3 text-[#635BFF] transition hover:bg-[#ECEBFF] focus-visible:outline-2 focus-visible:outline-[#635BFF] sm:p-4"><a.icon size={22} strokeWidth={1.9}/><span className="flex w-full items-center justify-between gap-1"><span className="truncate text-[10px] font-semibold text-[#14253D] sm:text-sm">{a.name}</span><ChevronRight size={13} className="hidden shrink-0 sm:block"/></span></Link>)}
+   </div>
+  </section>
+  <section id="recipients" className={surface+" scroll-mt-24 p-4 sm:p-6"} aria-labelledby="recipients-heading">
+   <div className="flex items-center justify-between gap-3"><h2 id="recipients-heading" className="text-base font-bold sm:text-lg">Saved recipients</h2><span className="text-xs font-semibold text-[#635BFF]">{recipients.length} saved</span></div>
+   {recipients.length===0?<div className="mt-4 rounded-xl bg-[#F7F9FC] p-4 text-sm text-[#64748B]">No saved recipients yet. You can save a recipient when sending or withdrawing USDC.</div>:<div className="mt-4 space-y-4">
+    {([{kind:"SEND" as const,title:"SEND",items:sendRecipients,icon:Send,color:"text-[#079263]",bg:"bg-[#E8F8F1]"},{kind:"WITHDRAW" as const,title:"WITHDRAW",items:withdrawalRecipients,icon:ArrowUpFromLine,color:"text-[#D47433]",bg:"bg-[#FFF0E5]"}] as const).filter(g=>g.items.length>0).map(g=><div key={g.kind}>
+     <div className="flex items-center gap-2 py-1"><span className={"flex h-7 w-7 items-center justify-center rounded-full "+g.bg+" "+g.color}><g.icon size={15}/></span><h3 className="text-xs font-semibold tracking-wide text-[#64748B]">{g.title} ({g.items.length})</h3></div>
+     <div className="divide-y divide-[#E9EDF4]">{g.items.map(r=><div key={r.id} className="flex min-w-0 items-center gap-3 py-3">
+      <span className={"flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold "+(g.kind==="SEND"?"bg-[#F0EDFF] text-[#635BFF]":"bg-[#FFF0E5] text-[#D47433]")}>{r.name.slice(0,1).toUpperCase()}</span>
+      <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{r.name}</p><p className="mt-1 truncate text-xs text-[#64748B]">{g.kind==="SEND"?"@"+r.handle:shortAddress(r.walletAddress??"")}{r.network?" · "+r.network:""}</p></div>
+      <span className={"rounded-full px-3 py-1 text-[11px] font-semibold "+(g.kind==="SEND"?"bg-[#E8F8F1] text-[#07875D]":"bg-[#FFF0E5] text-[#BA6327]")}>{g.kind==="SEND"?"Send":"Withdraw"}</span>
+     </div>)}</div>
+    </div>)}
+   </div>}
+  </section>
+  <section id="security" className={surface+" scroll-mt-24 divide-y divide-[#E9EDF4] px-4 sm:px-6"} aria-label="Security and account">
+   <SettingRow icon={KeyRound} title="Password & account recovery" description="Reset your password or manage recovery options." href="/forgot-password"/>
+   <SettingRow icon={ShieldCheck} title="Account security" description={verified?"Your account is protected with a verified email.":"Verify your email to protect your account."} status={verified?"Verified":undefined} tint="green"/>
+  </section>
+  <section id="preferences" className={surface+" scroll-mt-24 divide-y divide-[#E9EDF4] px-4 sm:px-6"} aria-label="Preferences and support">
+   <SettingRow icon={Settings2} title="Preferences" description="Account preferences and app settings."/>
+   <div id="support" className="scroll-mt-24"><SettingRow icon={LifeBuoy} title="Help & support" description="Privacy, terms and support resources."/></div>
+   <div className="flex flex-wrap gap-x-5 gap-y-3 py-4 text-xs font-medium text-[#635BFF]"><Link href="/privacy" className="hover:underline">Privacy notice</Link><Link href="/terms" className="hover:underline">Terms and conditions</Link><Link href="/risk" className="hover:underline">Risk disclosure</Link></div>
+  </section>
+ </main></Shell>;
 }
