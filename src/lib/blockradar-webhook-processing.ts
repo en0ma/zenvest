@@ -149,11 +149,16 @@ export async function processVerifiedBlockradarQueueItem(request: Request) {
         data:{status:"CONFIRMED",sweepHash:sweepHash as string,creditedAt:new Date()},
       });
       if(changed.count!==1) return "duplicate";
+      // The deposit amount is gross. Credit only the net after the recorded
+      // sweep fee; the current configured/recorded fee defaults to zero.
+      const depositFee=prior.feeUsdcMicros;
+      if(depositFee<0n||depositFee>amount)throw new Error("Invalid deposit sweep fee");
+      const netDeposit=amount-depositFee;
       // Record custody movement atomically with the confirmed investor deposit.
       // The conditional CONFIRMING -> CONFIRMED transition is the idempotency gate.
       const treasuryTransaction=await tx.treasuryTransfer.create({data:{
         direction:"DEPOSIT",status:"COMPLETE",
-        assetId:mint,asset:"USDC",amountUsdcMicros:amount,feeUsdcMicros:0n,
+        assetId:mint,asset:"USDC",amountUsdcMicros:netDeposit,feeUsdcMicros:depositFee,
         destinationWalletAddress:master.address as string,
         network:"solana",masterWalletAddress:master.address as string,
         masterWalletId,originExternalId:recipient,
@@ -162,11 +167,16 @@ export async function processVerifiedBlockradarQueueItem(request: Request) {
       }});
       await tx.blockchainDeposit.update({where:{id:prior.id},data:{treasuryTransactionId:treasuryTransaction.id}});
 
-      await tx.user.update({where:{id:wallet.userId},data:{unallocated:{increment:amount}}});
-      await tx.treasury.upsert({where:{kind:"DEPOSIT"},create:{walletAddress:master.address as string,walletId:masterWalletId,asset:"USDC",network:"solana",source:"MASTER_WALLET",kind:"DEPOSIT",amount},update:{amount:{increment:amount}}});
+      await tx.user.update({where:{id:wallet.userId},data:{unallocated:{increment:netDeposit}}});
+      await tx.treasury.upsert({where:{kind:"DEPOSIT"},create:{walletAddress:master.address as string,walletId:masterWalletId,asset:"USDC",network:"solana",source:"MASTER_WALLET",kind:"DEPOSIT",amount:netDeposit},update:{amount:{increment:netDeposit}}});
+      // Retained sweep fees are platform-owned and not investor spendable funds.
+      // Always initialize/update the DEPOSIT_FEE bucket, including zero-fee sweeps.
+      await tx.treasury.upsert({where:{kind:"DEPOSIT_FEE"},
+        create:{walletAddress:master.address as string,walletId:masterWalletId,asset:"USDC",network:"solana",source:"MASTER_WALLET",kind:"DEPOSIT_FEE",amount:depositFee},
+        update:{amount:{increment:depositFee}}});
       await tx.investorActivity.create({data:{
         userId:wallet.userId,type:"DEPOSIT_CONFIRMED",amountKobo:0n,
-        amountUsdcMicros:amount,reference:`blockradar:${id}`,
+        amountUsdcMicros:netDeposit,reference:`blockradar:${id}`,
         description:"Confirmed Solana USDC deposit swept to master wallet",
       }});
       return "confirmed";
