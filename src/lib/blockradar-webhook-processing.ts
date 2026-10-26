@@ -151,7 +151,7 @@ export async function processVerifiedBlockradarQueueItem(request: Request) {
       if(changed.count!==1) return "duplicate";
       // The deposit amount is gross. Credit only the net after the recorded
       // sweep fee; the current configured/recorded fee defaults to zero.
-      const depositFee=prior.feeUsdcMicros;
+      const depositFee=0n; // Zenvest deposit sweep fee, currently fixed at zero.
       if(depositFee<0n||depositFee>amount)throw new Error("Invalid deposit sweep fee");
       const netDeposit=amount-depositFee;
       // Record custody movement atomically with the confirmed investor deposit.
