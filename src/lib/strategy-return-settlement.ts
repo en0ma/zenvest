@@ -83,6 +83,13 @@ export async function settleVerifiedStrategyReturn(receipt:VerifiedStrategyRetur
   }
   await tx.strategy.update({where:{id:event.strategyId},
    data:{availableCapacityUsdcMicros:{increment:event.amountUsdcMicros}}});
+  // Move verified returned capital out of Kalshi custody before recording it
+  // in the master-wallet DEALLOCATE bucket. Both updates share the transaction.
+  const reducedAllocate=await tx.treasury.updateMany({
+   where:{kind:"ALLOCATE",source:"KALSHI",amount:{gte:event.amountUsdcMicros}},
+   data:{amount:{decrement:event.amountUsdcMicros}},
+  });
+  if(reducedAllocate.count!==1)throw new Error("Insufficient ALLOCATE treasury for verified strategy return");
   await tx.treasury.upsert({where:{kind:"DEALLOCATE"},
    create:{walletAddress:master.walletAddress,walletId:master.walletId,
     source:"MASTER_WALLET",kind:"DEALLOCATE",amount:event.amountUsdcMicros},
