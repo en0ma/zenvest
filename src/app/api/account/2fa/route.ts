@@ -2,7 +2,7 @@ import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/lib/auth";
 import {prisma} from "@/lib/db";
-import {makeChallenge,newTotpSecret,encryptSecret,decryptSecret,validTotpStep,sendSecurityCode,verifyChallenge,createRecoveryCodes} from "@/lib/two-factor";
+import {makeChallenge,newTotpSecret,encryptSecret,decryptSecret,validTotpStep,sendSecurityCode,verifyChallenge,createRecoveryCodes,consumeRecoveryCode} from "@/lib/two-factor";
 import {randomBytes} from "node:crypto";
 import bcrypt from "bcryptjs";
 export const runtime="nodejs";
@@ -39,8 +39,9 @@ export async function POST(req:Request){
  if(v.action==="disable"&&f&&typeof v.code==="string"){
   const code=v.code;
   let valid=false;
-  if(f.method==="APP"&&f.secretEncrypted)valid=validTotpStep(decryptSecret(f.secretEncrypted),code,f.lastTotpStep)!==null;
-  if(f.method==="EMAIL"&&typeof v.challengeId==="string")valid=await verifyChallenge(v.challengeId,u.id,"DISABLE",code);
+  if(/^[A-Fa-f0-9]{6}-?[A-Fa-f0-9]{6}$/.test(code))valid=await consumeRecoveryCode(u.id,code);
+  if(!valid&&f.method==="APP"&&f.secretEncrypted)valid=validTotpStep(decryptSecret(f.secretEncrypted),code,f.lastTotpStep)!==null;
+  if(!valid&&f.method==="EMAIL"&&typeof v.challengeId==="string")valid=await verifyChallenge(v.challengeId,u.id,"DISABLE",code);
   if(!valid)return NextResponse.json({error:"Incorrect code"},{status:403});
   await prisma.$transaction([prisma.twoFactor.delete({where:{userId:u.id}}),prisma.user.update({where:{id:u.id},data:{sessionVersion:{increment:1}}})]);
   return NextResponse.json({ok:true,loginRequired:true});
