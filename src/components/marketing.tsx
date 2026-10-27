@@ -6,15 +6,15 @@ import {docsHref} from "@/lib/public-links";
 import { ArrowRight, BookOpen, ChartNoAxesCombined, CheckCircle2, ChevronRight, CircleHelp, Clock3, Fingerprint, Gauge, LockKeyhole, Menu, ShieldCheck, TrendingUp, WalletCards } from "lucide-react";
 
 export const faqs=[
- ["What is Zenvest?","Zenvest is building a place to invest in an automated trading strategy and see how your money is doing. You choose how much to invest; the trading system handles the trades."],
- ["Where could returns come from?","The strategy looks for opportunities in short-term Bitcoin markets. When trades finish, their results are used to calculate your share of any profit or loss, after applicable fees."],
+ ["What is Zenvest?","Zenvest is building a simple way to invest in automated strategies and see how your money is doing. You choose how much to invest and track the results in one place."],
+ ["Where could returns come from?","Our strategy looks for opportunities in short-term Bitcoin markets. Completed results determine your share of gains or losses, after applicable fees."],
  ["Does the bot predict Bitcoin’s direction?","No. The strategy looks for opportunities on both sides of a market rather than simply guessing whether Bitcoin will rise or fall."],
- ["How is AI involved?","AI helped develop the strategy. Trades are placed according to predefined rules, not individual AI predictions."],
+ ["How is AI involved?","AI helped develop the strategy. The strategy follows predefined rules, not individual AI predictions."],
  ["Is the return fixed or guaranteed?","No. Results vary, and you could lose money. You can read the full details in our risk disclosure."],
- ["When would funds participate in trading?","Your money takes part only in trades that begin after it's been added to the strategy. It doesn't earn or lose money on earlier trades."],
- ["Do unallocated funds generate returns?","No. Money that you haven't invested in a strategy doesn't share in trading results. Your wallet shows what is available to use."],
+ ["When does my investment start participating?","Your money participates only in opportunities that begin after it is added to a strategy. Earlier results don't apply to your investment."],
+ ["Do unallocated funds generate returns?","No. Money that you haven't invested in a strategy doesn't share in its results. Your wallet shows what is available to use."],
  ["How do deposits and withdrawals work?","Funding and withdrawal processes depend on account eligibility, custody, settlement and the applicable terms. Review your account for available actions."],
- ["Is the trading bot inside Zenvest?","The trading system runs separately from the app. Zenvest shows your account balances, investments and recorded trade results."],
+ ["How does Zenvest manage the strategy?","The automated system operates behind the scenes. Zenvest shows your account balance, investments and recorded results."],
  ["What should I read before registering?","Review the documentation, terms, privacy notice and risk disclosure. Eligibility, legal arrangements, fees and settlement terms must be verified before any investment service is offered."],
 ];
 export async function MarketingHeader(){const session=await getServerSession(authOptions);const loggedIn=Boolean(session?.user?.id);return <header className="sticky top-0 z-40 border-b border-[#E3E8EE] bg-white/95 backdrop-blur-xl"><div className="mx-auto flex min-h-[80px] max-w-[1480px] items-center justify-between gap-4 px-6 py-4 md:px-16"><Link href="/" className="text-2xl font-semibold tracking-[-.07em] text-[#0A2540]">zenvest<span className="text-[#635BFF]">.</span></Link><nav aria-label="Account access"><Link href={loggedIn?"/dashboard":"/login"} className="text-sm font-semibold text-[#0A2540] transition-colors hover:text-[#635BFF] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#635BFF]">{loggedIn?"Dashboard":"Log in"}</Link></nav></div></header>}
