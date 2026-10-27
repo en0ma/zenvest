@@ -23,6 +23,8 @@ model User {
   isActive     Boolean  @default(true) @map("is_active")
   emailVerifiedAt DateTime? @map("email_verified_at")
   sessionVersion Int @default(0) @map("session_version")
+  lastActivityAt DateTime? @map("last_activity_at")
+  twoFactor TwoFactor?
   unallocated BigInt @default(0)
   depositWallet InvestorDepositWallet?
   sentTransfers Send[] @relation("SentTransfer")
@@ -521,4 +523,27 @@ model Send {
   @@index([senderUserId,createdAt])
   @@index([recipientUserId,createdAt])
   @@map("sends")
+}
+
+model TwoFactor {
+  userId String @id @map("user_id")
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  method String @db.VarChar(16)
+  secretEncrypted String? @map("secret_encrypted") @db.Text
+  lastTotpStep BigInt @default(-1) @map("last_totp_step")
+  verifiedAt DateTime @default(now()) @map("verified_at")
+}
+
+model TwoFactorChallenge {
+  id String @id @default(cuid())
+  userId String @map("user_id")
+  purpose String @db.VarChar(16)
+  method String @db.VarChar(16)
+  codeHash String? @map("code_hash") @db.Char(64)
+  attempts Int @default(0)
+  expiresAt DateTime @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([userId,purpose,createdAt])
+  @@index([expiresAt])
 }
