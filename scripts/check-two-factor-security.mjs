@@ -4,6 +4,7 @@ import {PrismaClient} from "@prisma/client";
 import bcrypt from "bcryptjs";
 registerHooks({resolve(specifier,context,nextResolve){
  if(specifier==="next/server")return nextResolve(new URL("./ci-route-runtime-shim.mjs",import.meta.url).href,context);
+ if(specifier==="next-auth/providers/credentials")return nextResolve(new URL("./ci-credentials-provider-shim.mjs",import.meta.url).href,context);
  if(specifier==="next-auth")return nextResolve(new URL("./ci-two-factor-session-shim.mjs",import.meta.url).href,context);
  if(specifier==="next-auth/jwt")return nextResolve(new URL("./ci-two-factor-jwt-shim.mjs",import.meta.url).href,context);
  if(specifier==="resend")return nextResolve(new URL("./ci-resend-shim.mjs",import.meta.url).href,context);
