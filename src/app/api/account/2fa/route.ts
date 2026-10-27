@@ -2,7 +2,7 @@ import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/lib/auth";
 import {prisma} from "@/lib/db";
-import {makeChallenge,newTotpSecret,encryptSecret,decryptSecret,validTotpStep,sendSecurityCode,verifyChallenge,createRecoveryCodes,consumeRecoveryCode} from "@/lib/two-factor";
+import {makeChallenge,newTotpSecret,encryptSecret,decryptSecret,validTotpStep,sendSecurityCode,verifyChallenge,recoveryHash,consumeRecoveryCode} from "@/lib/two-factor";
 import {randomBytes} from "node:crypto";
 import bcrypt from "bcryptjs";
 export const runtime="nodejs";
@@ -24,17 +24,28 @@ export async function POST(req:Request){
  if(v.action==="enable"&&!f&&typeof v.challengeId==="string"&&typeof v.code==="string"){
   const c=await prisma.twoFactorChallenge.findUnique({where:{id:v.challengeId}});
   if(!c||c.userId!==u.id||c.purpose!=="ENABLE"||c.consumedAt||c.expiresAt<=new Date()||c.attempts>=5)return NextResponse.json({error:"Code expired; start again"},{status:400});
-  if(c.method==="EMAIL"){if(!await verifyChallenge(c.id,u.id,"ENABLE",v.code))return NextResponse.json({error:"Incorrect code"},{status:400});await prisma.twoFactor.create({data:{userId:u.id,method:"EMAIL"}})}
-  else {if(!c.codeHash)return NextResponse.json({error:"Setup expired"},{status:400});
-   const secret=decryptSecret(c.codeHash);
-   const step=validTotpStep(secret,v.code);
-   await prisma.twoFactorChallenge.update({where:{id:c.id},data:{attempts:{increment:1}}});
-   if(step===null)return NextResponse.json({error:"Incorrect code"},{status:400});
-   await prisma.$transaction(async tx=>{const claimed=await tx.twoFactorChallenge.updateMany({where:{id:c.id,consumedAt:null,attempts:{lte:5}},data:{consumedAt:new Date()}});if(claimed.count!==1)throw Error("Code already used");await tx.twoFactor.create({data:{userId:u.id,method:"APP",secretEncrypted:encryptSecret(secret),lastTotpStep:step}})});
-  }
-  const recoveryCodes=await createRecoveryCodes(u.id);
-  await prisma.user.update({where:{id:u.id},data:{sessionVersion:{increment:1}}});
-  return NextResponse.json({ok:true,loginRequired:true,recoveryCodes});
+  let appSecret:string|null=null,step:bigint|null=null;
+  if(c.method==="EMAIL"){
+   if(!await verifyChallenge(c.id,u.id,"ENABLE",v.code))return NextResponse.json({error:"Incorrect code"},{status:400});
+  }else if(c.method==="APP"){
+   if(!c.codeHash)return NextResponse.json({error:"Setup expired"},{status:400});
+   appSecret=decryptSecret(c.codeHash);step=validTotpStep(appSecret,v.code);
+   if(step===null){
+    await prisma.twoFactorChallenge.updateMany({where:{id:c.id,consumedAt:null,attempts:{lt:5}},data:{attempts:{increment:1}}});
+    return NextResponse.json({error:"Incorrect code"},{status:400});
+   }
+  }else return NextResponse.json({error:"Invalid verification method"},{status:400});
+  const recoveryCodes=Array.from({length:8},()=>randomBytes(6).toString("hex").toUpperCase());
+  await prisma.$transaction(async tx=>{
+   if(c.method==="APP"){
+    const claim=await tx.twoFactorChallenge.updateMany({where:{id:c.id,consumedAt:null,expiresAt:{gt:new Date()},attempts:{lt:5}},data:{consumedAt:new Date(),attempts:{increment:1}}});
+    if(claim.count!==1)throw Error("Setup already used or expired");
+   }
+   await tx.twoFactor.create({data:{userId:u.id,method:c.method,secretEncrypted:appSecret?encryptSecret(appSecret):null,lastTotpStep:step??-1n}});
+   await tx.twoFactorRecoveryCode.createMany({data:recoveryCodes.map(code=>({userId:u.id,hash:recoveryHash(code)}))});
+   await tx.user.update({where:{id:u.id},data:{sessionVersion:{increment:1}}});
+  });
+  return NextResponse.json({ok:true,loginRequired:true,recoveryCodes:recoveryCodes.map(code=>code.slice(0,6)+"-"+code.slice(6))});
  }
  if(v.action==="disable"&&f&&typeof v.code==="string"){
   const code=v.code;
