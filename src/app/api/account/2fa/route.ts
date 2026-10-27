@@ -2,7 +2,7 @@ import {NextResponse} from "next/server";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/lib/auth";
 import {prisma} from "@/lib/db";
-import {makeChallenge,newTotpSecret,encryptSecret,decryptSecret,validTotpStep,sendSecurityCode,verifyChallenge} from "@/lib/two-factor";
+import {makeChallenge,newTotpSecret,encryptSecret,decryptSecret,validTotpStep,sendSecurityCode,verifyChallenge,createRecoveryCodes} from "@/lib/two-factor";
 import {randomBytes} from "node:crypto";
 import bcrypt from "bcryptjs";
 export const runtime="nodejs";
@@ -32,8 +32,9 @@ export async function POST(req:Request){
    if(step===null)return NextResponse.json({error:"Incorrect code"},{status:400});
    await prisma.$transaction(async tx=>{const claimed=await tx.twoFactorChallenge.updateMany({where:{id:c.id,consumedAt:null,attempts:{lte:5}},data:{consumedAt:new Date()}});if(claimed.count!==1)throw Error("Code already used");await tx.twoFactor.create({data:{userId:u.id,method:"APP",secretEncrypted:encryptSecret(secret),lastTotpStep:step}})});
   }
+  const recoveryCodes=await createRecoveryCodes(u.id);
   await prisma.user.update({where:{id:u.id},data:{sessionVersion:{increment:1}}});
-  return NextResponse.json({ok:true,loginRequired:true});
+  return NextResponse.json({ok:true,loginRequired:true,recoveryCodes});
  }
  if(v.action==="disable"&&f&&typeof v.code==="string"){
   const code=v.code;
