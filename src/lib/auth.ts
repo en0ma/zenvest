@@ -39,8 +39,8 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   events: {
-    async signOut({token}) {
-      if(typeof token?.sid==="string") await prisma.securitySession.deleteMany({where:{id:token.sid}});
+    async signOut(message) {
+      if("token" in message && typeof message.token?.sid==="string") await prisma.securitySession.deleteMany({where:{id:message.token.sid}});
     },
   },
   callbacks: {
