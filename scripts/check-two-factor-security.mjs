@@ -29,8 +29,8 @@ const emailCode=()=>{const match=deliveries.at(-1)?.text?.match(/\b\d{6}\b/);ass
 try{
  await prisma.user.create({data:{id:userId,handle:"sec2fa",email:"ci-security@example.invalid",name:"Security fixture",passwordHash:await bcrypt.hash(password,10),emailVerifiedAt:new Date()}});
  assert.equal(IDLE_MS,1800000);
- assert.equal(totpAt("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",1),287082,"RFC 6238 SHA1 vector (6 digits)");
- assert.equal(totpAt("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",37037036),81804,"RFC 6238 vector at 1111111109");
+ assert.equal(totpAt("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",1),"287082","RFC 6238 SHA1 vector (6 digits)");
+ assert.equal(totpAt("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",37037036),"081804","RFC 6238 vector at 1111111109");
  const secret=newTotpSecret();assert.match(secret,/^[A-Z2-7]{32}$/);
  const encrypted=encryptSecret(secret);assert.notEqual(encrypted,secret);assert.equal(decryptSecret(encrypted),secret);
  assert.equal(validTotpStep(secret,"abc"),null);
