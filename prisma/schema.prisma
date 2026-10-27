@@ -26,6 +26,7 @@ model User {
   lastActivityAt DateTime? @map("last_activity_at")
   twoFactor TwoFactor?
   securitySessions SecuritySession[]
+  recoveryCodes TwoFactorRecoveryCode[]
   unallocated BigInt @default(0)
   depositWallet InvestorDepositWallet?
   sentTransfers Send[] @relation("SentTransfer")
@@ -557,4 +558,14 @@ model SecuritySession {
  createdAt DateTime @default(now()) @map("created_at")
  @@index([userId])
  @@index([lastActivityAt])
+}
+
+model TwoFactorRecoveryCode {
+ id String @id @default(cuid())
+ userId String @map("user_id")
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ hash String @unique @db.Char(64)
+ usedAt DateTime? @map("used_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ @@index([userId,usedAt])
 }
