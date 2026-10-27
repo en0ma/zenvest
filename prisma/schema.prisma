@@ -25,6 +25,7 @@ model User {
   sessionVersion Int @default(0) @map("session_version")
   lastActivityAt DateTime? @map("last_activity_at")
   twoFactor TwoFactor?
+  securitySessions SecuritySession[]
   unallocated BigInt @default(0)
   depositWallet InvestorDepositWallet?
   sentTransfers Send[] @relation("SentTransfer")
@@ -546,4 +547,14 @@ model TwoFactorChallenge {
   createdAt DateTime @default(now()) @map("created_at")
   @@index([userId,purpose,createdAt])
   @@index([expiresAt])
+}
+
+model SecuritySession {
+ id String @id @db.VarChar(64)
+ userId String @map("user_id")
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ lastActivityAt DateTime @default(now()) @map("last_activity_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ @@index([userId])
+ @@index([lastActivityAt])
 }
