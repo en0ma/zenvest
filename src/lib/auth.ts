@@ -2,7 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
-import {verifyChallenge,IDLE_MS} from "@/lib/two-factor";
+import {verifyChallenge,consumeRecoveryCode,IDLE_MS} from "@/lib/two-factor";
 import {randomUUID} from "node:crypto";
 
 export const authOptions: NextAuthOptions = {
@@ -17,6 +17,7 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
         challengeId: { label: "Verification request", type: "text" },
         code: { label: "Verification code", type: "text" },
+        recoveryCode: { label: "Recovery code", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials.password) return null;
@@ -27,7 +28,10 @@ export const authOptions: NextAuthOptions = {
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!valid) return null;
         const twoFactor=await prisma.twoFactor.findUnique({where:{userId:user.id}});
-        if(twoFactor && (!credentials.challengeId || !credentials.code || !await verifyChallenge(credentials.challengeId,user.id,"LOGIN",credentials.code)))return null;
+        if(twoFactor){
+          const verified=credentials.recoveryCode?await consumeRecoveryCode(user.id,credentials.recoveryCode):Boolean(credentials.challengeId&&credentials.code&&await verifyChallenge(credentials.challengeId,user.id,"LOGIN",credentials.code));
+          if(!verified)return null;
+        }
         const sid=randomUUID();
         await prisma.securitySession.create({data:{id:sid,userId:user.id}});
         return { id: user.id, email: user.email, name: user.name, image:sid };
