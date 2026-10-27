@@ -38,6 +38,11 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+  events: {
+    async signOut({token}) {
+      if(typeof token?.sid==="string") await prisma.securitySession.deleteMany({where:{id:token.sid}});
+    },
+  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) { token.sub = user.id; token.sessionVersion = undefined; token.sid=user.image; }
