@@ -17,5 +17,6 @@ declare module "next-auth/jwt" {
     role?: "ADMIN" | "USER";
     active?: boolean;
     sessionVersion?: number;
+    sid?: string | null;
   }
 }

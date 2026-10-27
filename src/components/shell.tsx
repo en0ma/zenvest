@@ -1,3 +1,4 @@
+import {SecurityIdle} from "@/components/security-idle";
 import Link from "next/link";
 import { AutoCloseDetails } from "@/components/auto-close-details";
 import { Signout } from "@/components/signout";
@@ -14,7 +15,7 @@ export function Shell({ admin = false, preview = false, children }: {admin?:bool
     {text:"Settings",href:"/settings"},
   ];
   const items = preview ? nav.map(item => ({ ...item, href: item.href.replace("/dashboard", "/preview/investor").replace("/admin", "/preview/admin") })) : nav;
-  return <div className="min-h-screen lg:flex bg-[#FAFAF8]">
+  return <div className="min-h-screen lg:flex bg-[#FAFAF8]">{!preview&&<SecurityIdle/>}
     <header className="relative z-40 flex lg:hidden items-center justify-between h-[76px] border-b border-[#E4E8E2] bg-white px-5 sm:px-7">
       <Link href="/" className="text-[27px] font-black tracking-tight text-[#0A2540]">zenvest<span className="text-[#635BFF]">.</span></Link>
       <AutoCloseDetails className="relative"><summary aria-label="Open investor navigation" className="list-none cursor-pointer rounded-lg border border-[#E4E8E2] p-2 text-[#0A2540]"><Menu size={22}/></summary>
