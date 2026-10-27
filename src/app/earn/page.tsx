@@ -12,7 +12,7 @@ export default async function EarnPage(){
   prisma.investorPosition.findMany({where:{userId:user.id},include:{strategy:{select:{name:true,symbol:true}}},orderBy:[{createdAt:"desc"},{id:"desc"}]})
  ]);
  return <Shell><div className="mx-auto max-w-6xl space-y-7">
-  <header className="px-1"><h1 className="text-2xl font-semibold tracking-tight text-[#14253D]">Invest in a strategy</h1><p className="mt-1 text-xs text-[#64748B]">Pick a strategy, open a position and allocate capital. Watch it grow!</p></header>
+  <header className="px-1"><h1 className="text-2xl font-semibold tracking-tight text-[#14253D]">Invest in a strategy</h1><p className="mt-1 text-xs text-[#64748B]">Choose a strategy, decide how much to invest and track the results of completed trades.</p></header>
   <StrategyMarketList rows={market.map(m=>({...m,allocation:m.allocation.toString(),lifetime:m.lifetime.toString(),dayPnl:m.dayPnl.toString()}))}/>
   <PositionsTable rows={positions.map(p=>({id:p.id,strategy:p.strategy.symbol??p.strategy.name,allocation:usdc(p.allocatedUsdcMicros),status:p.status}))}/>
  </div></Shell>;
