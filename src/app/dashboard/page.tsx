@@ -12,7 +12,7 @@ const TABLE_PAGE_SIZE=10;
 function pageParam(value:string|undefined){const n=Number(value??"1");return Number.isSafeInteger(n)&&n>0?Math.min(n,100000):1;}
 function TablePager({page,pages,name,otherPage,otherName}:{page:number;pages:number;name:string;otherPage:number;otherName:string}){
  const link=(next:number)=>`/dashboard?${name}=${next}&${otherName}=${otherPage}`;
- return <nav aria-label={`${name==="positionsPage"?"Position performance":"Completed trades"} pagination`} className="mt-4 flex items-center justify-between gap-3 border-t border-[#EDF0F5] pt-4 text-sm">
+ return <nav aria-label={`${name==="positionsPage"?"Position performance":"Completed results"} pagination`} className="mt-4 flex items-center justify-between gap-3 border-t border-[#EDF0F5] pt-4 text-sm">
   <span className="text-[#64748B]">Page {page} of {pages}</span><div className="flex items-center gap-2">
   {page>1?<Link className="rounded-lg border border-[#DCE3EC] px-3 py-2 font-medium" href={link(page-1)}>Previous</Link>:<span className="rounded-lg border border-[#DCE3EC] px-3 py-2 text-[#94A3B8]" aria-disabled="true">Previous</span>}
   {page<pages?<Link className="rounded-lg border border-[#DCE3EC] px-3 py-2 font-medium" href={link(page+1)}>Next</Link>:<span className="rounded-lg border border-[#DCE3EC] px-3 py-2 text-[#94A3B8]" aria-disabled="true">Next</span>}
@@ -80,7 +80,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
   <section aria-label="Portfolio equity and capital" className="rounded-2xl border border-[#E3E8EE] bg-white p-4 sm:p-6">
    <div className="flex items-center justify-between gap-2"><p className="text-xs font-medium text-[#64748B]">Total account value</p><span className="rounded-full bg-[#F2F3FF] px-2.5 py-1 text-[11px] font-medium text-[#635BFF]">USDC</span></div>
    <p className="mt-2 break-words text-[clamp(1.8rem,6vw,3.2rem)] font-semibold leading-tight tracking-tight tabular-nums">{formatUsdc(equity)}</p>
-   <p className={"mt-1 text-sm font-medium tabular-nums "+(realized>0n?"text-emerald-700":realized<0n?"text-rose-600":"text-[#64748B]")}>{realized>0n?"+":""}{formatUsdc(realized)} <span className="font-normal text-[#64748B]">profit or loss from completed trades</span></p>
+   <p className={"mt-1 text-sm font-medium tabular-nums "+(realized>0n?"text-emerald-700":realized<0n?"text-rose-600":"text-[#64748B]")}>{realized>0n?"+":""}{formatUsdc(realized)} <span className="font-normal text-[#64748B]">investment results to date</span></p>
    <div className="mt-5 border-t border-[#EDF0F5] pt-4">
     <div className="flex items-center justify-between gap-3"><h2 className="text-sm font-semibold">How your money is divided</h2><span className="text-xs tabular-nums text-[#64748B]">{allocatedPct.toFixed(1)}% invested</span></div>
     <div role="img" aria-label={capital>0n?`Allocated ${allocatedPct.toFixed(1)} percent; unallocated ${unallocatedPct.toFixed(1)} percent`:"No available capital"} className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-[#EDF0F7]">{capital>0n&&<><div className="bg-[#635BFF]" style={{width:allocatedPct+"%"}}/><div className="bg-[#C7D2FE]" style={{width:unallocatedPct+"%"}}/></>}</div>
@@ -89,7 +89,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
    </div>
   </section>
   <section aria-label="Performance analytics" className="rounded-2xl border border-[#E3E8EE] bg-white p-4 sm:p-6">
-   <div className="mb-3 flex items-center justify-between gap-2"><div><h2 className="text-base font-semibold">Performance analytics</h2><p className="mt-1 text-xs text-[#64748B]">Verified settled trades, excluding deposits and withdrawals</p></div></div>
+   <div className="mb-3 flex items-center justify-between gap-2"><div><h2 className="text-base font-semibold">Performance analytics</h2><p className="mt-1 text-xs text-[#64748B]">Completed investment results, excluding deposits and withdrawals</p></div></div>
    <PnlPerformanceChart rows={settled.filter(p=>p.settledAt).map(p=>({day:p.settledAt!.toISOString().slice(0,10),netMicros:(p.netPnlUsdcMicros??0n).toString()}))}/>
    <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-[#EDF0F5] pt-4 sm:grid-cols-4">
     <div><dt className="text-[11px] text-[#64748B]">Settled-equity return</dt><dd className="mt-1 text-lg font-semibold tabular-nums">{historical.twrPercent===null?"—":historical.twrPercent.toFixed(2)+"%"}</dd></div>
@@ -101,7 +101,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
   </section>
   <section aria-label="Account value over time" className="rounded-2xl border border-[#E3E8EE] bg-white p-4 sm:p-6">
    <h2 className="text-base font-semibold">Portfolio valuation history</h2>
-   <div className="mt-3"><PortfolioValueChart points={historical.completeHistory?historical.points:[]}/></div>{!historical.completeHistory&&<p className="mt-2 text-xs leading-5 text-[#64748B]">History unavailable until deposits, withdrawals, adjustments and trading entries reconcile with the current balance.</p>}
+   <div className="mt-3"><PortfolioValueChart points={historical.completeHistory?historical.points:[]}/></div>{!historical.completeHistory&&<p className="mt-2 text-xs leading-5 text-[#64748B]">History is available when account activity can be matched with your current balance.</p>}
   </section>
   <section aria-label="Realized P&L by period" className="rounded-2xl border border-[#E3E8EE] bg-white p-4 sm:p-6">
    <div className="flex items-center justify-between gap-3"><h2 className="text-base font-semibold">Investment profit or loss</h2><span className="text-xs text-[#64748B]">Settled results</span></div>
@@ -115,7 +115,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
     {positions.length>TABLE_PAGE_SIZE&&<TablePager page={positionsPage} pages={positionPages} name="positionsPage" otherPage={tradesPage} otherName="tradesPage"/>}
    </section>
    <section aria-labelledby="settlement-heading" className="min-w-0 rounded-2xl border border-[#E3E8EE] bg-white p-4 sm:p-6">
-    <h2 id="settlement-heading" className="text-base font-semibold">Trading results at a glance</h2><p className="mt-1 text-xs text-[#64748B]">Verified trading outcomes</p>
+    <h2 id="settlement-heading" className="text-base font-semibold">Investment results at a glance</h2><p className="mt-1 text-xs text-[#64748B]">Recorded investment results</p>
     <dl className="mt-3 grid grid-cols-2 gap-2">{[
      {label:"Settled events",value:String(settled.length),tone:"text-[#14253D]"},
      {label:"Win rate",value:winning+losing>0?(winning*100/(winning+losing)).toFixed(1)+"%":"—",tone:"text-[#14253D]"},
@@ -125,7 +125,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
    </section>
   </div>
   <section aria-labelledby="trade-heading" className="rounded-2xl border border-[#E3E8EE] bg-white p-4 sm:p-6">
-   <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 id="trade-heading" className="text-base font-semibold">Settled trade history</h2><p className="mt-1 text-xs text-[#64748B]">Completed trade record · {settled.length} entries</p></div><a href="/api/earn/reports/trade-pnl.csv" className="rounded-lg border border-[#DCDDFB] px-3 py-2 text-xs font-semibold text-[#635BFF]">Export CSV</a></div>
+   <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 id="trade-heading" className="text-base font-semibold">Settled trade history</h2><p className="mt-1 text-xs text-[#64748B]">Investment result history · {settled.length} entries</p></div><a href="/api/earn/reports/trade-pnl.csv" className="rounded-lg border border-[#DCDDFB] px-3 py-2 text-xs font-semibold text-[#635BFF]">Export CSV</a></div>
    {pagedTrades.length?<><div role="region" aria-label="Scrollable settled trade history" tabIndex={0} className="mt-3 max-w-full overflow-x-auto"><table className="w-full min-w-[620px] text-left text-xs sm:text-sm"><thead><tr className="border-b border-[#EDF0F5] text-[#64748B]"><th className="py-3 font-medium">Trade</th><th className="font-medium">Settled</th><th className="text-right font-medium">Eligible</th><th className="text-right font-medium">Gross P&amp;L</th><th className="text-right font-medium">Fee</th><th className="text-right font-medium">Net P&amp;L</th></tr></thead><tbody>{pagedTrades.map(p=><tr key={p.id} className="border-b border-[#EDF0F5]"><td className="py-3">{p.strategyTrade.marketTradeName}</td><td>{p.settledAt?.toLocaleDateString("en-US",{timeZone:"UTC"})}</td><td className="text-right tabular-nums">{formatUsdc(p.eligibleCapitalUsdcMicros)}</td><td className="text-right tabular-nums">{formatUsdc(p.grossPnlUsdcMicros??0n)}</td><td className="text-right tabular-nums">{formatUsdc(p.platformFeeUsdcMicros??0n)}</td><td className={"text-right font-semibold tabular-nums "+((p.netPnlUsdcMicros??0n)<0n?"text-rose-600":"text-emerald-700")}>{formatUsdc(p.netPnlUsdcMicros??0n)}</td></tr>)}</tbody></table></div>{settled.length>TABLE_PAGE_SIZE&&<TablePager page={tradesPage} pages={tradePages} name="tradesPage" otherPage={positionsPage} otherName="positionsPage"/>}</>:<p className="mt-3 rounded-xl bg-[#F8FAFC] px-3 py-4 text-sm text-[#64748B]">No verified settled events yet.</p>}
   </section>
   <section aria-labelledby="report-heading" className="rounded-2xl border border-[#E3E8EE] bg-white p-4 sm:p-6">
