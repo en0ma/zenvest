@@ -540,7 +540,7 @@ model TwoFactorChallenge {
   userId String @map("user_id")
   purpose String @db.VarChar(16)
   method String @db.VarChar(16)
-  codeHash String? @map("code_hash") @db.Char(64)
+  codeHash String? @map("code_hash") @db.Text
   attempts Int @default(0)
   expiresAt DateTime @map("expires_at")
   consumedAt DateTime? @map("consumed_at")
