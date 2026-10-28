@@ -35,7 +35,7 @@ export default async function Home(){
     <p className="mt-7 max-w-[740px] text-sm leading-6 text-[#ADB8D6] sm:mt-9 sm:text-base">Discover a strategy. Fund your wallet. Choose an amount.<br className="hidden sm:block"/> Stay informed.</p>
    </div>
   </section>
-  <footer className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-center gap-x-7 gap-y-3 border-t border-white/10 px-6 py-8 text-sm text-[#B3BCD3]">
+  <footer className="relative isolate flex min-h-[180px] flex-wrap items-end justify-center gap-x-7 gap-y-3 overflow-hidden px-6 pb-9 pt-20 text-sm text-[#D7DDF2] before:pointer-events-none before:absolute before:inset-x-0 before:bottom-0 before:-z-10 before:h-[170px] before:bg-[radial-gradient(ellipse_85%_125%_at_50%_100%,#62669C_0%,#414D7C_48%,#263253_100%)] before:[clip-path:ellipse(105%_95%_at_50%_100%)]">
    <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="hover:text-white">Twitter</a>
    <a href="https://t.me" target="_blank" rel="noopener noreferrer" className="hover:text-white">Telegram</a>
    <Link href="/terms" className="hover:text-white">Terms of service</Link>
