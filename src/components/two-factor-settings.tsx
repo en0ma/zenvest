@@ -71,11 +71,12 @@ export function TwoFactorSettings({enabled,method}:{enabled:boolean;method:strin
   {(challenge||enabled&&(method==="APP"||useRecovery))&&<label className="block max-w-xl text-sm font-semibold">{useRecovery?"Recovery code":"Six-digit verification code"}<input className={input} inputMode={useRecovery?"text":"numeric"} autoComplete={useRecovery?"off":"one-time-code"} placeholder={useRecovery?"Recovery code":"000000"} maxLength={useRecovery?13:6} value={code} onChange={e=>setCode(useRecovery?e.target.value.toUpperCase().slice(0,13):e.target.value.replace(/\D/g,"").slice(0,6))}/></label>}
   {enabled&&<button type="button" className="text-xs font-medium underline" onClick={()=>{setUseRecovery(!useRecovery);setCode("");setChallenge("")}}>{useRecovery?"Use verification code":"Use a recovery code instead"}</button>}
   <div className="flex flex-wrap gap-3">
-   {!enabled&&challenge&&<button type="button" className="rounded-full border border-[#CAD3E5] px-5 py-3 text-sm font-semibold text-[#314360]" onClick={()=>{setChallenge("");setSecret("");setUri("");setCode("");setMessage("For your security, continue to generate a new setup key.")}}>Start again with a new key</button>}
+   
    {!enabled&&challenge&&<button type="button" disabled={!password||code.length!==6||busy} onClick={()=>act("enable")} className={button}>{busy?"Verifying…":"Turn on verification"}</button>}
    {enabled&&method==="EMAIL"&&!challenge&&!useRecovery&&<button type="button" disabled={!password||busy} onClick={()=>act("disable-code")} className={button}>Send a code to turn off</button>}
    {enabled&&(method==="APP"||!!challenge||useRecovery)&&<button type="button" disabled={!password||!(useRecovery?/^[A-F0-9]{6}-?[A-F0-9]{6}$/.test(code):code.length===6)||busy} onClick={()=>act("disable")} className={button}>Turn off verification</button>}
   </div>
+  {!enabled&&challenge&&<div className="mt-5 border-t border-[#E1E6F0] pt-4"><button type="button" disabled={busy} className="text-xs font-medium text-[#68788F] underline underline-offset-4 hover:text-[#243553] disabled:opacity-40" onClick={()=>{setChallenge("");setSecret("");setUri("");setCode("");setMessage("");setCopied(false)}}>Need to restart setup?</button></div>}
   {message&&<p role="status" className="rounded-xl bg-[#EEF0FA] p-3 text-sm leading-6 text-[#405173]">{message}</p>}
  </section>;
 }
