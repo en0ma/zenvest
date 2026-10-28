@@ -24,8 +24,8 @@ export function StrategyMarketList({rows}:{rows:Row[]}){
       <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className={"h-4 w-4 text-[#64748B] transition-transform "+(open?"rotate-180":"")}><path d="m5 7 5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
      </button>
     </div>
-    {open&&<div id={"market-details-"+row.id} className="grid grid-cols-3 gap-2 bg-[#F8FAFC] px-4 py-4 sm:px-6">
-     {([["Past hour",row.hourPct],["Past day",row.dayPct],["Past 30 days",row.monthPct]] as const).map(([label,value])=><div key={label} className="flex min-w-0 flex-col items-center gap-1 rounded-lg bg-white px-1 py-3"><span className="text-[11px] text-[#64748B]">{label}</span><ReturnValue value={value}/></div>)}
+    {open&&<div id={"market-details-"+row.id} className="bg-[#F8FAFC] px-4 py-4 sm:px-6">
+     <div className="grid grid-cols-3 gap-2">{([["Past hour",row.hourPct],["Past day",row.dayPct],["Past 30 days",row.monthPct]] as const).map(([label,value])=><div key={label} className="flex min-w-0 flex-col items-center gap-1 rounded-lg bg-white px-1 py-3"><span className="text-[11px] text-[#64748B]">{label}</span><ReturnValue value={value}/></div>)}
     </div>}
    </div>;
   })}
