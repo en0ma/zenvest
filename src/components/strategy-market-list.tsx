@@ -9,17 +9,17 @@ function ReturnValue({value}:{value:number|null}){
 export function StrategyMarketList({rows}:{rows:Row[]}){
  const [expanded,setExpanded]=useState<string|null>(null);
  const sorted=[...rows].sort((a,b)=>BigInt(b.allocation)>BigInt(a.allocation)?1:BigInt(b.allocation)<BigInt(a.allocation)?-1:0);
- return <section className="overflow-hidden rounded-2xl border border-[#E3E8EE] bg-white text-[#14253D]" aria-label="Strategy market">
+ return <section className="overflow-hidden rounded-2xl border border-[#DFE5EF] bg-white text-[#243553]" aria-label="Strategy market">
   {sorted.map(row=>{
    const open=expanded===row.id;
    const href="/earn/strategies/"+encodeURIComponent(row.id);
    return <div key={row.id} className="border-b border-[#EDF0F5] last:border-b-0">
     <div className="flex min-h-[72px] items-center gap-3 px-4 py-3 sm:px-6">
-     <Link href={href} className="flex min-w-0 flex-1 items-center gap-3 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#635BFF]" aria-label={"View "+row.name}>
+     <Link href={href} className="flex min-w-0 flex-1 items-center gap-3 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#7778D6]" aria-label={"View "+row.name}>
       <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#48566B] text-xs font-bold text-white">{row.logo&&(row.logo.startsWith("/")||row.logo.startsWith("https://"))?<img src={row.logo} alt="" className="h-full w-full object-cover"/>:(row.symbol??row.name).slice(0,2).toUpperCase()}</span>
       <span className="min-w-0"><span className="block truncate text-sm font-semibold">{row.symbol??row.name}</span><span className="block truncate text-xs text-[#64748B]">{fmt(row.allocation)} USDC allocated</span></span>
      </Link>
-     <button type="button" onClick={()=>setExpanded(open?null:row.id)} aria-expanded={open} aria-controls={"market-details-"+row.id} aria-label={(open?"Collapse ":"Expand ")+row.name+" performance"} className="flex shrink-0 items-center gap-2 rounded-lg px-2 py-2 hover:bg-[#F1F5F9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#635BFF]">
+     <button type="button" onClick={()=>setExpanded(open?null:row.id)} aria-expanded={open} aria-controls={"market-details-"+row.id} aria-label={(open?"Collapse ":"Expand ")+row.name+" performance"} className="flex shrink-0 items-center gap-2 rounded-lg px-2 py-2 hover:bg-[#F1F5F9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#7778D6]">
       <ReturnValue value={row.dayPct}/>
       <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className={"h-4 w-4 text-[#64748B] transition-transform "+(open?"rotate-180":"")}><path d="m5 7 5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
      </button>

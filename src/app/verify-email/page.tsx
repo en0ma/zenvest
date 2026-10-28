@@ -15,7 +15,7 @@ function VerifyEmailContent(){
   }
   void verify();return()=>{canceled=true};
  },[token,router]);
- return <main className="min-h-screen bg-[#faf8f3] grid place-items-center p-6"><section role="status" className="w-full max-w-md bg-white rounded-3xl border border-[#e8ddce] p-10 text-center"><Link href="/" className="text-3xl font-black text-[#292725]">zenvest<span className="text-[#b77d52]">.</span></Link><div className="mx-auto mt-9 h-9 w-9 rounded-full border-4 border-[#eddccc] border-t-[#91603f] animate-spin"/><h1 className="mt-7 text-2xl font-semibold">Verifying your email…</h1><p className="mt-3 text-[#695e53]">This happens automatically. You'll be redirected shortly.</p></section></main>
+ return <main className="min-h-screen zen-auth-gradient grid place-items-center p-6"><section role="status" className="w-full max-w-md bg-white rounded-3xl border border-[#DFE5EF] p-10 text-center"><Link href="/" className="text-3xl font-black text-[#243553]">zenvest<span className="text-[#7778D6]">.</span></Link><div className="mx-auto mt-9 h-9 w-9 rounded-full border-4 border-[#eddccc] border-t-[#91603f] animate-spin"/><h1 className="mt-7 text-2xl font-semibold">Verifying your email…</h1><p className="mt-3 text-[#586B84]">This happens automatically. You'll be redirected shortly.</p></section></main>
 }
 
-export default function VerifyEmail(){return <Suspense fallback={<main className="min-h-screen grid place-items-center bg-[#faf8f3]">Verifying your email…</main>}><VerifyEmailContent/></Suspense>}
+export default function VerifyEmail(){return <Suspense fallback={<main className="min-h-screen grid place-items-center zen-auth-gradient">Verifying your email…</main>}><VerifyEmailContent/></Suspense>}

@@ -50,13 +50,13 @@ export function StrategyDetailTabs({points,description,note,stats}:{points:Point
   setSelected(Math.max(0,Math.min(candles.length-1,idx)));
  };
  const dateIncludesTime=range==="24H"||range==="7D";
- return <section className="overflow-hidden rounded-2xl border border-[#E3E8EE] bg-white text-[#14253D]">
+ return <section className="overflow-hidden rounded-2xl border border-[#DFE5EF] bg-white text-[#243553]">
   <nav className="flex gap-7 border-b border-[#E5EAF0] px-4 sm:px-6" aria-label="Strategy details">
-   {(["price","info"] as const).map(t=><button key={t} type="button" aria-selected={tab===t} onClick={()=>setTab(t)} className={"border-b-2 py-3 text-sm font-semibold "+(tab===t?"border-[#635BFF] text-[#635BFF]":"border-transparent text-[#64748B]")}>{t==="price"?"Performance":"Info"}</button>)}
+   {(["price","info"] as const).map(t=><button key={t} type="button" aria-selected={tab===t} onClick={()=>setTab(t)} className={"border-b-2 py-3 text-sm font-semibold "+(tab===t?"border-[#635BFF] text-[#625DC1]":"border-transparent text-[#64748B]")}>{t==="price"?"Performance":"Info"}</button>)}
   </nav>
   {tab==="price"?<div className="space-y-4 p-4 sm:p-6">
-   <div><p className="text-xs text-[#64748B]">Verified cumulative P&amp;L · {range}</p><p className={"mt-1 text-2xl font-semibold tabular-nums "+(total<0?"text-rose-600":"text-[#14253D]")}>{money(total)} <span className="text-sm font-normal text-[#64748B]">USDC</span></p><p className="mt-1 flex items-center gap-1 text-xs text-[#059669]"><span aria-hidden="true">✓</span> Settled performance</p></div>
-   <div className="flex gap-2" role="group" aria-label="Performance period">{ranges.map(([label])=><button type="button" key={label} onClick={()=>{setRange(label);setSelected(null)}} aria-pressed={range===label} className={"min-w-0 flex-1 rounded-lg px-2 py-2 text-xs font-medium "+(range===label?"bg-[#EEECFF] text-[#635BFF]":"bg-[#F8FAFC] text-[#64748B]")}>{label}</button>)}</div>
+   <div><p className="text-xs text-[#64748B]">Verified cumulative P&amp;L · {range}</p><p className={"mt-1 text-2xl font-semibold tabular-nums "+(total<0?"text-rose-600":"text-[#243553]")}>{money(total)} <span className="text-sm font-normal text-[#64748B]">USDC</span></p><p className="mt-1 flex items-center gap-1 text-xs text-[#059669]"><span aria-hidden="true">✓</span> Settled performance</p></div>
+   <div className="flex gap-2" role="group" aria-label="Performance period">{ranges.map(([label])=><button type="button" key={label} onClick={()=>{setRange(label);setSelected(null)}} aria-pressed={range===label} className={"min-w-0 flex-1 rounded-lg px-2 py-2 text-xs font-medium "+(range===label?"bg-[#E9ECFB] text-[#625DC1]":"bg-[#F8FAFC] text-[#64748B]")}>{label}</button>)}</div>
    <div className="rounded-xl bg-[#F8FAFC] p-2 sm:p-3">
     <svg ref={plotRef} viewBox="0 0 340 218" className="w-full select-none touch-pan-y" role="img" aria-label="Interactive candlestick chart of cumulative settled P&L; touch or drag to inspect settlement dates" onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);choose(e.clientX)}} onPointerMove={e=>{if(e.pointerType==="mouse"||e.buttons)choose(e.clientX)}} onKeyDown={e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();setSelected(v=>Math.max(0,Math.min(candles.length-1,(v??candles.length-1)+(e.key==="ArrowRight"?1:-1))))}}} tabIndex={candles.length?0:-1}>
      {[30,76,122,168].map(v=><line key={v} x1={left} x2={right} y1={v} y2={v} stroke="#E4E9F0" strokeWidth="1"/>)}
@@ -65,15 +65,15 @@ export function StrategyDetailTabs({points,description,note,stats}:{points:Point
      {selectedCandle&&<><line x1={x(selected!)} x2={x(selected!)} y1={top} y2={bottom} stroke="#94A3B8" strokeDasharray="4 4"/><circle cx={x(selected!)} cy={y(selectedCandle.close)} r="3.5" fill="#FFFFFF" stroke="#635BFF" strokeWidth="1.8"/></>}
      {candles.length>0&&[0,Math.floor((candles.length-1)/2),candles.length-1].map((i,k)=><text key={k} x={x(i)} y="204" textAnchor={k===0?"start":k===2?"end":"middle"} fill="#94A3B8" fontSize="10">{new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",...(range==="24H"?{hour:"numeric"}:{})}).format(candles[i].lastTime)}</text>)}
     </svg>
-    {candles.length===0?<p className="py-4 text-center text-sm text-[#64748B]">No settled P&amp;L records in this period.</p>:<div className="flex items-center justify-between gap-3 border-t border-[#E3E8EE] px-1 pt-3">
-     <div className="min-w-0"><p className="text-[11px] text-[#64748B]">{selectedCandle?"Inspected settlement":"Latest settlement"}</p><p className="text-xs font-medium text-[#14253D]">{formatDate((selectedCandle??candles[candles.length-1]).lastTime,dateIncludesTime)}</p></div>
+    {candles.length===0?<p className="py-4 text-center text-sm text-[#64748B]">No settled P&amp;L records in this period.</p>:<div className="flex items-center justify-between gap-3 border-t border-[#DFE5EF] px-1 pt-3">
+     <div className="min-w-0"><p className="text-[11px] text-[#64748B]">{selectedCandle?"Inspected settlement":"Latest settlement"}</p><p className="text-xs font-medium text-[#243553]">{formatDate((selectedCandle??candles[candles.length-1]).lastTime,dateIncludesTime)}</p></div>
      <div className="text-right"><p className="text-[11px] text-[#64748B]">Period movement</p><p className={"text-sm font-semibold tabular-nums "+((selectedCandle??candles[candles.length-1]).change<0?"text-rose-600":"text-emerald-600")}>{money((selectedCandle??candles[candles.length-1]).change)} USDC</p><p className="text-[11px] text-[#64748B]">Cumulative {money((selectedCandle??candles[candles.length-1]).close)} USDC</p></div>
     </div>}
    </div>
    <p className="text-xs leading-5 text-[#94A3B8]">Touch or drag on the chart to inspect dated settlement movements. Candles represent cumulative settled P&amp;L, not live asset prices.</p>
   </div>:<div className="space-y-4 p-4 sm:p-6">
    <div><h2 className="text-base font-semibold">Investment approach</h2><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#475569]">{description}</p></div>
-   <div className="border-t border-[#EDF0F5] pt-4"><dl className="grid grid-cols-2 gap-x-4 gap-y-5">{[["Market",stats.market],["Status",stats.status],["Allocated capital",stats.total+" USDC"],["Available capacity",stats.capacity+" USDC"],["Verified settlements",String(stats.settlements)]].map(([key,value])=><div key={key} className="min-w-0"><dt className="text-xs text-[#94A3B8]">{key}</dt><dd className="mt-1 break-words text-sm font-semibold text-[#14253D]">{value}</dd></div>)}</dl></div>
+   <div className="border-t border-[#EDF0F5] pt-4"><dl className="grid grid-cols-2 gap-x-4 gap-y-5">{[["Market",stats.market],["Status",stats.status],["Allocated capital",stats.total+" USDC"],["Available capacity",stats.capacity+" USDC"],["Verified settlements",String(stats.settlements)]].map(([key,value])=><div key={key} className="min-w-0"><dt className="text-xs text-[#94A3B8]">{key}</dt><dd className="mt-1 break-words text-sm font-semibold text-[#243553]">{value}</dd></div>)}</dl></div>
    {note&&<div className="border-t border-[#EDF0F5] pt-4"><h3 className="text-sm font-semibold">Strategy notes</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#64748B]">{note}</p></div>}
   </div>}
  </section>;
