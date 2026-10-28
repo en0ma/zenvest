@@ -16,7 +16,7 @@ export async function sendSecurityCode(to:string,code:string){const apiKey=proce
 export async function makeChallenge(userId:string,method:"EMAIL"|"APP",purpose:"LOGIN"|"ENABLE"|"DISABLE"){const code=method==="EMAIL"?String(randomInt(0,1000000)).padStart(6,"0"):null;const ch=await prisma.twoFactorChallenge.create({data:{userId,method,purpose,expiresAt:new Date(Date.now()+5*60000)}});if(code){await prisma.twoFactorChallenge.update({where:{id:ch.id},data:{codeHash:hashCode(ch.id,code)}})}return {id:ch.id,code}}
 export async function verifyChallenge(id:string,userId:string,purpose:string,code:string){
  const audit=(outcome:string,method:string="unknown")=>console.info(JSON.stringify({component:"auth-2fa",event:"challenge_verification",purpose,method,outcome}));
- if(!/^\\d{6}$/.test(code)){audit("invalid_format");return false}
+ if(!/^\d{6}$/.test(code)){audit("invalid_format");return false}
  try {
   const result=await prisma.$transaction(async tx=>{
    const c=await tx.twoFactorChallenge.findUnique({where:{id}});
