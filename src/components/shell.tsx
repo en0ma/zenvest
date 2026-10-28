@@ -17,7 +17,7 @@ export function Shell({ admin = false, preview = false, children }: {admin?:bool
   const items = preview ? nav.map(item => ({ ...item, href: item.href.replace("/dashboard", "/preview/investor").replace("/admin", "/preview/admin") })) : nav;
   return <div className="min-h-screen lg:flex bg-[#F5F6FC]">{!preview&&<SecurityIdle/>}
     <header className="relative z-40 flex lg:hidden items-center justify-between h-[76px] border-b border-[#E4E8E2] bg-white px-5 sm:px-7">
-      <Link href="/" className="text-[27px] font-black tracking-tight text-[#0A2540]">zenvest<span className="text-[#635BFF]">.</span></Link>
+      <Link href="/" className="text-[27px] font-black tracking-tight text-[#0A2540]">zenvest<span className="text-[#BFB9FF]">.</span></Link>
       <AutoCloseDetails className="relative"><summary aria-label="Open investor navigation" className="list-none cursor-pointer rounded-lg border border-[#E4E8E2] p-2 text-[#0A2540]"><Menu size={22}/></summary>
         <nav aria-label="Investor navigation" className="absolute right-0 top-12 z-50 w-60 rounded-2xl border border-[#E4E8E2] bg-white p-4 shadow-xl flex flex-col gap-1 text-sm text-[#0A2540]">
           {items.map(({href,text})=><InvestorNavLink key={text} href={href} text={text} variant="menu"/>)}
@@ -25,9 +25,9 @@ export function Shell({ admin = false, preview = false, children }: {admin?:bool
         </nav>
       </AutoCloseDetails>
     </header>
-    <aside className="hidden lg:flex lg:flex-col bg-[#F5F6FC] border-r border-[#E4E8E2] text-[#0A2540] lg:w-64 p-7 lg:min-h-screen">
-      <Link href="/" className="text-3xl font-bold tracking-tight text-[#0A2540]">zenvest<span className="text-[#635BFF]">.</span></Link>
-      <p className="text-xs tracking-[.16em] text-[#52637B] uppercase mt-2">Your account</p>
+    <aside className="hidden lg:flex lg:flex-col bg-[#202B4A] border-r border-[#38466B] text-white lg:w-64 p-7 lg:min-h-screen">
+      <Link href="/" className="text-3xl font-bold tracking-tight text-white">zenvest<span className="text-[#635BFF]">.</span></Link>
+      <p className="text-xs tracking-[.16em] text-[#B9C7E4] uppercase mt-2">Your account</p>
       <nav aria-label="Investor sidebar" className="mt-12 flex flex-col gap-1">{items.map(({href,text})=><InvestorNavLink key={text} href={href} text={text} variant="sidebar"/>)}</nav>
       {!preview&&<Signout/>}
     </aside>
