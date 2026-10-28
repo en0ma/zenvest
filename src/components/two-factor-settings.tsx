@@ -44,7 +44,7 @@ export function TwoFactorSettings({enabled,method}:{enabled:boolean;method:strin
    if(data.secret){setSecret(data.secret);setCode("")}
    if(data.uri)setUri(data.uri);
    if(data.recoveryCodes){setRecoveryCodes(data.recoveryCodes);setPassword("");setSecret("");setUri("");setMessage("Save these recovery codes now. Each code can be used once.");return}
-   if(data.loginRequired){await signOut({callbackUrl:"/"});return}
+   if(data.loginRequired){await signOut({redirect:false});window.location.replace(window.location.origin+"/");return}
    if(action==="setup"&&data.method==="EMAIL")setMessage("Enter the code sent to your email.");
    if(action==="disable-code")setMessage("Enter the code sent to your email.");
   }catch{setMessage("Couldn't complete the request. Please try again.")}finally{setBusy(false)}
@@ -56,7 +56,7 @@ export function TwoFactorSettings({enabled,method}:{enabled:boolean;method:strin
   <p className="text-sm text-[#62738B]">Keep these somewhere safe. Each code works only once and will not be shown again.</p>
   <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[#F7F8FB] p-4 font-mono text-xs sm:text-sm">{recoveryCodes.map(c=><span key={c}>{c}</span>)}</div>
   <button type="button" className="rounded-full border border-[#CED6E7] px-5 py-2 text-sm font-semibold" onClick={()=>navigator.clipboard.writeText(recoveryCodes.join("\n"))}>Copy recovery codes</button>
-  <button type="button" className={button} onClick={()=>void signOut({callbackUrl:"/"})}>I've saved my codes — sign in again</button>
+  <button type="button" className={button} onClick={async()=>{await signOut({redirect:false});window.location.replace(window.location.origin+"/")}}>I've saved my codes — sign in again</button>
  </div>;
  return <section className="space-y-5 py-5 text-[#14253D]">
   <div><h3 className="text-lg font-semibold">Two-step verification</h3>{!enabled&&<p className="mt-1 text-sm text-[#68788F]">Off · Protect your account with a second step.</p>}</div>
