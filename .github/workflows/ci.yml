@@ -121,3 +121,29 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: node scripts/seed-strategy-design.mjs
+
+  promote-production:
+    name: Restore production domains after successful migrations
+    needs: [verify, migrate-production]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    concurrency:
+      group: zenvest-production-domain-promotion
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Promote the READY production build for this exact commit
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: prj_Jt3007ySjMThJhX6yxBANzdF79Zc
+          VERCEL_TEAM_ID: team_klt5Ujj4O6fjKKfPzD01dotj
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/promote-production-after-migrations.mjs
