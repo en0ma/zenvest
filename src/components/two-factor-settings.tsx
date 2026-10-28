@@ -43,7 +43,7 @@ export function TwoFactorSettings({enabled,method}:{enabled:boolean;method:strin
    if(data.uri)setUri(data.uri);
    if(data.recoveryCodes){setRecoveryCodes(data.recoveryCodes);setPassword("");setSecret("");setUri("");setMessage("Save these recovery codes now. Each code can be used once.");return}
    if(data.loginRequired){await signOut({callbackUrl:"/login"});return}
-   if(action==="setup")setMessage(data.method==="EMAIL"?"Enter the code sent to your email.":"Scan the QR code or use the setup key, then enter your six-digit code.");
+   if(action==="setup"&&data.method==="EMAIL")setMessage("Enter the code sent to your email.");
    if(action==="disable-code")setMessage("Enter the code sent to your email.");
   }catch{setMessage("Couldn't complete the request. Please try again.")}finally{setBusy(false)}
  }
