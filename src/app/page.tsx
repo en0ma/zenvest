@@ -14,11 +14,11 @@ function AccountPreview(){
 }
 export default async function Home(){
  const session=await getServerSession(authOptions);
- return <main className="min-h-screen bg-[#08090D] px-3 py-5 text-white sm:px-6 sm:py-10">
-  <section className="relative mx-auto max-w-[1100px] overflow-hidden rounded-[30px] bg-[#222D4D] sm:rounded-[42px]">
-   <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[120px] bg-[radial-gradient(ellipse_at_50%_0%,#51538B_0%,#343F6A_65%,#253052_100%)]"/>
-   <div aria-hidden="true" className="pointer-events-none absolute left-[-8%] top-[55px] h-[85px] w-[116%] rounded-[0_0_50%_50%] bg-[#222D4D]"/>
-   <div className="relative px-5 pb-7 pt-[112px] sm:px-10 sm:pb-12 sm:pt-[125px] lg:px-16">
+ return <main className="min-h-screen bg-[#222D4D] text-white">
+  <section className="relative isolate min-h-screen overflow-hidden bg-[#222D4D]">
+   <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[160px] bg-[radial-gradient(ellipse_75%_110%_at_52%_0%,#6567A1_0%,#424E82_48%,#283558_100%)] [clip-path:ellipse(85%_95%_at_50%_0%)] sm:h-[205px]"/>
+   
+   <div className="relative mx-auto max-w-[1180px] px-6 pb-12 pt-[126px] sm:px-10 sm:pb-20 sm:pt-[168px] lg:px-16">
     <header className="flex items-center justify-between gap-4">
      <Link href="/" className="text-[29px] font-bold tracking-[-.06em] sm:text-[34px]">zenvest.</Link>
      <Link href={session?.user?.id?"/dashboard":"/register"} className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-[#253351] sm:px-6 sm:text-base">{session?.user?.id?"My account":"Get started"}</Link>
@@ -36,7 +36,7 @@ export default async function Home(){
     <p className="mt-7 max-w-[740px] text-sm leading-6 text-[#ADB8D6] sm:mt-9 sm:text-base">Discover a strategy. Fund your wallet. Choose an amount.<br className="hidden sm:block"/> Stay informed.</p>
    </div>
   </section>
-  <footer className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-center gap-x-7 gap-y-3 px-5 py-8 text-sm text-[#B3BCD3]">
+  <footer className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-center gap-x-7 gap-y-3 border-t border-white/10 px-6 py-8 text-sm text-[#B3BCD3]">
    <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="hover:text-white">Twitter</a>
    <a href="https://t.me" target="_blank" rel="noopener noreferrer" className="hover:text-white">Telegram</a>
    <Link href="/terms" className="hover:text-white">Terms of service</Link>
