@@ -63,7 +63,7 @@ export async function POST(req:Request){
   const enrolled=v.method==="APP"?!!f.secretEncrypted:f.emailEnabled;
   if(!enrolled)return NextResponse.json({error:"This verification method is not enabled"},{status:400});
   let valid=false;
-  if(v.method==="APP")valid=validTotpStep(decryptSecret(f.secretEncrypted),v.code,f.lastTotpStep)!==null;
+  if(v.method==="APP"&&f.secretEncrypted)valid=validTotpStep(decryptSecret(f.secretEncrypted),v.code,f.lastTotpStep)!==null;
   if(v.method==="EMAIL"&&typeof v.challengeId==="string")valid=await verifyChallenge(v.challengeId,u.id,"DISABLE",v.code);
   if(!valid)return NextResponse.json({error:"Incorrect or expired verification code"},{status:403});
   await prisma.$transaction(async tx=>{
