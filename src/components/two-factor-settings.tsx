@@ -59,7 +59,7 @@ export function TwoFactorSettings({enabled,method}:{enabled:boolean;method:strin
   <button type="button" className={button} onClick={()=>void signOut({callbackUrl:"/login"})}>I've saved my codes — sign in again</button>
  </div>;
  return <section className="space-y-5 py-5 text-[#243553]">
-  <div><h3 className="text-lg font-semibold">Two-step verification</h3><p className="mt-1 text-sm text-[#68788F]">{enabled?`On · ${method==="APP"?"Authenticator app":"Email"}`:"Off · Protect your account with a second step."}</p></div>
+  <div><h3 className="text-lg font-semibold">Two-step verification</h3>{!enabled&&<p className="mt-1 text-sm text-[#68788F]">Off · Protect your account with a second step.</p>}</div>
 
   {!enabled&&<div className="rounded-2xl border border-[#DFE5EF] bg-[#F7F8FC] p-4 sm:p-5">
    <div className="flex flex-wrap items-center justify-between gap-3">
