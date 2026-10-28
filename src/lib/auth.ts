@@ -29,7 +29,8 @@ export const authOptions: NextAuthOptions = {
         if (!valid) return null;
         const twoFactor=await prisma.twoFactor.findUnique({where:{userId:user.id}});
         if(twoFactor){
-          const verified=credentials.recoveryCode?await consumeRecoveryCode(user.id,credentials.recoveryCode):Boolean(credentials.challengeId&&credentials.code&&await verifyChallenge(credentials.challengeId,user.id,"LOGIN",credentials.code));
+          const recoveryProvided=typeof credentials.recoveryCode==="string"&&/^[A-Fa-f0-9]{6}-?[A-Fa-f0-9]{6}$/.test(credentials.recoveryCode);
+          const verified=recoveryProvided?await consumeRecoveryCode(user.id,credentials.recoveryCode!):Boolean(credentials.challengeId&&/^\d{6}$/.test(credentials.code??"")&&await verifyChallenge(credentials.challengeId,user.id,"LOGIN",credentials.code!));
           if(!verified)return null;
         }
         const sid=randomUUID();
