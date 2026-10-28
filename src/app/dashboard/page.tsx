@@ -12,7 +12,7 @@ const TABLE_PAGE_SIZE=10;
 function pageParam(value:string|undefined){const n=Number(value??"1");return Number.isSafeInteger(n)&&n>0?Math.min(n,100000):1;}
 function TablePager({page,pages,name,otherPage,otherName}:{page:number;pages:number;name:string;otherPage:number;otherName:string}){
  const link=(next:number)=>`/dashboard?${name}=${next}&${otherName}=${otherPage}`;
- return <nav aria-label={`${name==="positionsPage"?"Position performance":"Settled trade history"} pagination`} className="mt-4 flex items-center justify-between gap-3 border-t border-[#EDF0F5] pt-4 text-sm">
+ return <nav aria-label={`${name==="positionsPage"?"Investment performance":"Settled trade history"} pagination`} className="mt-4 flex items-center justify-between gap-3 border-t border-[#EDF0F5] pt-4 text-sm">
   <span className="text-[#64748B]">Page {page} of {pages}</span><div className="flex items-center gap-2">
   {page>1?<Link className="rounded-lg border border-[#DCE3EC] px-3 py-2 font-medium" href={link(page-1)}>Previous</Link>:<span className="rounded-lg border border-[#DCE3EC] px-3 py-2 text-[#94A3B8]" aria-disabled="true">Previous</span>}
   {page<pages?<Link className="rounded-lg border border-[#DCE3EC] px-3 py-2 font-medium" href={link(page+1)}>Next</Link>:<span className="rounded-lg border border-[#DCE3EC] px-3 py-2 text-[#94A3B8]" aria-disabled="true">Next</span>}
@@ -109,8 +109,8 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
   </section>
   <div className="grid gap-4 lg:grid-cols-2">
    <section aria-labelledby="positions-heading" className="min-w-0 rounded-2xl border border-[#E3E8EE] bg-white p-4 sm:p-6">
-    <div className="flex items-center justify-between gap-3"><h2 id="positions-heading" className="text-base font-semibold">Investment positions</h2><Link href="/earn/positions" className="text-xs font-semibold text-[#625DC1]">View positions</Link></div>
-    <p className="mt-1 text-xs text-[#64748B]">{positions.length} positions · Settled performance</p>
+    <div className="flex items-center justify-between gap-3"><h2 id="positions-heading" className="text-base font-semibold">My investments</h2><Link href="/earn/positions" className="text-xs font-semibold text-[#625DC1]">View investments</Link></div>
+    <p className="mt-1 text-xs text-[#64748B]">{positions.length} investments · Settled performance</p>
     {pagedPositions.length?<div className="mt-3 divide-y divide-[#EDF0F5]">{pagedPositions.map(p=>{const s=statsByPosition.get(p.id),net=s?._sum.netPnlUsdcMicros??0n;return <Link key={p.id} href={`/earn/positions/${p.id}`} className="flex items-center justify-between gap-3 py-3 focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-[#635BFF]"><div className="min-w-0"><p className="truncate text-sm font-semibold">{p.strategy.name}</p><p className="mt-1 text-xs text-[#64748B]">{p.status} · {formatUsdc(p.allocatedUsdcMicros)} allocated · {s?._count._all??0} settled</p></div><div className="shrink-0 text-right"><p className={"text-sm font-semibold tabular-nums "+(net<0n?"text-rose-600":net>0n?"text-emerald-700":"text-[#243553]")}>{net>0n?"+":""}{formatUsdc(net)}</p><p className="text-[11px] text-[#94A3B8]">Net P&amp;L ›</p></div></Link>})}</div>:<p className="mt-3 rounded-xl bg-[#F8FAFC] px-3 py-4 text-sm text-[#64748B]">No positions yet. Explore strategies to get started.</p>}
     {positions.length>TABLE_PAGE_SIZE&&<TablePager page={positionsPage} pages={positionPages} name="positionsPage" otherPage={tradesPage} otherName="tradesPage"/>}
    </section>
