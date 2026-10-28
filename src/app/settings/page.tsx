@@ -69,13 +69,11 @@ export default async function SettingsPage(){
   </section>
   <section id="security" className={surface+" scroll-mt-24 divide-y divide-[#E9EDF4] px-4 sm:px-6"} aria-label="Security and account">
    <div className="py-5">{twoFactor?<ExtraTwoFactorMethod defaultMethod={twoFactor.method as "APP"|"EMAIL"} methods={[...(twoFactor.emailEnabled?["EMAIL" as const]:[]),...(twoFactor.secretEncrypted?["APP" as const]:[])]}/>:<TwoFactorSettings enabled={false} method={null}/>}</div>
-   <SettingRow icon={ShieldCheck} title="Account security" description={verified?"Your account is protected with a verified email.":"Verify your email to protect your account."} status={verified?"Verified":undefined} tint="green"/>
   </section>
   <ChangePassword/>
   <section id="preferences" className={surface+" scroll-mt-24 divide-y divide-[#E9EDF4] px-4 sm:px-6"} aria-label="Preferences and support">
    <SettingRow icon={Settings2} title="Preferences" description="Account preferences and app settings."/>
    <div id="support" className="scroll-mt-24"><SettingRow icon={LifeBuoy} title="Help & support" description="Privacy, terms and support resources."/></div>
-   <div className="flex flex-wrap gap-x-5 gap-y-3 py-4 text-xs font-medium text-[#635BFF]"><Link href="/privacy" className="hover:underline">Privacy notice</Link><Link href="/terms" className="hover:underline">Terms and conditions</Link><Link href="/risk" className="hover:underline">Risk disclosure</Link></div>
   </section>
  </main></Shell>;
 }
