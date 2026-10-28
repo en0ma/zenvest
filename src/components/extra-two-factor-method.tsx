@@ -46,5 +46,6 @@ export function ExtraTwoFactorMethod({defaultMethod,methods}:{defaultMethod:Meth
    <button type="button" disabled={busy||!password||!!challenge&&code.length!==6} className="rounded-full bg-[#14253D] px-5 py-3 text-sm font-semibold text-white disabled:opacity-40" onClick={()=>void request(methods.includes(selected)?"set-default":challenge?"confirm-method":"add-method",selected)}>{busy?"Working…":methods.includes(selected)?"Set as default":challenge?"Verify and add":"Continue"}</button>
   </div>}
   {message&&<p role="status" className="text-sm text-[#536783]">{message}</p>}
- </div>;
+ </div>
+ </section>;
 }
