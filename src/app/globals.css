@@ -79,3 +79,6 @@ h1,h2,h3{font-feature-settings:"ss01" on;}
 .zen-afterglow-card{background:#fff;color:#243953;border:1px solid #DFE5EF;box-shadow:0 30px 90px rgba(10,16,40,.21)}
 .zen-afterglow-btn{background:#fff;color:#243553;border-radius:999px;padding:12px 26px;font-weight:650;display:inline-flex;align-items:center;justify-content:center}
 .zen-afterglow-btn:hover{background:#EEEFFF}
+
+/* Afterglow 02 on account access, email verification and recovery screens. */
+.zen-auth-gradient{background-color:#F5F6FC;background-image:radial-gradient(ellipse 75% 175px at 50% 0%,rgba(101,103,161,.83) 0%,rgba(66,78,130,.65) 48%,rgba(40,53,88,0) 100%);background-repeat:no-repeat}
