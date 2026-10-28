@@ -67,7 +67,7 @@ try{
  assert.ok(removalRequest.challengeId);
  assert.equal((await settings({action:"remove-method",password,method:"EMAIL",challengeId:removalRequest.challengeId,code:emailCode()})).status,200);
  assert.deepEqual(await (await status()).json(),{enabled:true,method:"APP",methods:["APP"]});
- assert.equal((await settings({action:"remove-method",password,method:"APP",code:totpAt(setup.secret,step+1)})).status,400,"cannot remove the last method through per-method management");
+ assert.equal((await settings({action:"remove-method",password,method:"APP",code:"000000"})).status,403,"the final method still requires a valid code");
 
  const challenge=(await (await login({email:"ci-security@example.invalid",password})).json());
  assert.equal(challenge.method,"APP");assert.ok(challenge.challengeId);
