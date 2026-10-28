@@ -28,8 +28,8 @@ export default async function StrategyPage({params}:{params:Promise<{id:string}>
  const returns=[["1H P&L",periodReturn(3600000)],["24H P&L",periodReturn(86400000)],["30D P&L",periodReturn(30*86400000)]] as const;
  const pnlMap=new Map(positionPnls.map(p=>[p.positionId,p._sum.netPnlUsdcMicros??0n]));
  return <Shell><div className="mx-auto max-w-7xl space-y-5">
-  <Link href="/earn" className="text-sm font-semibold text-[#635BFF]">← All strategies</Link>
-  <header className="rounded-2xl border border-[#E3E8EE] bg-white p-4 text-[#14253D] sm:p-6">
+  <Link href="/earn" className="text-sm font-semibold text-[#625DC1]">← All strategies</Link>
+  <header className="rounded-2xl border border-[#DFE5EF] bg-white p-4 text-[#243553] sm:p-6">
    <div className="flex flex-wrap items-center justify-between gap-6">
     <div className="flex min-w-0 flex-1 items-center gap-3">
      <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#4A698E] bg-[#34465E] font-bold">{strategy.logo&&(strategy.logo.startsWith("/")||strategy.logo.startsWith("https://"))?<img src={strategy.logo} alt="" className="h-full w-full object-cover"/>:(strategy.symbol??strategy.name).slice(0,2).toUpperCase()}</span>
@@ -44,16 +44,16 @@ export default async function StrategyPage({params}:{params:Promise<{id:string}>
    </div>
    <div className="min-w-0"><PositionCapitalActions strategyId={id} available={free.toString()} min={strategy.minAllocationUsdcMicros.toString()} max={strategy.maxAllocationUsdcMicros.toString()} capacity={strategy.availableCapacityUsdcMicros.toString()}/></div>
   </div>
-  <section aria-label="Your positions" className="rounded-2xl border border-[#E3E8EE] bg-white p-4 text-[#14253D] sm:p-6">
+  <section aria-label="Your positions" className="rounded-2xl border border-[#DFE5EF] bg-white p-4 text-[#243553] sm:p-6">
    <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">Your positions</h2><span className="text-xs text-[#64748B]">{positions.length} {positions.length===1?"position":"positions"}</span></div>
    <div className="mt-4 rounded-xl bg-[#F8FAFC] p-4">
     <div className="flex items-start justify-between gap-3"><div><p className="text-xs text-[#64748B]">SETTLED P&amp;L</p><p className={"mt-1 text-xl font-semibold tabular-nums "+(positions.reduce((sum,p)=>sum+(pnlMap.get(p.id)??0n),0n)<0n?"text-rose-600":"text-emerald-600")}>{positions.reduce((sum,p)=>sum+(pnlMap.get(p.id)??0n),0n)>0n?"+":""}{usdc(positions.reduce((sum,p)=>sum+(pnlMap.get(p.id)??0n),0n))} USDC</p></div><span aria-hidden="true" className="text-xl text-[#059669]">↗</span></div>
     <div className="mt-3 flex items-center justify-between gap-3 border-t border-[#E5EAF0] pt-3"><span className="text-xs text-[#64748B]">Total allocated</span><span className="text-sm font-semibold tabular-nums">{usdc(positions.reduce((sum,p)=>sum+p.allocatedUsdcMicros,0n))} USDC</span></div>
    </div>
-   {positions.length===0?<p className="py-6 text-center text-sm text-[#64748B]">No positions yet. Enter an amount above to open your first position.</p>:<div className="mt-3 grid gap-3 sm:grid-cols-2">{positions.map(p=>{const pnl=pnlMap.get(p.id)??0n;return <Link key={p.id} href={"/earn/positions/"+encodeURIComponent(p.id)} aria-label={"Manage position opened "+p.createdAt.toLocaleDateString("en-US",{timeZone:"UTC"})+" with "+usdc(p.allocatedUsdcMicros)+" USDC allocated"} className="block rounded-xl border border-[#E5EAF0] p-4 transition hover:border-[#A5A1FF] hover:bg-[#FAFAFF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#635BFF]">
+   {positions.length===0?<p className="py-6 text-center text-sm text-[#64748B]">No positions yet. Enter an amount above to open your first position.</p>:<div className="mt-3 grid gap-3 sm:grid-cols-2">{positions.map(p=>{const pnl=pnlMap.get(p.id)??0n;return <Link key={p.id} href={"/earn/positions/"+encodeURIComponent(p.id)} aria-label={"Manage position opened "+p.createdAt.toLocaleDateString("en-US",{timeZone:"UTC"})+" with "+usdc(p.allocatedUsdcMicros)+" USDC allocated"} className="block rounded-xl border border-[#E5EAF0] p-4 transition hover:border-[#A5A1FF] hover:bg-[#FAFAFF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#7778D6]">
     <div className="flex items-center justify-between gap-2"><span className="text-xs text-[#64748B]">Opened {p.createdAt.toLocaleDateString("en-US",{timeZone:"UTC",month:"short",day:"numeric",year:"numeric"})}</span><span className="text-xs capitalize text-[#64748B]">{p.status.toLowerCase()}</span></div>
     <div className="mt-3 flex items-end justify-between gap-3"><div className="min-w-0"><p className="text-[11px] text-[#64748B]">Allocated</p><p className="whitespace-nowrap text-sm font-semibold tabular-nums">{usdc(p.allocatedUsdcMicros)} USDC</p></div><div className="min-w-0 text-right"><p className="text-[11px] text-[#64748B]">Settled P&amp;L</p><p className={"whitespace-nowrap text-sm font-semibold tabular-nums "+(pnl<0n?"text-rose-600":"text-emerald-600")}>{pnl>0n?"+":""}{usdc(pnl)} USDC</p></div></div>
-    <div className="mt-3 flex items-center justify-end gap-1 text-xs font-medium text-[#635BFF]">Manage position <span aria-hidden="true">›</span></div>
+    <div className="mt-3 flex items-center justify-end gap-1 text-xs font-medium text-[#625DC1]">Manage position <span aria-hidden="true">›</span></div>
    </Link>;})}</div>}
   </section>
  </div></Shell>;
