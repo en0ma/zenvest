@@ -31,7 +31,7 @@ export function ExtraTwoFactorMethod({defaultMethod,methods}:{defaultMethod:Meth
   }catch{setMessage("Couldn't complete the request. Try again.")}finally{setBusy(false)}
  }
  function cancel(){setSelected(null);setPassword("");setCode("");setChallenge("");setSecret("");setUri("");setQr("");setMessage("")}
- return <section aria-labelledby="two-step-heading" className="space-y-4 py-5">
+ return <section aria-labelledby="two-step-heading" className="space-y-4">
   <div><h3 id="two-step-heading" className="text-lg font-semibold text-[#14253D]">Two-step verification</h3><p className="mt-1 text-sm text-[#64748B]">Choose how you verify it’s you when signing in.</p></div>\n  <div className="space-y-3 rounded-2xl border border-[#DFE5EF] bg-[#F7F8FC] p-4 sm:p-5">
   <div><h4 className="text-sm font-semibold text-[#14253D]">Verification methods</h4><p className="mt-1 text-xs text-[#64748B]">{methods.length===1?"Your first method is the default. Add the other method for a backup option.":"Both methods are ready. The default is used first at sign-in."}</p></div>
   <div className="space-y-3">{(["APP","EMAIL"] as const).map(m=><div key={m} className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-[#E3E8F0] bg-white p-4">
