@@ -37,7 +37,7 @@ try{
  assert.equal((await login({email:"bad",password:"wrong"})).status,401);
  assert.equal((await login({email:"ci-security@example.invalid",password:"wrong"})).status,401);
  assert.deepEqual(await (await login({email:"ci-security@example.invalid",password})).json(),{requires2fa:false});
- assert.deepEqual(await (await status()).json(),{enabled:false,method:null});
+ assert.deepEqual(await (await status()).json(),{enabled:false,method:null,methods:[]});
  assert.equal((await settings({action:"setup",password:"wrong",method:"APP"})).status,403);
  assert.equal((await settings({action:"setup",password,method:"OTHER"})).status,400);
  const setup=(await (await settings({action:"setup",password,method:"APP"})).json());
@@ -49,7 +49,20 @@ try{
  const enabledData=await enabled.json().catch(()=>null);
  assert.equal(enabledData.recoveryCodes.length,8);
  assert.equal((await prisma.twoFactor.findUniqueOrThrow({where:{userId}})).method,"APP");
- assert.equal((await status()).status,200);
+ assert.deepEqual(await (await status()).json(),{enabled:true,method:"APP",methods:["APP"]});
+ // Enroll email alongside the original app, preserving APP as the default.
+ const addEmail=(await (await settings({action:"add-method",password,method:"EMAIL"})).json());
+ assert.ok(addEmail.challengeId);
+ const confirmEmail=await settings({action:"confirm-method",password,challengeId:addEmail.challengeId,code:emailCode()});
+ assert.equal(confirmEmail.status,200);
+ assert.deepEqual(await (await status()).json(),{enabled:true,method:"APP",methods:["EMAIL","APP"]});
+ assert.equal((await settings({action:"set-default",password,method:"EMAIL"})).status,200);
+ assert.equal((await prisma.twoFactor.findUniqueOrThrow({where:{userId}})).method,"EMAIL");
+ assert.equal((await settings({action:"set-default",password,method:"APP"})).status,200);
+ assert.equal((await prisma.twoFactor.findUniqueOrThrow({where:{userId}})).method,"APP");
+ const alternate=(await (await login({email:"ci-security@example.invalid",password,method:"EMAIL"})).json());
+ assert.equal(alternate.method,"EMAIL");
+ assert.equal(await verifyChallenge(alternate.challengeId,userId,"LOGIN",emailCode()),true);
  const challenge=(await (await login({email:"ci-security@example.invalid",password})).json());
  assert.equal(challenge.method,"APP");assert.ok(challenge.challengeId);
  assert.equal(await verifyChallenge(challenge.challengeId,userId,"LOGIN","123abc"),false);
