@@ -43,15 +43,15 @@ export function ExtraTwoFactorMethod({defaultMethod,methods}:{defaultMethod:Meth
     {methods.includes(m)&&m===current&&<span className="rounded-full bg-[#EEF0FA] px-3 py-2 text-xs font-semibold text-[#5145A8]">Default</span>}
     {!selected&&<button type="button" className="rounded-full border border-[#CCD4E5] bg-white px-3 py-2 text-xs font-semibold text-[#344561] hover:bg-[#F3F5FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635BFF]" onClick={()=>{cancel();setSelected(m);setOperation(methods.includes(m)?null:"add")}}>{methods.includes(m)?"Manage":"Add method"}</button>}
    </div>
-  </div>)}</div>
-  {selected&&<div className="space-y-4 rounded-xl border border-[#E3E8F0] bg-white p-4">
+  {selected===m&&<div className="mt-4 w-full space-y-4 border-t border-[#E3E8F0] pt-4">
    <div className="flex items-center justify-between gap-3"><h5 className="text-sm font-semibold text-[#14253D]">{methods.includes(selected)?"Manage "+(selected==="APP"?"authenticator app":"email code"):"Add "+(selected==="EMAIL"?"email verification":"authenticator app")}</h5><button type="button" onClick={cancel} disabled={busy} className="text-xs underline">Cancel</button></div>
    {methods.includes(selected)&&!operation&&<div className="space-y-2">
     <p className="text-xs leading-5 text-[#64748B]">{selected===current?"This is your default sign-in method.":"This method is ready to use."}</p>
     {selected!==current&&<button type="button" className="block w-full rounded-xl border border-[#DCE3EC] p-3 text-left text-sm font-semibold text-[#14253D]" onClick={()=>setOperation("default")}>Make default</button>}
     {methods.length>1&&<button type="button" className="block w-full rounded-xl border border-[#E8D1CE] p-3 text-left text-sm font-semibold text-[#925B55]" onClick={()=>setOperation("remove")}>Remove this method</button>}
     {methods.length===1&&<p className="text-xs text-[#64748B]">To remove your only method, use the Turn off two-step verification control below.</p>}
-   </div>}
+    {message&&<p role="status" className="text-sm text-[#536783]">{message}</p>}
+  </div>}
    {operation&&<>
     {operation==="remove"&&<p className="text-sm leading-6 text-[#925B55]">Remove this method? Your other verified method will become the default. You’ll need to sign in again.</p>}
     <label className="block text-sm font-medium text-[#14253D]">Confirm your password<input className="mt-2 w-full rounded-lg border border-[#DDE3EE] px-3 py-3" type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)}/></label>
@@ -61,7 +61,7 @@ export function ExtraTwoFactorMethod({defaultMethod,methods}:{defaultMethod:Meth
     <button type="button" disabled={busy||!password||(operation==="remove"&&(selected==="APP"||!!challenge)&&code.length!==6)||(operation==="add"&&!!challenge&&code.length!==6)} className="w-full rounded-xl bg-[#14253D] px-5 py-3 text-sm font-semibold text-white disabled:opacity-40" onClick={()=>void request(operation==="default"?"set-default":operation==="remove"?(selected==="EMAIL"&&!challenge?"remove-method-code":"remove-method"):challenge?"confirm-method":"add-method",selected)}>{busy?"Working…":operation==="default"?"Set as default":operation==="remove"?(selected==="EMAIL"&&!challenge?"Send email code":"Remove method"):challenge?"Verify and add":"Continue"}</button>
    </>}
   </div>}
-  {message&&<p role="status" className="text-sm text-[#536783]">{message}</p>}
+  </div>)}</div>
  </div>
  </section>;
 }
