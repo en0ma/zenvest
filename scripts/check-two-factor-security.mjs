@@ -63,6 +63,12 @@ try{
  const alternate=(await (await login({email:"ci-security@example.invalid",password,method:"EMAIL"})).json());
  assert.equal(alternate.method,"EMAIL");
  assert.equal(await verifyChallenge(alternate.challengeId,userId,"LOGIN",emailCode()),true);
+ const removalRequest=(await (await settings({action:"remove-method-code",password,method:"EMAIL"})).json());
+ assert.ok(removalRequest.challengeId);
+ assert.equal((await settings({action:"remove-method",password,method:"EMAIL",challengeId:removalRequest.challengeId,code:emailCode()})).status,200);
+ assert.deepEqual(await (await status()).json(),{enabled:true,method:"APP",methods:["APP"]});
+ assert.equal((await settings({action:"remove-method",password,method:"APP",code:totpAt(setup.secret,step+1)})).status,400,"cannot remove the last method through per-method management");
+
  const challenge=(await (await login({email:"ci-security@example.invalid",password})).json());
  assert.equal(challenge.method,"APP");assert.ok(challenge.challengeId);
  assert.equal(await verifyChallenge(challenge.challengeId,userId,"LOGIN","123abc"),false);
