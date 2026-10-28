@@ -48,12 +48,6 @@ export default async function SettingsPage(){
     </div>
    </div>
   </section>
-  <section className={surface+" p-4 sm:p-5"} aria-label="Quick actions">
-   <h2 className="mb-3 text-base font-bold">Quick actions</h2>
-   <div className="grid grid-cols-4 gap-2">
-    {([{name:"Security",icon:LockKeyhole,href:"#security"},{name:"Recipients",icon:UsersRound,href:"#recipients"},{name:"Preferences",icon:Settings2,href:"#preferences"},{name:"Support",icon:LifeBuoy,href:"#support"}] as const).map(a=><Link href={a.href} key={a.name} className="flex min-w-0 flex-col gap-2 rounded-xl bg-[#F5F5FF] px-2 py-3 text-[#635BFF] transition hover:bg-[#ECEBFF] focus-visible:outline-2 focus-visible:outline-[#635BFF] sm:p-4"><a.icon size={22} strokeWidth={1.9}/><span className="flex w-full items-center justify-between gap-1"><span className="truncate text-[10px] font-semibold text-[#14253D] sm:text-sm">{a.name}</span><ChevronRight size={13} className="hidden shrink-0 sm:block"/></span></Link>)}
-   </div>
-  </section>
   <section id="recipients" className={surface+" scroll-mt-24 p-4 sm:p-6"} aria-labelledby="recipients-heading">
    <div className="flex items-center justify-between gap-3"><h2 id="recipients-heading" className="text-base font-bold sm:text-lg">Saved recipients</h2><span className="text-xs font-semibold text-[#635BFF]">{recipients.length} saved</span></div>
    {recipients.length===0?<div className="mt-4 rounded-xl bg-[#F7F9FC] p-4 text-sm text-[#64748B]">No saved recipients yet. You can save a recipient when sending or withdrawing USDC.</div>:<div className="mt-4 space-y-4">
@@ -72,7 +66,6 @@ export default async function SettingsPage(){
   </section>
   <ChangePassword/>
   <section id="preferences" className={surface+" scroll-mt-24 divide-y divide-[#E9EDF4] px-4 sm:px-6"} aria-label="Preferences and support">
-   <SettingRow icon={Settings2} title="Preferences" description="Account preferences and app settings."/>
    <div id="support" className="scroll-mt-24"><SettingRow icon={LifeBuoy} title="Help & support" description="Privacy, terms and support resources."/></div>
   </section>
  </main></Shell>;
