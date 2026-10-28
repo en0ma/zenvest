@@ -30,8 +30,9 @@ export const authOptions: NextAuthOptions = {
         const twoFactor=await prisma.twoFactor.findUnique({where:{userId:user.id}});
         if(twoFactor){
           const verified=credentials.recoveryCode?await consumeRecoveryCode(user.id,credentials.recoveryCode):Boolean(credentials.challengeId&&credentials.code&&await verifyChallenge(credentials.challengeId,user.id,"LOGIN",credentials.code));
-          if(!verified)return null;
+          if(!verified){console.info(JSON.stringify({component:"auth-2fa",event:"credentials_signin",outcome:"verification_rejected",method:twoFactor.method}));return null;}
         }
+        console.info(JSON.stringify({component:"auth-2fa",event:"credentials_signin",outcome:"accepted",method:twoFactor?.method??"NONE"}));
         const sid=randomUUID();
         await prisma.securitySession.create({data:{id:sid,userId:user.id}});
         return { id: user.id, email: user.email, name: user.name, image:sid };
