@@ -49,16 +49,16 @@ export function ExtraTwoFactorMethod({defaultMethod,methods}:{defaultMethod:Meth
      <ChevronDown size={20} aria-hidden="true" className={"shrink-0 text-[#52627B] transition-transform "+(selected===m?"rotate-180":"")}/>
     </button>
   {selected===m&&<div id={"two-factor-panel-"+m.toLowerCase()} className="space-y-4 border-t border-[#E8ECF3] bg-[#F7F8FC] p-4 sm:p-5">
-   <div className="flex items-center justify-between gap-3"><h5 className="text-sm font-semibold text-[#14253D]">{methods.includes(selected)?"Manage "+(selected==="APP"?"authenticator app":"email code"):"Add "+(selected==="EMAIL"?"email verification":"authenticator app")}</h5><button type="button" onClick={cancel} disabled={busy} className="text-xs underline">Cancel</button></div>
+   <h5 className="text-sm font-semibold text-[#14253D]">{methods.includes(selected)?"Manage "+(selected==="APP"?"authenticator app":"email code"):"Add "+(selected==="EMAIL"?"email verification":"authenticator app")}</h5>
    {methods.includes(selected)&&!operation&&<div className="space-y-2">
     <p className="text-xs leading-5 text-[#64748B]">{selected===current?"This is your default sign-in method.":"This method is ready to use."}</p>
     {selected!==current&&<button type="button" className="block w-full rounded-xl border border-[#DCE3EC] p-3 text-left text-sm font-semibold text-[#14253D]" onClick={()=>setOperation("default")}>Make default</button>}
-    <button type="button" className="block w-full rounded-xl border border-[#E8D1CE] p-3 text-left text-sm font-semibold text-[#925B55]" onClick={()=>setOperation("remove")}>Turn off this method</button>
+    <button type="button" className="inline-flex min-h-10 items-center rounded-lg border border-[#E8D1CE] bg-white px-4 py-2.5 text-sm font-semibold text-[#925B55] transition hover:bg-[#FCF6F5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#925B55]/20" onClick={()=>setOperation("remove")}>{selected==="APP"?"Turn off authenticator":"Turn off email code"}</button>
 
   </div>}
    {operation&&<>
     {operation==="remove"&&<p className="text-sm leading-6 text-[#925B55]">{methods.length===1?"Removing your only method will turn off two-step verification. You’ll need to sign in again.":"Your remaining method will become the default. You’ll need to sign in again."}</p>}
-    <label className="block text-sm font-medium text-[#14253D]">Confirm your password<input className="mt-2 w-full rounded-lg border border-[#DDE3EE] px-3 py-3" type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)}/></label>
+    <label className="block text-sm font-medium text-[#14253D]">Current password (security check)<input className="mt-2 w-full rounded-lg border border-[#DDE3EE] px-3 py-3" type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)}/></label>
     {qr&&<img src={qr} width={220} height={220} alt="Scan this QR code with your authenticator app"/>}
     {secret&&<div className="space-y-2"><p className="text-xs text-[#64748B]">Or enter this setup key manually:</p><code className="block break-all rounded-lg bg-[#F3F5FA] p-3 text-sm select-all">{secret.match(/.{1,4}/g)?.join(" ")}</code><button type="button" className="text-xs underline" onClick={()=>void navigator.clipboard.writeText(secret)}>Copy setup key</button></div>}
     {(challenge||operation==="remove"&&selected==="APP")&&<label className="block text-sm font-medium text-[#14253D]">Six-digit verification code<input inputMode="numeric" autoComplete="one-time-code" className="mt-2 w-full rounded-lg border border-[#DDE3EE] px-3 py-3" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,"").slice(0,6))}/></label>}
