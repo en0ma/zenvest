@@ -1,7 +1,7 @@
 "use client";
 import {FormEvent,useState} from "react";
 import {signOut} from "next-auth/react";
-import {Eye,EyeOff,CheckCircle2} from "lucide-react";
+import {Eye,EyeOff,CheckCircle2,ChevronDown} from "lucide-react";
 import {passwordChecks,isValidPassword} from "@/lib/password-policy";
 export function ChangePassword(){
  const [expanded,setExpanded]=useState(false);
@@ -25,12 +25,12 @@ export function ChangePassword(){
    window.location.replace(window.location.origin+"/login");
   }catch{setError("Could not update your password. Try again.")}finally{setBusy(false)}
  }
- return <section aria-labelledby="password-settings-title" className="rounded-2xl border border-[#E2E7EF] bg-white p-4 sm:p-6">
-  <div className="flex items-center justify-between gap-3">
-   <div className="min-w-0"><h2 id="password-settings-title" className="text-base font-semibold text-[#14253D]">Password</h2><p className="mt-1 text-sm text-[#64748B]">Change the password you use to sign in.</p></div>
-   <button type="button" aria-expanded={expanded} aria-controls="password-change-panel" onClick={()=>expanded?close():setExpanded(true)} className="shrink-0 rounded-full border border-[#CCD4E5] px-4 py-2 text-sm font-semibold text-[#344561] hover:bg-[#F3F5FA]">{expanded?"Close":"Change"}</button>
-  </div>
-  {expanded&&<form id="password-change-panel" onSubmit={submit} className="mt-5 space-y-4 border-t border-[#E8ECF3] pt-5">
+ return <section aria-labelledby="password-settings-title" className="overflow-hidden rounded-2xl border border-[#E2E7EF] bg-white">
+  <button type="button" aria-expanded={expanded} aria-controls="password-change-panel" onClick={()=>expanded?close():setExpanded(true)} className="flex w-full items-center justify-between gap-4 px-4 py-5 text-left transition hover:bg-[#FAFAFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#635BFF] sm:px-6">
+   <span className="min-w-0"><span id="password-settings-title" className="block text-base font-semibold text-[#14253D]">Password</span><span className="mt-1 block text-sm text-[#64748B]">Change the password you use to sign in.</span></span>
+   <ChevronDown size={20} aria-hidden="true" className={"shrink-0 text-[#52627B] transition-transform "+(expanded?"rotate-180":"")}/>
+  </button>
+  {expanded&&<form id="password-change-panel" onSubmit={submit} className="space-y-4 border-t border-[#E8ECF3] bg-[#F7F8FC] p-4 sm:p-6">
    <label className="block text-sm font-semibold text-[#14253D]">Current password<input type={visible?"text":"password"} autoComplete="current-password" required value={current} onChange={e=>setCurrent(e.target.value)} className={field}/></label>
    <label className="block text-sm font-semibold text-[#14253D]">New password<input type={visible?"text":"password"} autoComplete="new-password" required value={next} onChange={e=>setNext(e.target.value)} className={field}/></label>
    <label className="block text-sm font-semibold text-[#14253D]">Confirm new password<input type={visible?"text":"password"} autoComplete="new-password" required value={confirm} onChange={e=>setConfirm(e.target.value)} className={field}/></label>
