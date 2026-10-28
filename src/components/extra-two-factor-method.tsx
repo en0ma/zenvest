@@ -32,10 +32,10 @@ export function ExtraTwoFactorMethod({defaultMethod,methods}:{defaultMethod:Meth
  }
  function cancel(){setSelected(null);setPassword("");setCode("");setChallenge("");setSecret("");setUri("");setQr("");setMessage("")}
  return <div className="space-y-4 rounded-2xl border border-[#DFE5EF] bg-[#F7F8FC] p-4 sm:p-5">
-  <h4 className="text-sm font-semibold text-[#14253D]">Verification methods</h4>
+  <div><h4 className="text-sm font-semibold text-[#14253D]">Verification methods</h4><p className="mt-1 text-xs text-[#64748B]">{methods.length===1?"Your first method is automatically the default. Adding another won’t change it.":"Both methods are ready. Choose which one to use by default when signing in."}</p></div>
   <div className="space-y-2">{(["APP","EMAIL"] as const).map(m=><div key={m} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#E3E8F0] bg-white p-3">
    <div><p className="text-sm font-semibold text-[#14253D]">{m==="APP"?"Authenticator app":"Email code"}</p><p className="text-xs text-[#64748B]">{methods.includes(m)?m===current?"Default · Ready to use":"Ready to use":"Not added yet"}</p></div>
-   {!selected&&<button type="button" className="rounded-full border border-[#CCD4E5] px-3 py-2 text-xs font-semibold text-[#344561]" onClick={()=>{setSelected(m);setMessage("")}}>{methods.includes(m)?m===current?"Current default":"Make default":"Add method"}</button>}
+   {!selected&&(methods.includes(m)&&m===current?<span className="rounded-full bg-[#EEF0FA] px-3 py-2 text-xs font-semibold text-[#5145A8]">Default</span>:<button type="button" className="rounded-full border border-[#CCD4E5] px-3 py-2 text-xs font-semibold text-[#344561]" onClick={()=>{setSelected(m);setMessage("")}}>{methods.includes(m)?"Make default":"Add method"}</button>)}
   </div>)}</div>
   {selected&&<div className="space-y-4 rounded-xl bg-white p-4">
    <div className="flex items-center justify-between gap-3"><h5 className="font-semibold text-sm">{methods.includes(selected)?"Make this your default":"Add "+(selected==="EMAIL"?"email verification":"authenticator app")}</h5><button type="button" onClick={cancel} disabled={busy} className="text-xs underline">Cancel</button></div>
