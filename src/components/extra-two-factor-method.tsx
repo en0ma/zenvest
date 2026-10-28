@@ -2,6 +2,7 @@
 import {useEffect,useState} from "react";
 import {signOut} from "next-auth/react";
 import QRCode from "qrcode";
+import {ChevronDown} from "lucide-react";
 
 type Method="EMAIL"|"APP";
 export function ExtraTwoFactorMethod({defaultMethod,methods}:{defaultMethod:Method;methods:Method[]}){
@@ -35,23 +36,25 @@ export function ExtraTwoFactorMethod({defaultMethod,methods}:{defaultMethod:Meth
  function cancel(){setOperation(null);setSelected(null);setPassword("");setCode("");setChallenge("");setSecret("");setUri("");setQr("");setMessage("")}
  return <section aria-labelledby="two-step-heading" className="space-y-4">
   <div><h3 id="two-step-heading" className="text-lg font-semibold text-[#14253D]">Two-step verification</h3><p className="mt-1 text-sm text-[#64748B]">Choose how you verify it’s you when signing in.</p></div>
-  <div className="rounded-2xl border border-[#DFE5EF] bg-white p-4 sm:p-5">
-  <p className="mb-4 text-xs leading-5 text-[#64748B]">Add or manage each sign-in method below.</p>
-  <div className="divide-y divide-[#E8ECF3]">{(["APP","EMAIL"] as const).map(m=><div key={m} className="flex min-w-0 flex-wrap items-center justify-between gap-3 py-4 first:pt-1 last:pb-1">
-   <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-[#14253D]">{m==="APP"?"Authenticator app":"Email code"}</p><p className="mt-1 text-xs text-[#64748B]">{methods.includes(m)?"Enabled":"Not yet enabled"}</p></div>
-   <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-    {methods.includes(m)&&<span className="rounded-full bg-[#E8F8F1] px-2.5 py-1.5 text-xs font-semibold text-[#07875D]">Active</span>}
-    {methods.includes(m)&&m===current&&<span className="rounded-full bg-[#EEF0FA] px-2.5 py-1.5 text-xs font-semibold text-[#5145A8]">Default</span>}
-    <button type="button" aria-expanded={selected===m} aria-label={(selected===m?"Close ":"Open ")+(methods.includes(m)?"management for ":"setup for ")+(m==="APP"?"authenticator app":"email code")} className="rounded-full border border-[#CCD4E5] bg-white px-3 py-2 text-xs font-semibold text-[#344561] hover:bg-[#F3F5FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635BFF]" onClick={()=>{if(selected===m){cancel();return}cancel();setSelected(m);setOperation(methods.includes(m)?null:"add")}}>{selected===m?"Close":methods.includes(m)?"Manage":"Add"}</button>
-   </div>
-  {selected===m&&<div className="mt-4 w-full space-y-4 border-t border-[#E3E8F0] pt-4">
+  <div className="overflow-hidden rounded-2xl border border-[#DFE5EF] bg-white">
+   <div className="divide-y divide-[#E8ECF3]">{(["APP","EMAIL"] as const).map(m=><div key={m}>
+    <button type="button" disabled={busy} aria-expanded={selected===m} aria-controls={"two-factor-panel-"+m.toLowerCase()} className="flex w-full items-center justify-between gap-4 px-4 py-5 text-left transition hover:bg-[#FAFAFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#635BFF] disabled:opacity-60 sm:px-5" onClick={()=>{if(selected===m){cancel();return}cancel();setSelected(m);setOperation(methods.includes(m)?null:"add")}}>
+     <span className="min-w-0 flex-1">
+      <span className="block text-base font-semibold text-[#14253D]">{m==="APP"?"Authenticator app":"Email code"}</span>
+      {methods.includes(m)?<span className="mt-2 flex flex-wrap items-center gap-2">
+       <span className="rounded-full bg-[#E8F8F1] px-2.5 py-1 text-xs font-semibold text-[#07875D]">Active</span>
+       {m===current&&<span className="rounded-full bg-[#EEF0FA] px-2.5 py-1 text-xs font-semibold text-[#5145A8]">Default</span>}
+      </span>:<span className="mt-1 block text-sm text-[#64748B]">Not yet enabled</span>}
+     </span>
+     <ChevronDown size={20} aria-hidden="true" className={"shrink-0 text-[#52627B] transition-transform "+(selected===m?"rotate-180":"")}/>
+    </button>
+  {selected===m&&<div id={"two-factor-panel-"+m.toLowerCase()} className="space-y-4 border-t border-[#E8ECF3] bg-[#F7F8FC] p-4 sm:p-5">
    <div className="flex items-center justify-between gap-3"><h5 className="text-sm font-semibold text-[#14253D]">{methods.includes(selected)?"Manage "+(selected==="APP"?"authenticator app":"email code"):"Add "+(selected==="EMAIL"?"email verification":"authenticator app")}</h5><button type="button" onClick={cancel} disabled={busy} className="text-xs underline">Cancel</button></div>
    {methods.includes(selected)&&!operation&&<div className="space-y-2">
     <p className="text-xs leading-5 text-[#64748B]">{selected===current?"This is your default sign-in method.":"This method is ready to use."}</p>
     {selected!==current&&<button type="button" className="block w-full rounded-xl border border-[#DCE3EC] p-3 text-left text-sm font-semibold text-[#14253D]" onClick={()=>setOperation("default")}>Make default</button>}
-    {<button type="button" className="block w-full rounded-xl border border-[#E8D1CE] p-3 text-left text-sm font-semibold text-[#925B55]" onClick={()=>setOperation("remove")}>Remove this method</button>}
+    <button type="button" className="block w-full rounded-xl border border-[#E8D1CE] p-3 text-left text-sm font-semibold text-[#925B55]" onClick={()=>setOperation("remove")}>Turn off this method</button>
 
-    {message&&<p role="status" className="text-sm text-[#536783]">{message}</p>}
   </div>}
    {operation&&<>
     {operation==="remove"&&<p className="text-sm leading-6 text-[#925B55]">{methods.length===1?"Removing your only method will turn off two-step verification. You’ll need to sign in again.":"Your remaining method will become the default. You’ll need to sign in again."}</p>}
