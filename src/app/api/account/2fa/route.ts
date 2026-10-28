@@ -49,6 +49,7 @@ export async function POST(req:Request){
   return NextResponse.json(f?{ok:true,loginRequired:true}:{ok:true,loginRequired:true,recoveryCodes:recoveryCodes.map(code=>code.slice(0,6)+"-"+code.slice(6))});
  }
  if(v.action==="set-default"&&f&&(v.method==="APP"||v.method==="EMAIL")){
+  if(!f.emailEnabled||!f.secretEncrypted)return NextResponse.json({error:"Add both verification methods before changing the default"},{status:400});
   if(v.method==="APP"&&!f.secretEncrypted||v.method==="EMAIL"&&!f.emailEnabled)return NextResponse.json({error:"Add and verify this method first"},{status:400});
   await prisma.twoFactor.update({where:{userId:u.id},data:{method:v.method}});
   return NextResponse.json({ok:true,method:v.method});
