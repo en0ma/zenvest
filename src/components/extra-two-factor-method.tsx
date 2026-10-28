@@ -60,6 +60,7 @@ export function ExtraTwoFactorMethod({defaultMethod,methods}:{defaultMethod:Meth
     {(challenge||operation==="remove"&&selected==="APP")&&<label className="block text-sm font-medium text-[#14253D]">Six-digit verification code<input inputMode="numeric" autoComplete="one-time-code" className="mt-2 w-full rounded-lg border border-[#DDE3EE] px-3 py-3" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,"").slice(0,6))}/></label>}
     <button type="button" disabled={busy||!password||(operation==="remove"&&(selected==="APP"||!!challenge)&&code.length!==6)||(operation==="add"&&!!challenge&&code.length!==6)} className="w-full rounded-xl bg-[#14253D] px-5 py-3 text-sm font-semibold text-white disabled:opacity-40" onClick={()=>void request(operation==="default"?"set-default":operation==="remove"?(selected==="EMAIL"&&!challenge?"remove-method-code":"remove-method"):challenge?"confirm-method":"add-method",selected)}>{busy?"Working…":operation==="default"?"Set as default":operation==="remove"?(selected==="EMAIL"&&!challenge?"Send email code":"Remove method"):challenge?"Verify and add":"Continue"}</button>
    </>}
+   {message&&<p role="status" className="text-sm text-[#536783]">{message}</p>}
   </div>}
   </div>)}</div>
  </div>
