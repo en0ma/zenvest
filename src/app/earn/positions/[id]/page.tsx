@@ -29,7 +29,7 @@ export default async function PositionPage({params}:{params:Promise<{id:string}>
   <Link href={"/earn/strategies/"+encodeURIComponent(position.strategyId)} className="text-sm font-semibold text-[#625DC1]">← {position.strategy.symbol??position.strategy.name}</Link>
   <header className="flex items-center gap-4 rounded-2xl border border-[#DFE5EF] bg-white p-4 text-[#243553] sm:p-6">
    <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#34465E] font-bold">{position.strategy.logo&&(position.strategy.logo.startsWith("/")||position.strategy.logo.startsWith("https://"))?<img src={position.strategy.logo} alt="" className="h-full w-full object-cover"/>:(position.strategy.symbol??position.strategy.name).slice(0,2).toUpperCase()}</span>
-   <div className="min-w-0"><h1 className="text-xl font-bold">{position.strategy.symbol??position.strategy.name}</h1><p className="mt-1 text-sm text-[#64748B]">{position.strategy.name}</p><p className="mt-1 break-all font-mono text-xs text-[#A6B3C5]">Position {position.id}</p></div>
+   <div className="min-w-0"><h1 className="text-xl font-bold">{position.strategy.symbol??position.strategy.name}</h1><p className="mt-1 text-sm text-[#64748B]">{position.strategy.name}</p><p className="mt-1 break-all font-mono text-xs text-[#A6B3C5]">Investment {position.id}</p></div>
   </header>
   <div className="grid gap-3 sm:grid-cols-3">{[
    ["Allocated capital",usdc(position.allocatedUsdcMicros)+" USDC",false],
