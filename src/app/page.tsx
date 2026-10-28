@@ -21,7 +21,6 @@ export default async function Home(){
    <div className="relative mx-auto max-w-[1180px] px-6 pb-12 pt-[126px] sm:px-10 sm:pb-20 sm:pt-[168px] lg:px-16">
     <header className="flex items-center justify-between gap-4">
      <Link href="/" className="text-[29px] font-bold tracking-[-.06em] sm:text-[34px]">zenvest.</Link>
-     <Link href={session?.user?.id?"/dashboard":"/register"} className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-[#253351] sm:px-6 sm:text-base">{session?.user?.id?"My account":"Get started"}</Link>
     </header>
     <div className="mt-14 sm:mt-20">
      <p className="text-xs font-semibold uppercase tracking-[.045em] text-[#BDB5FF] sm:text-sm">Discover something new</p>
@@ -29,7 +28,7 @@ export default async function Home(){
      <p className="mt-6 max-w-[740px] text-[clamp(1.04rem,2.5vw,1.75rem)] leading-[1.48] text-[#CAD1E8]">There's more than one way to invest. Explore new opportunities with Zenvest.</p>
      <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-4">
       <Link href={session?.user?.id?"/earn":"/register"} className="inline-flex items-center gap-3 rounded-full bg-white px-6 py-3.5 text-base font-semibold text-[#253351] sm:px-8 sm:py-4 sm:text-lg">See your options <span aria-hidden="true">→</span></Link>
-      <Link href="/docs" className="text-base font-medium text-white underline underline-offset-4 sm:text-lg">How it works</Link>
+      <Link href="/how-it-works" className="text-base font-medium text-white underline underline-offset-4 sm:text-lg">How it works</Link>
      </div>
     </div>
     <div className="mt-12 sm:mt-16"><AccountPreview/></div>
