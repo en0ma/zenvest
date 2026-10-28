@@ -54,20 +54,22 @@ export async function POST(req:Request){
   await prisma.twoFactor.update({where:{userId:u.id},data:{method:v.method}});
   return NextResponse.json({ok:true,method:v.method});
  }
- if(v.action==="remove-method-code"&&f&&v.method==="EMAIL"&&f.emailEnabled&&!!f.secretEncrypted){
+ if(v.action==="remove-method-code"&&f&&v.method==="EMAIL"&&f.emailEnabled){
   const c=await makeChallenge(u.id,"EMAIL","DISABLE");
   try{await sendSecurityCode(u.email,c.code!)}catch{return NextResponse.json({error:"Could not send verification email"},{status:503})}
   return NextResponse.json({challengeId:c.id});
  }
  if(v.action==="remove-method"&&f&&(v.method==="APP"||v.method==="EMAIL")&&typeof v.code==="string"){
-  // A user removing one factor must retain the other enrolled factor.
-  if(!f.emailEnabled||!f.secretEncrypted)return NextResponse.json({error:"To turn off verification completely, use Turn off two-step verification."},{status:400});
+  const enrolled=v.method==="APP"?!!f.secretEncrypted:f.emailEnabled;
+  if(!enrolled)return NextResponse.json({error:"This verification method is not enabled"},{status:400});
   let valid=false;
-  if(v.method==="APP")valid=validTotpStep(decryptSecret(f.secretEncrypted),v.code,f.lastTotpStep)!==null;
+  if(v.method==="APP"&&f.secretEncrypted)valid=validTotpStep(decryptSecret(f.secretEncrypted),v.code,f.lastTotpStep)!==null;
   if(v.method==="EMAIL"&&typeof v.challengeId==="string")valid=await verifyChallenge(v.challengeId,u.id,"DISABLE",v.code);
   if(!valid)return NextResponse.json({error:"Incorrect or expired verification code"},{status:403});
   await prisma.$transaction(async tx=>{
-   await tx.twoFactor.update({where:{userId:u.id},data:v.method==="APP"?{secretEncrypted:null,lastTotpStep:-1n,method:"EMAIL"}:{emailEnabled:false,method:"APP"}});
+   const remaining=v.method==="APP"?f.emailEnabled:!!f.secretEncrypted;
+   if(remaining)await tx.twoFactor.update({where:{userId:u.id},data:v.method==="APP"?{secretEncrypted:null,lastTotpStep:-1n,method:"EMAIL"}:{emailEnabled:false,method:"APP"}});
+   else await tx.twoFactor.delete({where:{userId:u.id}});
    await tx.user.update({where:{id:u.id},data:{sessionVersion:{increment:1}}});
   });
   return NextResponse.json({ok:true,loginRequired:true});

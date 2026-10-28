@@ -35,25 +35,26 @@ export function ExtraTwoFactorMethod({defaultMethod,methods}:{defaultMethod:Meth
  function cancel(){setOperation(null);setSelected(null);setPassword("");setCode("");setChallenge("");setSecret("");setUri("");setQr("");setMessage("")}
  return <section aria-labelledby="two-step-heading" className="space-y-4">
   <div><h3 id="two-step-heading" className="text-lg font-semibold text-[#14253D]">Two-step verification</h3><p className="mt-1 text-sm text-[#64748B]">Choose how you verify it’s you when signing in.</p></div>
-  <div className="space-y-3 rounded-2xl border border-[#DFE5EF] bg-[#F7F8FC] p-4 sm:p-5">
-  <div><h4 className="text-sm font-semibold text-[#14253D]">Verification methods</h4><p className="mt-1 text-xs text-[#64748B]">{methods.length===1?"Your first method is the default. Add the other method for a backup option.":"Both methods are ready. The default is used first at sign-in."}</p></div>
-  <div className="space-y-3">{(["APP","EMAIL"] as const).map(m=><div key={m} className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-[#E3E8F0] bg-white p-4">
-   <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-[#14253D]">{m==="APP"?"Authenticator app":"Email code"}</p><p className="mt-1 text-xs text-[#64748B]">{methods.includes(m)?m===current?"Your default sign-in method":"Added and ready to use":"Not yet connected"}</p></div>
-   <div className="flex shrink-0 items-center gap-2">
-    {methods.includes(m)&&m===current&&<span className="rounded-full bg-[#EEF0FA] px-3 py-2 text-xs font-semibold text-[#5145A8]">Default</span>}
-    {!selected&&<button type="button" className="rounded-full border border-[#CCD4E5] bg-white px-3 py-2 text-xs font-semibold text-[#344561] hover:bg-[#F3F5FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635BFF]" onClick={()=>{cancel();setSelected(m);setOperation(methods.includes(m)?null:"add")}}>{methods.includes(m)?"Manage":"Add method"}</button>}
+  <div className="rounded-2xl border border-[#DFE5EF] bg-white p-4 sm:p-5">
+  <p className="mb-4 text-xs leading-5 text-[#64748B]">Add or manage each sign-in method below.</p>
+  <div className="divide-y divide-[#E8ECF3]">{(["APP","EMAIL"] as const).map(m=><div key={m} className="flex min-w-0 flex-wrap items-center justify-between gap-3 py-4 first:pt-1 last:pb-1">
+   <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-[#14253D]">{m==="APP"?"Authenticator app":"Email code"}</p><p className="mt-1 text-xs text-[#64748B]">{methods.includes(m)?"Enabled":"Not yet enabled"}</p></div>
+   <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+    {methods.includes(m)&&<span className="rounded-full bg-[#E8F8F1] px-2.5 py-1.5 text-xs font-semibold text-[#07875D]">Active</span>}
+    {methods.includes(m)&&m===current&&<span className="rounded-full bg-[#EEF0FA] px-2.5 py-1.5 text-xs font-semibold text-[#5145A8]">Default</span>}
+    <button type="button" aria-expanded={selected===m} aria-label={(selected===m?"Close ":"Open ")+(methods.includes(m)?"management for ":"setup for ")+(m==="APP"?"authenticator app":"email code")} className="rounded-full border border-[#CCD4E5] bg-white px-3 py-2 text-xs font-semibold text-[#344561] hover:bg-[#F3F5FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635BFF]" onClick={()=>{if(selected===m){cancel();return}cancel();setSelected(m);setOperation(methods.includes(m)?null:"add")}}>{selected===m?"Close":methods.includes(m)?"Manage":"Add"}</button>
    </div>
   {selected===m&&<div className="mt-4 w-full space-y-4 border-t border-[#E3E8F0] pt-4">
    <div className="flex items-center justify-between gap-3"><h5 className="text-sm font-semibold text-[#14253D]">{methods.includes(selected)?"Manage "+(selected==="APP"?"authenticator app":"email code"):"Add "+(selected==="EMAIL"?"email verification":"authenticator app")}</h5><button type="button" onClick={cancel} disabled={busy} className="text-xs underline">Cancel</button></div>
    {methods.includes(selected)&&!operation&&<div className="space-y-2">
     <p className="text-xs leading-5 text-[#64748B]">{selected===current?"This is your default sign-in method.":"This method is ready to use."}</p>
     {selected!==current&&<button type="button" className="block w-full rounded-xl border border-[#DCE3EC] p-3 text-left text-sm font-semibold text-[#14253D]" onClick={()=>setOperation("default")}>Make default</button>}
-    {methods.length>1&&<button type="button" className="block w-full rounded-xl border border-[#E8D1CE] p-3 text-left text-sm font-semibold text-[#925B55]" onClick={()=>setOperation("remove")}>Remove this method</button>}
-    {methods.length===1&&<p className="text-xs text-[#64748B]">To remove your only method, use the Turn off two-step verification control below.</p>}
+    {<button type="button" className="block w-full rounded-xl border border-[#E8D1CE] p-3 text-left text-sm font-semibold text-[#925B55]" onClick={()=>setOperation("remove")}>Remove this method</button>}
+
     {message&&<p role="status" className="text-sm text-[#536783]">{message}</p>}
   </div>}
    {operation&&<>
-    {operation==="remove"&&<p className="text-sm leading-6 text-[#925B55]">Remove this method? Your other verified method will become the default. You’ll need to sign in again.</p>}
+    {operation==="remove"&&<p className="text-sm leading-6 text-[#925B55]">{methods.length===1?"Removing your only method will turn off two-step verification. You’ll need to sign in again.":"Your remaining method will become the default. You’ll need to sign in again."}</p>}
     <label className="block text-sm font-medium text-[#14253D]">Confirm your password<input className="mt-2 w-full rounded-lg border border-[#DDE3EE] px-3 py-3" type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)}/></label>
     {qr&&<img src={qr} width={220} height={220} alt="Scan this QR code with your authenticator app"/>}
     {secret&&<div className="space-y-2"><p className="text-xs text-[#64748B]">Or enter this setup key manually:</p><code className="block break-all rounded-lg bg-[#F3F5FA] p-3 text-sm select-all">{secret.match(/.{1,4}/g)?.join(" ")}</code><button type="button" className="text-xs underline" onClick={()=>void navigator.clipboard.writeText(secret)}>Copy setup key</button></div>}
