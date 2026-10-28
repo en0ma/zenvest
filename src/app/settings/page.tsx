@@ -35,7 +35,7 @@ export default async function SettingsPage(){
   <header className="px-1 pb-1"><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Settings</h1><p className="mt-1 text-sm text-[#64748B]">Manage your profile, security and preferences.</p></header>
   <section id="profile" className={surface+" scroll-mt-24 p-4 sm:p-6"} aria-label="Profile">
    <div className="flex min-w-0 items-center gap-3 sm:gap-5">
-    <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#EEEAFE] text-[#5145A8] sm:h-20 sm:w-20"><UserRound size={30} strokeWidth={1.7}/></span>
+    <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#E9ECFB] text-[#625DC1] sm:h-20 sm:w-20"><UserRound size={30} strokeWidth={1.7}/></span>
     <div className="min-w-0 flex-1">
      <p className="text-base font-bold text-[#243553]">@{user.handle}</p>
      <p className="mt-0.5 break-all text-sm text-[#64748B]">{user.email}</p>
