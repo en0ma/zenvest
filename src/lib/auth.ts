@@ -30,7 +30,8 @@ export const authOptions: NextAuthOptions = {
         const twoFactor=await prisma.twoFactor.findUnique({where:{userId:user.id}});
         if(twoFactor){
           console.info(JSON.stringify({component:"auth-2fa",event:"signin_payload",method:twoFactor.method,hasChallenge:typeof credentials.challengeId==="string"&&credentials.challengeId.length>0,hasCode:typeof credentials.code==="string"&&credentials.code.length>0,hasRecovery:typeof credentials.recoveryCode==="string"&&credentials.recoveryCode.length>0}));
-          const verified=credentials.recoveryCode?await consumeRecoveryCode(user.id,credentials.recoveryCode):Boolean(credentials.challengeId&&credentials.code&&await verifyChallenge(credentials.challengeId,user.id,"LOGIN",credentials.code));
+          const recoveryProvided=typeof credentials.recoveryCode==="string"&&/^[A-Fa-f0-9]{6}-?[A-Fa-f0-9]{6}$/.test(credentials.recoveryCode);
+          const verified=recoveryProvided?await consumeRecoveryCode(user.id,credentials.recoveryCode!):Boolean(credentials.challengeId&&/^\d{6}$/.test(credentials.code??"")&&await verifyChallenge(credentials.challengeId,user.id,"LOGIN",credentials.code!));
           if(!verified){console.info(JSON.stringify({component:"auth-2fa",event:"credentials_signin",outcome:"verification_rejected",method:twoFactor.method}));return null;}
         }
         console.info(JSON.stringify({component:"auth-2fa",event:"credentials_signin",outcome:"accepted",method:twoFactor?.method??"NONE"}));
