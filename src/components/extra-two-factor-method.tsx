@@ -49,9 +49,7 @@ export function ExtraTwoFactorMethod({defaultMethod,methods}:{defaultMethod:Meth
      <ChevronDown size={20} aria-hidden="true" className={"shrink-0 text-[#52627B] transition-transform "+(selected===m?"rotate-180":"")}/>
     </button>
   {selected===m&&<div id={"two-factor-panel-"+m.toLowerCase()} className="space-y-4 border-t border-[#E8ECF3] bg-[#F7F8FC] p-4 sm:p-5">
-   <h5 className="text-sm font-semibold text-[#14253D]">{methods.includes(selected)?"Manage "+(selected==="APP"?"authenticator app":"email code"):"Add "+(selected==="EMAIL"?"email verification":"authenticator app")}</h5>
    {methods.includes(selected)&&!operation&&<div className="space-y-2">
-    <p className="text-xs leading-5 text-[#64748B]">{selected===current?"This is your default sign-in method.":"This method is ready to use."}</p>
     {selected!==current&&<button type="button" className="block w-full rounded-xl border border-[#DCE3EC] p-3 text-left text-sm font-semibold text-[#14253D]" onClick={()=>setOperation("default")}>Make default</button>}
     <button type="button" className="inline-flex min-h-10 items-center rounded-lg border border-[#E8D1CE] bg-white px-4 py-2.5 text-sm font-semibold text-[#925B55] transition hover:bg-[#FCF6F5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#925B55]/20" onClick={()=>setOperation("remove")}>{selected==="APP"?"Turn off authenticator":"Turn off email code"}</button>
 
