@@ -78,7 +78,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{po
  return <Shell><main className="mx-auto max-w-7xl space-y-4 pb-8 text-[#243553] sm:space-y-5">
   <header className="px-1"><h1 className="text-2xl font-semibold tracking-tight">Your overview</h1><p className="mt-1 text-xs text-[#64748B]">Welcome back, @{account.handle}</p></header>
   <section aria-label="Portfolio equity and capital" className="rounded-2xl border border-[#E3E8EE] bg-white p-4 sm:p-6">
-   <div className="flex items-center justify-between gap-2"><p className="text-xs font-medium text-[#64748B]">Your account balance</p><span className="rounded-full bg-[#F2F3FF] px-2.5 py-1 text-[11px] font-medium text-[#625DC1]">USDC</span></div>
+   <div className="flex items-center justify-between gap-2"><p className="text-xs font-medium text-[#64748B]">Your account balance</p><span className="rounded-full bg-[#E9ECFB] px-2.5 py-1 text-[11px] font-medium text-[#625DC1]">USDC</span></div>
    <p className="mt-2 break-words text-[clamp(1.8rem,6vw,3.2rem)] font-semibold leading-tight tracking-tight tabular-nums">{formatUsdc(equity)}</p>
    <p className={"mt-1 text-sm font-medium tabular-nums "+(realized>0n?"text-emerald-700":realized<0n?"text-rose-600":"text-[#64748B]")}>{realized>0n?"+":""}{formatUsdc(realized)} <span className="font-normal text-[#64748B]">lifetime settled P&amp;L</span></p>
    <div className="mt-5 border-t border-[#EDF0F5] pt-4">
