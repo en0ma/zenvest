@@ -1,4 +1,5 @@
 import {TwoFactorSettings} from "@/components/two-factor-settings";
+import {ExtraTwoFactorMethod} from "@/components/extra-two-factor-method";
 import Link from "next/link";
 import {CalendarDays,CheckCircle2,ChevronRight,CircleHelp,KeyRound,LifeBuoy,LockKeyhole,Settings2,ShieldCheck,UsersRound,UserRound,Send,ArrowUpFromLine} from "lucide-react";
 import {Shell} from "@/components/shell";
@@ -24,7 +25,7 @@ export default async function SettingsPage(){
  const [user,recipients,twoFactor]=await Promise.all([
   prisma.user.findUnique({where:{id:session.id},select:{handle:true,email:true,emailVerifiedAt:true,createdAt:true}}),
   prisma.userRecipient.findMany({where:{userId:session.id},orderBy:[{createdAt:"desc"},{id:"desc"}],select:{id:true,kind:true,name:true,handle:true,walletAddress:true,network:true,status:true,createdAt:true}}),
-  prisma.twoFactor.findUnique({where:{userId:session.id},select:{method:true}})
+  prisma.twoFactor.findUnique({where:{userId:session.id},select:{method:true,emailEnabled:true,secretEncrypted:true}})
  ]);
  if(!user)return <Shell><main className="mx-auto max-w-4xl px-1"><h1 className="text-2xl font-semibold">Settings</h1><p className="mt-2 text-sm text-[#64748B]">Your account details are temporarily unavailable.</p></main></Shell>;
  const sendRecipients=recipients.filter(r=>r.kind==="SEND");
@@ -66,7 +67,7 @@ export default async function SettingsPage(){
    </div>}
   </section>
   <section id="security" className={surface+" scroll-mt-24 divide-y divide-[#E9EDF4] px-4 sm:px-6"} aria-label="Security and account">
-   <TwoFactorSettings enabled={!!twoFactor} method={twoFactor?.method??null}/>
+   <TwoFactorSettings enabled={!!twoFactor} method={twoFactor?.method??null}/>{twoFactor&&<ExtraTwoFactorMethod defaultMethod={twoFactor.method as "APP"|"EMAIL"} methods={[...(twoFactor.emailEnabled?["EMAIL" as const]:[]),...(twoFactor.secretEncrypted?["APP" as const]:[])]}/>}
    <SettingRow icon={KeyRound} title="Password & account recovery" description="Reset your password or manage recovery options." href="/forgot-password"/>
    <SettingRow icon={ShieldCheck} title="Account security" description={verified?"Your account is protected with a verified email.":"Verify your email to protect your account."} status={verified?"Verified":undefined} tint="green"/>
   </section>

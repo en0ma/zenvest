@@ -530,6 +530,7 @@ model TwoFactor {
   userId String @id @map("user_id")
   user User @relation(fields:[userId],references:[id],onDelete:Cascade)
   method String @db.VarChar(16)
+  emailEnabled Boolean @default(false) @map("email_enabled")
   secretEncrypted String? @map("secret_encrypted") @db.Text
   lastTotpStep BigInt @default(-1) @map("last_totp_step")
   verifiedAt DateTime @default(now()) @map("verified_at")

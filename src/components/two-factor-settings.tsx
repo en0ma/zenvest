@@ -69,7 +69,7 @@ export function TwoFactorSettings({enabled,method}:{enabled:boolean;method:strin
   </div>}
   {enabled&&<div className="rounded-2xl border border-[#DFE5EF] bg-[#F7F8FC] p-4 sm:p-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
-     <div><p className="text-sm font-semibold text-[#14253D]">Manage verification</p><p className="mt-1 text-xs leading-5 text-[#68788F]">Your authenticator app is connected.</p></div>
+     <div><p className="text-sm font-semibold text-[#14253D]">Manage verification</p><p className="mt-1 text-xs leading-5 text-[#68788F]">{method==="EMAIL"?"Email verification is on.":"Authenticator verification is on."}</p></div>
      <button type="button" aria-expanded={showDisable} aria-controls="two-factor-disable-panel" className="rounded-full border border-[#CCD4E5] bg-white px-4 py-2 text-sm font-semibold text-[#344561] hover:bg-[#EFF1FA] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#635BFF]" onClick={()=>{setShowDisable(v=>!v);setPassword("");setCode("");setUseRecovery(false);setChallenge("");setMessage("")}}>{showDisable?"Cancel":"Turn off verification"}</button>
     </div>
   </div>}
