@@ -17,6 +17,7 @@ export function TwoFactorSettings({enabled,method}:{enabled:boolean;method:strin
  const [message,setMessage]=useState("");
  const [busy,setBusy]=useState(false);
  const [showDisable,setShowDisable]=useState(false);
+ const [showSetup,setShowSetup]=useState(false);
 
  useEffect(()=>{
   let active=true;
@@ -59,14 +60,21 @@ export function TwoFactorSettings({enabled,method}:{enabled:boolean;method:strin
  </div>;
  return <section className="space-y-5 py-5 text-[#243553]">
   <div><h3 className="text-lg font-semibold">Two-step verification</h3><p className="mt-1 text-sm text-[#68788F]">{enabled?`On · ${method==="APP"?"Authenticator app":"Email"}`:"Off · Protect your account with a second step."}</p></div>
-  {!enabled&&<fieldset className="flex flex-wrap gap-3" disabled={!!challenge||busy}><legend className="sr-only">Choose verification method</legend>{([{value:"APP",label:"Authenticator app"},{value:"EMAIL",label:"Email code"}] as const).map(c=><label key={c.value} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium ${choice===c.value?"border-[#8178D7] bg-[#F3F1FD]":"border-[#DDE3EE] bg-white"}`}><input type="radio" name="twoFactorMethod" checked={choice===c.value} onChange={()=>{setChoice(c.value);setChallenge("");setSecret("");setUri("");setCode("")}}/>{c.label}</label>)}</fieldset>}
+
+  {!enabled&&<div className="rounded-2xl border border-[#DFE5EF] bg-[#F7F8FC] p-4 sm:p-5">
+   <div className="flex flex-wrap items-center justify-between gap-3">
+    <div><p className="text-sm font-semibold text-[#243553]">Set up verification</p><p className="mt-1 text-xs leading-5 text-[#68788F]">Choose an authenticator app or email code.</p></div>
+    <button type="button" aria-expanded={showSetup} aria-controls="two-factor-setup-panel" disabled={busy||!!challenge} className="rounded-full border border-[#CCD4E5] bg-white px-4 py-2 text-sm font-semibold text-[#344561] hover:bg-[#EFF1FA] disabled:opacity-50" onClick={()=>{setShowSetup(v=>!v);setPassword("");setCode("");setMessage("")}}>{showSetup?"Cancel":"Set up"}</button>
+   </div>
+  </div>}
   {enabled&&<div className="rounded-2xl border border-[#DFE5EF] bg-[#F7F8FC] p-4 sm:p-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
      <div><p className="text-sm font-semibold text-[#243553]">Manage verification</p><p className="mt-1 text-xs leading-5 text-[#68788F]">Your authenticator app is connected.</p></div>
      <button type="button" aria-expanded={showDisable} aria-controls="two-factor-disable-panel" className="rounded-full border border-[#CCD4E5] bg-white px-4 py-2 text-sm font-semibold text-[#344561] hover:bg-[#EFF1FA] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#7778D6]" onClick={()=>{setShowDisable(v=>!v);setPassword("");setCode("");setUseRecovery(false);setChallenge("");setMessage("")}}>{showDisable?"Cancel":"Turn off verification"}</button>
     </div>
   </div>}
-  {(!enabled||showDisable)&&<div id="two-factor-disable-panel" className="space-y-5">
+  {(enabled?showDisable:showSetup)&&<div id={enabled?"two-factor-disable-panel":"two-factor-setup-panel"} className="space-y-5">
+  {!enabled&&<fieldset className="flex flex-wrap gap-3" disabled={!!challenge||busy}><legend className="sr-only">Choose verification method</legend>{([{value:"APP",label:"Authenticator app"},{value:"EMAIL",label:"Email code"}] as const).map(c=><label key={c.value} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium ${choice===c.value?"border-[#8178D7] bg-[#F3F1FD]":"border-[#DDE3EE] bg-white"}`}><input type="radio" name="twoFactorMethod" checked={choice===c.value} onChange={()=>{setChoice(c.value);setChallenge("");setSecret("");setUri("");setCode("")}}/>{c.label}</label>)}</fieldset>}
   {(!enabled||showDisable)&&<label className="block max-w-xl text-sm font-semibold">Confirm your password<input className={input} type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)}/></label>}
   {!enabled&&!challenge&&<button type="button" disabled={!password||busy} className={button} onClick={()=>act("setup")}>{busy?"Setting up…":"Continue"}</button>}
   {!enabled&&choice==="APP"&&secret&&<div className="space-y-5 rounded-2xl border border-[#DCE2F0] bg-[#F6F7FC] p-4 sm:p-6">
