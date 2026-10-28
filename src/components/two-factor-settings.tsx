@@ -16,6 +16,7 @@ export function TwoFactorSettings({enabled,method}:{enabled:boolean;method:strin
  const [copied,setCopied]=useState(false);
  const [message,setMessage]=useState("");
  const [busy,setBusy]=useState(false);
+ const [showDisable,setShowDisable]=useState(false);
 
  useEffect(()=>{
   let active=true;
@@ -59,7 +60,14 @@ export function TwoFactorSettings({enabled,method}:{enabled:boolean;method:strin
  return <section className="space-y-5 py-5 text-[#243553]">
   <div><h3 className="text-lg font-semibold">Two-step verification</h3><p className="mt-1 text-sm text-[#68788F]">{enabled?`On · ${method==="APP"?"Authenticator app":"Email"}`:"Off · Protect your account with a second step."}</p></div>
   {!enabled&&<fieldset className="flex flex-wrap gap-3" disabled={!!challenge||busy}><legend className="sr-only">Choose verification method</legend>{([{value:"APP",label:"Authenticator app"},{value:"EMAIL",label:"Email code"}] as const).map(c=><label key={c.value} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium ${choice===c.value?"border-[#8178D7] bg-[#F3F1FD]":"border-[#DDE3EE] bg-white"}`}><input type="radio" name="twoFactorMethod" checked={choice===c.value} onChange={()=>{setChoice(c.value);setChallenge("");setSecret("");setUri("");setCode("")}}/>{c.label}</label>)}</fieldset>}
-  <label className="block max-w-xl text-sm font-semibold">Confirm your password<input className={input} type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)}/></label>
+  {enabled&&<div className="rounded-2xl border border-[#DFE5EF] bg-[#F7F8FC] p-4 sm:p-5">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+     <div><p className="text-sm font-semibold text-[#243553]">Manage verification</p><p className="mt-1 text-xs leading-5 text-[#68788F]">Your authenticator app is connected.</p></div>
+     <button type="button" aria-expanded={showDisable} aria-controls="two-factor-disable-panel" className="rounded-full border border-[#CCD4E5] bg-white px-4 py-2 text-sm font-semibold text-[#344561] hover:bg-[#EFF1FA] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#7778D6]" onClick={()=>{setShowDisable(v=>!v);setPassword("");setCode("");setUseRecovery(false);setChallenge("");setMessage("")}}>{showDisable?"Cancel":"Turn off verification"}</button>
+    </div>
+  </div>}
+  {(!enabled||showDisable)&&<div id="two-factor-disable-panel" className="space-y-5">
+  {(!enabled||showDisable)&&<label className="block max-w-xl text-sm font-semibold">Confirm your password<input className={input} type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)}/></label>}
   {!enabled&&!challenge&&<button type="button" disabled={!password||busy} className={button} onClick={()=>act("setup")}>{busy?"Setting up…":"Continue"}</button>}
   {!enabled&&choice==="APP"&&secret&&<div className="space-y-5 rounded-2xl border border-[#DCE2F0] bg-[#F6F7FC] p-4 sm:p-6">
    <div><p className="text-xs font-semibold uppercase tracking-widest text-[#6864BD]">Step 2 of 3</p><h4 className="mt-2 text-lg font-semibold">Connect your authenticator app</h4><p className="mt-2 text-sm leading-6 text-[#63738A]">In Authy or another authenticator, add an account by scanning this QR code.</p></div>
@@ -69,14 +77,15 @@ export function TwoFactorSettings({enabled,method}:{enabled:boolean;method:strin
    </div>
    {!enabled&&challenge&&<div className="mt-5 border-t border-[#E1E6F0] pt-4"><button type="button" disabled={busy} className="text-xs font-medium text-[#68788F] underline underline-offset-4 hover:text-[#243553] disabled:opacity-40" onClick={()=>{setChallenge("");setSecret("");setUri("");setCode("");setMessage("");setCopied(false)}}>Need to restart setup?</button></div>}
   </div>}
-  {(challenge||enabled&&(method==="APP"||useRecovery))&&<label className="block max-w-xl text-sm font-semibold">{useRecovery?"Recovery code":"Six-digit verification code"}<input className={input} inputMode={useRecovery?"text":"numeric"} autoComplete={useRecovery?"off":"one-time-code"} placeholder={useRecovery?"Recovery code":"000000"} maxLength={useRecovery?13:6} value={code} onChange={e=>setCode(useRecovery?e.target.value.toUpperCase().slice(0,13):e.target.value.replace(/\D/g,"").slice(0,6))}/></label>}
-  {enabled&&<button type="button" className="text-xs font-medium underline" onClick={()=>{setUseRecovery(!useRecovery);setCode("");setChallenge("")}}>{useRecovery?"Use verification code":"Use a recovery code instead"}</button>}
+  {(challenge||enabled&&showDisable&&(method==="APP"||useRecovery))&&<label className="block max-w-xl text-sm font-semibold">{useRecovery?"Recovery code":"Six-digit verification code"}<input className={input} inputMode={useRecovery?"text":"numeric"} autoComplete={useRecovery?"off":"one-time-code"} placeholder={useRecovery?"Recovery code":"000000"} maxLength={useRecovery?13:6} value={code} onChange={e=>setCode(useRecovery?e.target.value.toUpperCase().slice(0,13):e.target.value.replace(/\D/g,"").slice(0,6))}/></label>}
+  {enabled&&showDisable&&<button type="button" className="text-xs font-medium underline" onClick={()=>{setUseRecovery(!useRecovery);setCode("");setChallenge("")}}>{useRecovery?"Use verification code":"Use a recovery code instead"}</button>}
   <div className="flex flex-wrap gap-3">
    
    {!enabled&&challenge&&<button type="button" disabled={!password||code.length!==6||busy} onClick={()=>act("enable")} className={button}>{busy?"Verifying…":"Turn on verification"}</button>}
-   {enabled&&method==="EMAIL"&&!challenge&&!useRecovery&&<button type="button" disabled={!password||busy} onClick={()=>act("disable-code")} className={button}>Send a code to turn off</button>}
-   {enabled&&(method==="APP"||!!challenge||useRecovery)&&<button type="button" disabled={!password||!(useRecovery?/^[A-F0-9]{6}-?[A-F0-9]{6}$/.test(code):code.length===6)||busy} onClick={()=>act("disable")} className={button}>Turn off verification</button>}
+   {enabled&&showDisable&&method==="EMAIL"&&!challenge&&!useRecovery&&<button type="button" disabled={!password||busy} onClick={()=>act("disable-code")} className={button}>Send a code to turn off</button>}
+   {enabled&&showDisable&&(method==="APP"||!!challenge||useRecovery)&&<button type="button" disabled={!password||!(useRecovery?/^[A-F0-9]{6}-?[A-F0-9]{6}$/.test(code):code.length===6)||busy} onClick={()=>act("disable")} className={button}>Turn off verification</button>}
   </div>
+  </div>}
   {message&&<p role="status" className="rounded-xl bg-[#EEF0FA] p-3 text-sm leading-6 text-[#405173]">{message}</p>}
  </section>;
 }
