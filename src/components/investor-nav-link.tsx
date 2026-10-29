@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ReceiptText, Settings, Wallet, ChartNoAxesCombined } from "lucide-react";
+import { LayoutDashboard, ReceiptText, Settings, Wallet, ChartNoAxesCombined, Landmark } from "lucide-react";
 
 type InvestorNavLinkProps = {
   href: string;
@@ -12,7 +12,7 @@ type InvestorNavLinkProps = {
 
 export function InvestorNavLink({ href, text, variant }: InvestorNavLinkProps) {
   const pathname = usePathname();
-  const icons = { Overview: LayoutDashboard, "Investor account": Wallet, Wallet, Activity: ReceiptText, Strategy: ChartNoAxesCombined, Settings };
+  const icons = { Overview: LayoutDashboard, "Investor account": Wallet, Wallet, Activity: ReceiptText, Strategy: ChartNoAxesCombined, Invest: Landmark, Settings };
   const Icon = icons[text as keyof typeof icons] ?? LayoutDashboard;
   const active = pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
   const base = variant === "mobile"
