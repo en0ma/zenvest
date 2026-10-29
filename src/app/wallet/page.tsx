@@ -55,7 +55,7 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{a
   {depositWallet?.status==="ACTIVE"&&depositWallet.address?<><div className="flex justify-center rounded-xl bg-[#F8FAFC] p-4">{qr&&<Image src={qr} alt="QR code containing your deposit address" width={200} height={200} unoptimized/>}</div><p className="break-all rounded-xl bg-[#F8FAFC] p-3 font-mono text-xs">{depositWallet.address}</p><CopyDepositAddress address={depositWallet.address}/><p className="text-xs text-[#64748B]">Only send USDC on Solana. Funds credit after confirmation.</p></>:depositWallet?<p className="text-sm text-[#64748B]">Your wallet activation requires attention. Contact support before depositing.</p>:<><p className="text-sm text-[#64748B]">Activate a personal Solana USDC deposit address.</p><ActivateDepositWallet/></>}
  </div>;
  return <Shell><main className="mx-auto max-w-5xl space-y-4 pb-8 sm:space-y-5">
-  <header className="px-1"><h1 className="text-2xl font-semibold tracking-tight text-[#14253D]">Manage funds</h1></header>
+  <header className="px-1"><h1 className="text-2xl font-semibold tracking-tight text-[#14253D]">Wallet</h1><p className="mt-1 text-sm text-[#64748B]">Manage your money in one place.</p></header>
   <section aria-label="Wallet balance" className="rounded-2xl border border-[#E3E8EE] bg-[#F2F3FF] p-4 sm:p-6">
    <p className="text-sm text-[#64748B]">Available balance</p>
    <p className="mt-2 break-words text-[clamp(1.8rem,6vw,3rem)] font-semibold tracking-tight text-[#14253D]">{formatUsdc(available)}</p>
