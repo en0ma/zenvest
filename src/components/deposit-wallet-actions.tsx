@@ -28,11 +28,15 @@ export function ActivateDepositWallet() {
 export function CopyDepositAddress({address}:{address:string}){
   const [feedback,setFeedback]=useState<"idle"|"copied"|"error">("idle");
   return <div className="space-y-2">
-    <button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(address);setFeedback("copied");}catch{setFeedback("error");}}}
-      className="inline-flex items-center gap-2 rounded-xl border border-[#D6DEEA] bg-white px-4 py-2.5 text-sm font-semibold text-[#334155] shadow-sm transition-all duration-200 hover:border-[#635BFF] hover:text-[#635BFF] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#635BFF]/20 motion-reduce:transform-none">
-      {feedback==="copied"?<CheckCircle2 size={16}/>:<Clipboard size={16}/>} {feedback==="copied"?"Address copied":"Copy address"}
-    </button>
-    {feedback==="copied"&&<p role="status" className="flex items-center gap-1.5 text-xs font-medium text-[#317054]"><CheckCircle2 size={14}/>Ready to paste into your wallet.</p>}
+    <div className="flex items-start gap-2 rounded-xl bg-[#F8FAFC] p-3">
+      <p className="min-w-0 flex-1 select-all break-all font-mono text-xs text-[#14253D]">{address}</p>
+      <button type="button" aria-label="Copy deposit address" onClick={async()=>{try{await navigator.clipboard.writeText(address);setFeedback("copied");}catch{setFeedback("error");}}}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#D6DEEA] bg-white px-2.5 py-2 text-xs font-semibold text-[#334155] transition-colors hover:border-[#635BFF] hover:text-[#635BFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635BFF]/30">
+        {feedback==="copied"?<CheckCircle2 size={16}/>:<Clipboard size={16}/>}
+        <span className="hidden sm:inline">{feedback==="copied"?"Copied":"Copy"}</span>
+      </button>
+    </div>
+    {feedback==="copied"&&<p role="status" className="flex items-center gap-1.5 text-xs font-medium text-[#317054]"><CheckCircle2 size={14}/>Address copied. Ready to paste into your wallet.</p>}
     {feedback==="error"&&<p role="alert" className="flex items-center gap-1.5 text-xs font-medium text-[#925B55]"><AlertCircle size={14}/>Couldn't copy automatically. Please select and copy the address above.</p>}
   </div>;
 }
