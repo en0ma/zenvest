@@ -27,6 +27,7 @@ export function StrategyMarketList({rows}:{rows:Row[]}){
     {open&&<div id={"market-details-"+row.id} className="bg-[#F8FAFC] px-4 py-4 sm:px-6">
      <div className="grid grid-cols-3 gap-2">{([["Past hour",row.hourPct],["Past day",row.dayPct],["Past 30 days",row.monthPct]] as const).map(([label,value])=><div key={label} className="flex min-w-0 flex-col items-center gap-1 rounded-lg bg-white px-1 py-3"><span className="text-[11px] text-[#64748B]">{label}</span><ReturnValue value={value}/></div>)}
      </div>
+     <p className="mt-3 text-xs leading-5 text-[#64748B]">These percentages show past changes.</p>
     </div>}
    </div>;
   })}
