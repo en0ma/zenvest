@@ -17,7 +17,7 @@ export function StrategyMarketList({rows}:{rows:Row[]}){
     <div className="flex min-h-[72px] items-center gap-3 px-4 py-3 sm:px-6">
      <Link href={href} className="flex min-w-0 flex-1 items-center gap-3 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#635BFF]" aria-label={"View "+row.name}>
       <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#48566B] text-xs font-bold text-white">{row.logo&&(row.logo.startsWith("/")||row.logo.startsWith("https://"))?<img src={row.logo} alt="" className="h-full w-full object-cover"/>:(row.symbol??row.name).slice(0,2).toUpperCase()}</span>
-      <span className="min-w-0"><span className="block truncate text-sm font-semibold">{row.symbol??row.name}</span><span className="block truncate text-xs text-[#64748B]">{fmt(row.allocation)} USDC invested across this option</span></span>
+      <span className="min-w-0"><span className="block truncate text-sm font-semibold">{row.symbol??row.name}</span><span className="block text-xs leading-5 text-[#64748B]">{fmt(row.allocation)} USDC invested in total</span></span>
      </Link>
      <button type="button" onClick={()=>setExpanded(open?null:row.id)} aria-expanded={open} aria-controls={"market-details-"+row.id} aria-label={(open?"Collapse ":"Expand ")+row.name+" performance"} className="flex shrink-0 items-center gap-2 rounded-lg px-2 py-2 hover:bg-[#F1F5F9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#635BFF]">
       <ReturnValue value={row.dayPct}/>
@@ -27,7 +27,6 @@ export function StrategyMarketList({rows}:{rows:Row[]}){
     {open&&<div id={"market-details-"+row.id} className="bg-[#F8FAFC] px-4 py-4 sm:px-6">
      <div className="grid grid-cols-3 gap-2">{([["Past hour",row.hourPct],["Past day",row.dayPct],["Past 30 days",row.monthPct]] as const).map(([label,value])=><div key={label} className="flex min-w-0 flex-col items-center gap-1 rounded-lg bg-white px-1 py-3"><span className="text-[11px] text-[#64748B]">{label}</span><ReturnValue value={value}/></div>)}
      </div>
-     <p className="mt-3 text-xs leading-5 text-[#64748B]">These percentages show past changes, not guaranteed future results.</p>
     </div>}
    </div>;
   })}
