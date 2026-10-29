@@ -66,7 +66,18 @@ export default async function SettingsPage(){
   </section>
   <ChangePassword/>
   <section id="preferences" className={surface+" scroll-mt-24 divide-y divide-[#E9EDF4] px-4 sm:px-6"} aria-label="Preferences and support">
-   <div id="support" className="scroll-mt-24"><SettingRow icon={LifeBuoy} title="Help & support" description="Privacy, terms and support resources."/></div>
+   <details id="support" className="group scroll-mt-24">
+    <summary className="flex cursor-pointer list-none items-center gap-3 py-4 sm:py-5 focus-visible:outline-2 focus-visible:outline-[#635BFF] [&::-webkit-details-marker]:hidden">
+     <span className={iconTile+" bg-[#F1EEFF] text-[#635BFF]"}><LifeBuoy size={20} strokeWidth={1.9}/></span>
+     <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-[#14253D]">Help & support</span><span className="mt-1 block text-xs leading-5 text-[#64748B]">Privacy, terms and support resources.</span></span>
+     <ChevronRight size={18} className="shrink-0 text-[#60718B] transition-transform group-open:rotate-90"/>
+    </summary>
+    <div className="border-t border-[#E9EDF4] pb-4 pt-2 sm:pb-5">
+     <Link href="/privacy" className="flex items-center justify-between rounded-lg px-3 py-3 text-sm font-medium text-[#14253D] hover:bg-[#FAFAFF] focus-visible:outline-2 focus-visible:outline-[#635BFF]">Privacy notice<ChevronRight size={16} className="text-[#60718B]"/></Link>
+     <Link href="/terms" className="flex items-center justify-between rounded-lg px-3 py-3 text-sm font-medium text-[#14253D] hover:bg-[#FAFAFF] focus-visible:outline-2 focus-visible:outline-[#635BFF]">Terms of service<ChevronRight size={16} className="text-[#60718B]"/></Link>
+     <p className="px-3 pt-2 text-xs leading-5 text-[#64748B]">Support contact details will be added once an official address is available.</p>
+    </div>
+   </details>
   </section>
  </main></Shell>;
 }

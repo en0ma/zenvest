@@ -172,8 +172,7 @@ export function WithdrawalForm({balanceMicros,unallocatedMicros,pendingMicros,sa
     </section>
 
     <div className="flex items-start gap-2.5 text-xs leading-5 text-[#64748B]"><Clock3 size={16} className="mt-0.5 shrink-0"/>
-      <div className="space-y-2"><p>Withdrawals are processed automatically when funds are ready. Processing time varies; submitting a request does not mean the payout is immediate.</p>
-      <p>Withdrawals use available unallocated USDC only. To access invested capital, reduce or close a position on <Link href="/earn" className="font-medium underline underline-offset-2 hover:text-[#635BFF]">Earn</Link> and wait for verified return of funds.</p></div></div>
+      <div className="space-y-2"><p>Withdrawals use your available wallet balance only. To withdraw invested money, first request to take it out through <Link href="/earn" className="font-medium underline underline-offset-2 hover:text-[#635BFF]">Invest</Link>. Once the money returns to your available wallet balance, you can request a withdrawal. Processing time varies; submitting a request does not mean the payout is immediate.</p></div></div>
 
     <button type="submit" disabled={!canSubmit}
       className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#635BFF] px-5 py-4 text-sm font-semibold text-white shadow-sm transition-all duration-200 active:scale-[0.99] motion-reduce:transform-none hover:bg-[#544CE4] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#635BFF]/30 disabled:cursor-not-allowed disabled:bg-[#BBC3D1] disabled:shadow-none">

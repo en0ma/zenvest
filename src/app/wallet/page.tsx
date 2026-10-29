@@ -52,14 +52,14 @@ export default async function WalletPage({searchParams}:{searchParams:Promise<{a
  const query=(next:number)=>"/wallet?type="+encodeURIComponent(type)+"&activityPage="+next+"#wallet-activity";
  const deposit=<div className="space-y-3">
   <h3 className="text-sm font-semibold text-[#14253D]">Your Solana deposit address</h3>
-  {depositWallet?.status==="ACTIVE"&&depositWallet.address?<><div className="flex justify-center rounded-xl bg-[#F8FAFC] p-4">{qr&&<Image src={qr} alt="QR code containing your deposit address" width={200} height={200} unoptimized/>}</div><p className="break-all rounded-xl bg-[#F8FAFC] p-3 font-mono text-xs">{depositWallet.address}</p><CopyDepositAddress address={depositWallet.address}/><p className="text-xs text-[#64748B]">Only send USDC on Solana. Funds credit after confirmation.</p></>:depositWallet?<p className="text-sm text-[#64748B]">Your wallet activation requires attention. Contact support before depositing.</p>:<><p className="text-sm text-[#64748B]">Activate a personal Solana USDC deposit address.</p><ActivateDepositWallet/></>}
+  {depositWallet?.status==="ACTIVE"&&depositWallet.address?<><div className="flex justify-center rounded-xl bg-[#F8FAFC] p-4">{qr&&<Image src={qr} alt="QR code containing your deposit address" width={200} height={200} unoptimized/>}</div><CopyDepositAddress address={depositWallet.address}/><p className="text-xs text-[#64748B]">Only send USDC on Solana. Funds credit after confirmation.</p></>:depositWallet?<p className="text-sm text-[#64748B]">Your wallet activation requires attention. Contact support before depositing.</p>:<><p className="text-sm text-[#64748B]">Activate a personal Solana USDC deposit address.</p><ActivateDepositWallet/></>}
  </div>;
  return <Shell><main className="mx-auto max-w-5xl space-y-4 pb-8 sm:space-y-5">
-  <header className="px-1"><h1 className="text-2xl font-semibold tracking-tight text-[#14253D]">Manage funds</h1></header>
-  <section aria-label="Wallet balances" className="rounded-2xl border border-[#E3E8EE] bg-[#F2F3FF] p-4 sm:p-6">
-   <p className="text-sm text-[#64748B]">Gross wallet balance</p><p className="mt-2 break-words text-[clamp(1.8rem,6vw,3rem)] font-semibold tracking-tight text-[#14253D]">{formatUsdc(account.unallocated)}</p>
-   <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-[#DDE3F5] pt-4"><div><dt className="text-xs text-[#64748B]">Available</dt><dd className="mt-1 text-base font-semibold text-[#14253D]">{formatUsdc(available)}</dd></div><div><dt className="text-xs text-[#64748B]">Reserved</dt><dd className="mt-1 text-base font-semibold text-[#14253D]">{formatUsdc(reserve)}</dd></div></dl>
-   <p className="mt-3 text-xs leading-5 text-[#64748B]">Reserved funds are held for pending withdrawals and allocation requests.</p>
+  <header className="px-1"><h1 className="text-2xl font-semibold tracking-tight text-[#14253D]">Wallet</h1><p className="mt-1 text-sm text-[#64748B]">Manage your money in one place.</p></header>
+  <section aria-label="Wallet balance" className="rounded-2xl border border-[#E3E8EE] bg-[#F2F3FF] p-4 sm:p-6">
+   <p className="text-sm text-[#64748B]">Available balance</p>
+   <p className="mt-2 break-words text-[clamp(1.8rem,6vw,3rem)] font-semibold tracking-tight text-[#14253D]">{formatUsdc(available)}</p>
+   <p className="mt-4 border-t border-[#DDE3F5] pt-4 text-xs leading-5 text-[#64748B]">This balance excludes funds held for pending investments and withdrawals. Pending deposits and returns will be available once processed.</p>
   </section>
   <WalletActions balanceMicros={available.toString()} unallocatedMicros={account.unallocated.toString()} pendingMicros={(withdrawHolds._sum.grossUsdcMicros??0n).toString()} contacts={contacts} deposit={deposit}/>
   <section id="wallet-activity" aria-label="Wallet activity" className="scroll-mt-5 rounded-2xl border border-[#E3E8EE] bg-white p-4 sm:p-6">
