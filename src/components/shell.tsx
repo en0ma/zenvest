@@ -21,7 +21,7 @@ export function Shell({ admin = false, preview = false, children }: {admin?:bool
       <AutoCloseDetails className="relative"><summary aria-label="Open investor navigation" className="list-none cursor-pointer rounded-lg border border-[#E4E8E2] p-2 text-[#0A2540]"><Menu size={22}/></summary>
         <nav aria-label="Investor navigation" className="absolute right-0 top-12 z-50 w-60 rounded-2xl border border-[#E4E8E2] bg-white p-4 shadow-xl flex flex-col gap-1 text-sm text-[#0A2540]">
           {items.map(({href,text})=><InvestorNavLink key={text} href={href} text={text} variant="menu"/>)}
-          {!preview&&<div className="border-t border-[#E4E8E2] mt-2 pt-2 px-3"><Signout mobile/></div>}
+          {!preview&&<div className="mt-2 border-t border-[#E4E8E2] pt-2"><Signout mobile/></div>}
         </nav>
       </AutoCloseDetails>
     </header>

@@ -15,18 +15,28 @@ export function RequestLink({purpose}:{purpose:"VERIFY_EMAIL"|"RESET_PASSWORD"})
    setSubmitted(true);setNotice(activation?"If an activation email is needed, a link will be sent to this address.":"If you have an active account, a recovery email will be sent to the email address.");
   }catch{setError("Connection issue. Please try again.");}finally{setPending(false);}
  }
- return <main className="min-h-screen bg-[#F7F8FB] flex flex-col items-center justify-center p-5 sm:p-8">
- <div className="w-full max-w-[480px]"><Link href="/" className="text-3xl font-black tracking-tight text-[#14253D]">zenvest<span className="text-[#635BFF]">.</span></Link>
- <section className="mt-8 rounded-2xl border border-[#E4E9F0] bg-white p-6 sm:p-9 shadow-sm"><div className="w-12 h-12 rounded-xl bg-[#F0EEFF] text-[#635BFF] flex items-center justify-center"><Mail size={22}/></div>
- <p className="mt-8 text-xs uppercase tracking-[.16em] font-bold text-[#635BFF]">Account recovery</p><h1 className="mt-3 text-3xl sm:text-4xl tracking-tight font-semibold text-[#14253D]">{activation?"Activate your account":"Reset your password"}</h1>
- <p className="mt-4 text-[#64748B] leading-7">{activation?"Enter your email and we'll help you complete verification.":"Enter your email address to request a password recovery link."}</p>
- <form className="mt-8 space-y-5" onSubmit={submit}><label className="text-sm font-semibold text-[#14253D] block">Email address<input required type="email" name="email" autoComplete="email" placeholder="you@example.com" className="w-full mt-2 rounded-xl border border-[#DCE3EC] bg-white p-3.5 outline-none focus:border-[#635BFF] focus:ring-4 focus:ring-[#635BFF]/10"/></label>
- <button disabled={pending||submitted} className="w-full py-3.5 rounded-xl bg-[#635BFF] text-white font-bold transition-colors hover:bg-[#544CE4] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#635BFF]/20 disabled:opacity-50 inline-flex items-center justify-center gap-2">{pending?"Sending request…":submitted?"Request submitted":activation?"Send activation link":"Continue"}<ArrowRight size={17}/></button></form>
- {notice&&<div role="status" className="mt-6 rounded-xl border border-[#CCE5D8] bg-[#F4FAF7] p-5 text-sm text-[#317054]"><div className="flex items-center gap-2 font-bold"><ShieldCheck size={18}/> Request received</div><p className="mt-2 leading-6">{notice}</p></div>}
- {error&&<p role="alert" className="mt-5 rounded-xl bg-[#FCF6F5] border border-[#E8D1CE] p-4 text-sm text-[#925B55]">{error}</p>}
-
- <Link href="/login" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[#5145A8] hover:underline"><ArrowLeft size={16}/>Back to login</Link>
- </section></div></main>;
+ return <main className="min-h-screen bg-white lg:grid lg:grid-cols-2">
+ <aside className="relative hidden flex-col justify-between overflow-hidden bg-[#14253D] p-14 text-white lg:flex xl:p-20">
+  <Link href="/" className="relative text-3xl font-black tracking-tight">zenvest<span className="text-[#635BFF]">.</span></Link>
+  <div className="relative max-w-lg"><p className="text-xs font-bold uppercase tracking-[.2em] text-[#B5B0FF]">SECURE ACCOUNT ACCESS</p><h2 className="mt-5 text-5xl font-semibold leading-[1.08] tracking-[-.06em] xl:text-6xl">Get back to your investments.</h2><p className="mt-7 text-lg leading-8 text-white/65">A simple way to regain access to your Zenvest account.</p><div className="mt-12 flex items-center gap-3 border-t border-white/20 pt-8 text-sm text-[#E6E6F3]"><ShieldCheck size={20}/> Protected account recovery.</div></div>
+  <span className="text-sm text-white/40">© Zenvest</span>
+ </aside>
+ <section className="flex items-center justify-center px-5 py-12 sm:px-10 lg:py-16">
+  <div className="w-full max-w-[450px]">
+   <Link href="/" className="text-3xl font-black tracking-tight text-[#14253D] lg:hidden">zenvest<span className="text-[#635BFF]">.</span></Link>
+   <p className="mt-12 text-xs font-bold uppercase tracking-[.17em] text-[#14253D] lg:mt-0">{activation?"Email verification":"Account recovery"}</p>
+   <h1 className="mt-4 text-4xl font-semibold tracking-[-.055em] text-[#14253D] sm:text-5xl">{activation?"Activate your account":"Reset your password"}</h1>
+   <p className="mt-4 leading-7 text-[#5145A8]">{activation?"Enter your email address and we’ll send you a verification link.":"Enter your email address and we’ll send you a link to reset your password."}</p>
+   <form className="mt-9 space-y-5" onSubmit={submit}>
+    <label className="block text-sm font-semibold text-[#14253D]">Email address<input required type="email" name="email" autoComplete="email" placeholder="you@example.com" className="mt-2 w-full rounded-xl border border-[#E8EAF5] bg-white px-4 py-3.5 text-[#14253D] outline-none transition focus:border-[#14253D] focus:ring-4 focus:ring-[#E6E6F3]/30"/></label>
+    <button disabled={pending||submitted} className="inline-flex w-full items-center justify-center gap-3 rounded-xl bg-[#14253D] py-4 font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-45">{pending?"Sending…":submitted?"Request submitted":activation?"Send verification link":"Continue"}<ArrowRight size={18}/></button>
+   </form>
+   {notice&&<div role="status" className="mt-6 rounded-xl border border-[#CCE5D8] bg-[#F4FAF7] p-4 text-sm text-[#317054]"><div className="flex items-center gap-2 font-bold"><ShieldCheck size={18}/> Check your email</div><p className="mt-2 leading-6">{notice}</p></div>}
+   {error&&<p role="alert" className="mt-5 rounded-xl border border-[#E8D1CE] bg-[#FCF6F5] p-4 text-sm text-[#925B55]">{error}</p>}
+   <p className="mt-7 text-center text-sm text-[#5145A8]">Remember your password? <Link href="/login" className="font-bold text-[#14253D]">Log in</Link></p>
+  </div>
+ </section>
+ </main>;
 }
 export function ConfirmLink({purpose,token}:{purpose:"VERIFY_EMAIL"|"RESET_PASSWORD";token:string}){
  const reset=purpose==="RESET_PASSWORD";
