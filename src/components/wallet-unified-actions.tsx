@@ -1,5 +1,6 @@
 "use client";
 import {useRef,useState} from "react";
+import {Clock3} from "lucide-react";
 import {useRouter} from "next/navigation";
 import {WithdrawalForm} from "@/components/withdrawal-actions";
 
@@ -70,6 +71,7 @@ export function WalletActions({balanceMicros,unallocatedMicros,pendingMicros,con
         </div>
        </dl>
       </section>
+      <div className="flex items-start gap-2.5 text-xs leading-5 text-[#64748B]"><Clock3 size={16} className="mt-0.5 shrink-0"/><div className="space-y-2"><p>Transfers to other Zenvest users use your available wallet balance. Funds held for pending investments or withdrawals cannot be sent.</p><p>Once you confirm a transfer, the recipient’s available balance is credited. Double-check the recipient and amount before sending.</p></div></div>
       <button type="button" disabled={!valid||busy} onClick={()=>{setReview(true);setError("");}} className="min-h-12 w-full rounded-xl bg-[#635BFF] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">{manual&&save?"Send and save recipient":"Send"}</button>
      </>:<div className="space-y-3"><div className="space-y-2 rounded-xl bg-[#F3F1FF] p-4"><p className="text-xs font-semibold text-[#64748B]">REVIEW TRANSFER</p><p className="text-xl font-semibold">{amount} USDC</p><p className="text-sm">To {displayTarget}</p><p className="text-xs">Fee: 0.00 USDC</p>{manual&&save&&<p className="text-xs">Save as: {label}</p>}</div><button type="button" disabled={busy} onClick={()=>setReview(false)} className="min-h-11 w-full rounded-xl border border-[#E3E8EE] text-sm font-semibold">Back to edit</button><button type="button" disabled={busy} onClick={submit} className="min-h-12 w-full rounded-xl bg-[#635BFF] text-sm font-semibold text-white disabled:opacity-50">{busy?"Sending…":"Confirm send"}</button></div>}
      {error&&<p role="alert" className="text-sm text-rose-700">{error}</p>}
