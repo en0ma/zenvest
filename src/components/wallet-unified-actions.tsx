@@ -57,7 +57,19 @@ export function WalletActions({balanceMicros,unallocatedMicros,pendingMicros,con
       {manual&&<div className="space-y-2"><label className="flex items-center gap-2 text-sm text-[#14253D]"><input type="checkbox" checked={save} onChange={e=>setSave(e.target.checked)} className="accent-[#635BFF]"/>Save recipient</label>{save&&<div><label htmlFor="send-contact-name" className="mb-1 block text-xs font-semibold">Recipient name</label><input id="send-contact-name" className={field} value={label} onChange={e=>setLabel(e.target.value)} maxLength={120} placeholder="e.g. James"/></div>}</div>}
       <div><div className="mb-1 flex items-baseline justify-between gap-3"><label htmlFor="send-amount" className="block text-xs font-semibold text-[#14253D]">Amount</label><span className="whitespace-nowrap text-xs text-[#64748B]">Balance: {(BigInt(balanceMicros)/1000000n).toString()}.{(BigInt(balanceMicros)%1000000n).toString().padStart(6,"0").slice(0,2)} USDC</span></div><input id="send-amount" inputMode="decimal" className={field} value={amount} onChange={e=>{setAmount(e.target.value);key.current=null}} placeholder="0.00"/></div>
       <div><label htmlFor="send-note" className="mb-1 block text-xs font-semibold text-[#14253D]">Note (optional)</label><input id="send-note" className={field} value={note} onChange={e=>setNote(e.target.value)} placeholder="Add a note"/></div>
-      <div className="space-y-2 rounded-xl bg-[#F8FAFC] p-3 text-xs"><div className="flex justify-between"><span className="text-[#64748B]">Transfer fee</span><strong>0.00 USDC</strong></div><div className="flex justify-between"><span className="text-[#64748B]">Recipient receives</span><strong>{amount||"0.00"} USDC</strong></div></div>
+      <section aria-label="Send summary" className="overflow-hidden rounded-2xl border border-[#E1E7EF] bg-white shadow-sm">
+       <div className="border-b border-[#E9EDF3] bg-[#F8FAFD] px-5 py-4">
+        <p className="text-sm font-semibold text-[#11263E]">Send summary</p>
+        <p className="mt-0.5 text-xs text-[#687B91]">Review the amount before sending.</p>
+       </div>
+       <dl className="space-y-3 px-5 py-5 text-sm">
+        <div className="flex items-center justify-between gap-3"><dt className="text-[#687B91]">Amount to send</dt><dd className="font-semibold tabular-nums text-[#11263E]">{amount||"0.00"} USDC</dd></div>
+        <div className="flex items-center justify-between gap-3"><dt className="text-[#687B91]">Transfer fee</dt><dd className="font-medium tabular-nums text-[#11263E]">0.00 USDC</dd></div>
+        <div className="border-t border-dashed border-[#DBE3ED] pt-4">
+         <div className="flex items-center justify-between gap-3"><dt className="font-semibold text-[#11263E]">Recipient receives</dt><dd className="text-xl font-bold tabular-nums tracking-tight text-[#11263E]">{amount||"0.00"} <span className="text-sm font-semibold">USDC</span></dd></div>
+        </div>
+       </dl>
+      </section>
       <button type="button" disabled={!valid||busy} onClick={()=>{setReview(true);setError("");}} className="min-h-12 w-full rounded-xl bg-[#635BFF] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">{manual&&save?"Send and save recipient":"Send"}</button>
      </>:<div className="space-y-3"><div className="space-y-2 rounded-xl bg-[#F3F1FF] p-4"><p className="text-xs font-semibold text-[#64748B]">REVIEW TRANSFER</p><p className="text-xl font-semibold">{amount} USDC</p><p className="text-sm">To {displayTarget}</p><p className="text-xs">Fee: 0.00 USDC</p>{manual&&save&&<p className="text-xs">Save as: {label}</p>}</div><button type="button" disabled={busy} onClick={()=>setReview(false)} className="min-h-11 w-full rounded-xl border border-[#E3E8EE] text-sm font-semibold">Back to edit</button><button type="button" disabled={busy} onClick={submit} className="min-h-12 w-full rounded-xl bg-[#635BFF] text-sm font-semibold text-white disabled:opacity-50">{busy?"Sending…":"Confirm send"}</button></div>}
      {error&&<p role="alert" className="text-sm text-rose-700">{error}</p>}
