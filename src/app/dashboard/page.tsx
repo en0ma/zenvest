@@ -10,11 +10,12 @@ export const dynamic="force-dynamic";
 const card="min-w-0 rounded-2xl border border-[#E3E8EE] bg-white p-4 sm:p-6";
 const pendingWithdrawalStatuses=["PENDING","SUBMITTING","PROCESSING","REVIEW"] as const;
 const pendingAllocationStatuses=["PENDING","SUBMITTING","PROCESSING","CONFIRMING","AWAITING_ALLOCATION","REVIEW"] as const;
+const pendingReturnStatuses=["PENDING","SUBMITTING","DEALLOCATING","PROCESSING","CONFIRMING","AWAITING_DEALLOCATION","AWAITING_WITHDRAWAL","REVIEW"] as const;
 function date(value:Date){return value.toLocaleDateString("en-US",{timeZone:"UTC",month:"short",day:"numeric",year:"numeric"});}
 function signed(value:bigint){return (value>0n?"+":"")+formatUsdc(value);}
 export default async function Dashboard(){
  const user=await requireUser();
- const [account,positions,settled,deposits,withdrawals,withdrawHolds,allocationHolds,completedAllocations,sendsOut,sendsIn,requests]=await Promise.all([
+ const [account,positions,settled,deposits,withdrawals,withdrawHolds,allocationHolds,returnHolds,completedAllocations,sendsOut,sendsIn,requests]=await Promise.all([
   prisma.user.findUniqueOrThrow({where:{id:user.id},select:{unallocated:true}}),
   prisma.investorPosition.findMany({where:{userId:user.id},include:{strategy:{select:{name:true}}},orderBy:{createdAt:"desc"}}),
   prisma.positionTradePnl.findMany({where:{userId:user.id,status:"SETTLED",settledAt:{not:null}},orderBy:[{settledAt:"asc"},{id:"asc"}],select:{id:true,settledAt:true,netPnlUsdcMicros:true}}),
@@ -22,15 +23,19 @@ export default async function Dashboard(){
   prisma.withdrawal.findMany({where:{userId:user.id,status:"COMPLETED",completedAt:{not:null}},select:{id:true,completedAt:true,grossUsdcMicros:true}}),
   prisma.withdrawal.aggregate({where:{userId:user.id,status:{in:[...pendingWithdrawalStatuses]}},_sum:{grossUsdcMicros:true}}),
   prisma.positionAllocation.aggregate({where:{userId:user.id,kind:"ALLOCATE",status:{in:[...pendingAllocationStatuses]}},_sum:{amountUsdcMicros:true}}),
+  prisma.positionAllocation.aggregate({where:{userId:user.id,kind:"DEALLOCATE",status:{in:[...pendingReturnStatuses]}},_sum:{amountUsdcMicros:true}}),
   prisma.positionAllocation.findMany({where:{userId:user.id,status:"COMPLETED"},select:{id:true,kind:true,amountUsdcMicros:true,updatedAt:true}}),
   prisma.send.findMany({where:{senderUserId:user.id,status:"COMPLETED"},select:{id:true,createdAt:true,amount:true}}),
   prisma.send.findMany({where:{recipientUserId:user.id,status:"COMPLETED"},select:{id:true,createdAt:true,amount:true}}),
   prisma.positionAllocation.findMany({where:{userId:user.id},orderBy:{createdAt:"desc"},take:12,select:{id:true,kind:true,status:true,createdAt:true,amountUsdcMicros:true}})
  ]);
- const invested=positions.reduce((sum,p)=>sum+p.allocatedUsdcMicros,0n);
- const total=invested+account.unallocated;
+ const investedGross=positions.reduce((sum,p)=>sum+p.allocatedUsdcMicros,0n);
  const held=(withdrawHolds._sum.grossUsdcMicros??0n)+(allocationHolds._sum.amountUsdcMicros??0n);
  const available=account.unallocated>held?account.unallocated-held:0n;
+ const pendingReturns=returnHolds._sum.amountUsdcMicros??0n;
+ const invested=investedGross>pendingReturns?investedGross-pendingReturns:0n;
+ // This overview deliberately excludes reserved or in-flight money from the displayed totals.
+ const total=invested+available;
  const totalAdded=deposits.reduce((n,x)=>n+x.amountUsdcMicros,0n);
  const totalWithdrawn=withdrawals.reduce((n,x)=>n+x.grossUsdcMicros,0n);
  const investedOverTime=completedAllocations.filter(x=>x.kind==="ALLOCATE").reduce((n,x)=>n+x.amountUsdcMicros,0n);
@@ -50,19 +55,19 @@ export default async function Dashboard(){
    <div className="flex items-center justify-between gap-3"><h2 className="text-sm font-medium text-[#64748B]">Total account value</h2><span className="rounded-full bg-[#F2F3FF] px-2.5 py-1 text-xs font-semibold text-[#635BFF]">USDC</span></div>
    <p className="mt-2 break-words text-[clamp(1.8rem,6vw,3.2rem)] font-semibold tracking-tight tabular-nums">{formatUsdc(total)}</p>
    <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-[#EDF0F5] pt-4"><div className="min-w-0"><dt className="flex items-center gap-1.5 text-xs text-[#64748B]"><Wallet size={14}/>Available money</dt><dd className="mt-2 break-words text-base font-semibold tabular-nums sm:text-lg">{formatUsdc(available)}</dd></div><div className="min-w-0"><dt className="flex items-center gap-1.5 text-xs text-[#64748B]"><Landmark size={14}/>Money invested</dt><dd className="mt-2 break-words text-base font-semibold tabular-nums sm:text-lg">{formatUsdc(invested)}</dd></div></dl>
-   <p className="mt-4 text-xs leading-5 text-[#64748B]">Total account value includes money still being processed, even when it isn't available to use yet.</p>
+   <p className="mt-4 text-xs leading-5 text-[#64748B]">Only available wallet funds and money currently invested are shown. Pending deposits, withdrawals, investments and returns are excluded.</p>
   </section>
   <section aria-label="Investment performance and your investments" className={card}>
    <PnlPerformanceChart compact rows={settled.map(p=>({day:p.settledAt!.toISOString().slice(0,10),netMicros:(p.netPnlUsdcMicros??0n).toString()}))}/>
    <div className="mt-5 border-t border-[#EDF0F5] pt-5">
+    <div className="flex items-center justify-between gap-3"><h3 className="text-base font-semibold">Your investments</h3><Landmark size={18} className="text-[#64748B]"/></div>
+    {positionRows.length?<div className="mt-3 divide-y divide-[#EDF0F5]">{positionRows.map(p=><Link key={p.id} href={"/earn/positions/"+p.id} className="flex items-center justify-between gap-3 py-3"><span className="min-w-0"><span className="block truncate text-sm font-semibold">{p.strategy.name}</span><span className="mt-1 block text-xs text-[#64748B]">{p.status==="CLOSING"?"Closing":"Invested"}</span></span><span className="shrink-0 text-sm font-semibold tabular-nums">{formatUsdc(p.allocatedUsdcMicros)}</span></Link>)}</div>:<p className="mt-3 rounded-xl bg-[#F8FAFC] px-4 py-6 text-center text-sm text-[#64748B]">You haven't invested yet.</p>}
+    <div className="mt-4 flex justify-end text-sm font-semibold text-[#635BFF]"><Link href={positionRows.length?"/earn/positions":"/earn"} className="inline-flex items-center gap-1 hover:underline">{positionRows.length?"View all investments":"Explore investments"}<ArrowRight size={16}/></Link></div>
+   </div>   <div className="mt-5 border-t border-[#EDF0F5] pt-5">
     <h3 className="text-sm font-semibold">Investment activity</h3>
     <dl className="mt-3 grid grid-cols-2 gap-3"><div><dt className="text-xs leading-5 text-[#64748B]">Total invested over time</dt><dd className="mt-2 break-words text-base font-semibold tabular-nums">{formatUsdc(investedOverTime)}</dd></div><div><dt className="text-xs leading-5 text-[#64748B]">Total money returned</dt><dd className="mt-2 break-words text-base font-semibold tabular-nums">{formatUsdc(returnedOverTime)}</dd></div></dl>
    </div>
-   <div className="mt-5 border-t border-[#EDF0F5] pt-5">
-    <div className="flex items-center justify-between gap-3"><h3 className="text-base font-semibold">Your investments</h3><Landmark size={18} className="text-[#64748B]"/></div>
-    {positionRows.length?<div className="mt-3 divide-y divide-[#EDF0F5]">{positionRows.map(p=><Link key={p.id} href={"/earn/positions/"+p.id} className="flex items-center justify-between gap-3 py-3"><span className="min-w-0"><span className="block truncate text-sm font-semibold">{p.strategy.name}</span><span className="mt-1 block text-xs text-[#64748B]">{p.status==="CLOSING"?"Closing":"Invested"}</span></span><span className="shrink-0 text-sm font-semibold tabular-nums">{formatUsdc(p.allocatedUsdcMicros)}</span></Link>)}</div>:<p className="mt-3 rounded-xl bg-[#F8FAFC] px-4 py-6 text-center text-sm text-[#64748B]">You haven't invested yet.</p>}
-    <div className="mt-4 flex flex-wrap justify-between gap-3 text-sm font-semibold text-[#635BFF]"><Link href="/api/earn/reports/trade-pnl.csv" className="hover:underline">Download trade report</Link><Link href={positionRows.length?"/earn/positions":"/earn"} className="inline-flex items-center gap-1 hover:underline">{positionRows.length?"View all investments":"Explore investments"}<ArrowRight size={16}/></Link></div>
-   </div>
+
   </section>
   <section aria-label="Money flow" className={card}>
    <div className="flex items-center justify-between gap-3"><h2 className="text-base font-semibold">Money flow</h2><ArrowLeftRight size={19} className="text-[#64748B]"/></div>
