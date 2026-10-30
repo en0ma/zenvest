@@ -77,3 +77,4 @@ export default async function Dashboard(){
    <div className="mt-4 flex justify-end"><Link href="/wallet#wallet-activity" className="inline-flex items-center gap-1 text-sm font-semibold text-[#635BFF] hover:underline">View wallet activity<ArrowRight size={16}/></Link></div>
   </section>
  </main></Shell>;
+}
