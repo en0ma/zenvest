@@ -2,7 +2,7 @@
 import {useMemo,useState} from "react";
 type Point={day:string;netMicros:string};
 const money=(n:bigint)=>{const a=n<0n?-n:n;return (n<0n?"−":"")+(Number(a)/1e6).toLocaleString("en-US",{style:"currency",currency:"USD"})};
-export function PnlPerformanceChart({rows}:{rows:Point[]}){
+export function PnlPerformanceChart({rows,compact=false}:{rows:Point[];compact?:boolean}){
  const [range,setRange]=useState<"7D"|"30D"|"90D"|"ALL">("30D");
  const series=useMemo(()=>{
   const totals=new Map<string,bigint>();
@@ -22,10 +22,10 @@ export function PnlPerformanceChart({rows}:{rows:Point[]}){
  const polyline=path.map(([x,y])=>x+","+y).join(" ");
  return <section className="min-w-0" aria-label="Cumulative settled event P&L">
   <div className="flex flex-wrap items-center justify-between gap-4"><div>
-   <h2 className="text-lg font-semibold text-[#11263E]">Cumulative realized P&amp;L</h2>
-   <p className="mt-1 text-sm text-[#64748B]">Verified investor net results, excluding deposits, withdrawals and internal capital transfers</p>
+   <h2 className="text-base font-semibold text-[#11263E]">{compact?"Investment performance":"Cumulative realized P&L"}</h2>
+   <p className="mt-1 text-xs text-[#64748B]">{compact?"Profit or loss from completed trades.":"Verified investor net results, excluding deposits, withdrawals and internal capital transfers"}</p>
   </div><div className="flex gap-1 rounded-xl bg-[#F1F4FA] p-1">{(["7D","30D","90D","ALL"] as const).map(v=><button key={v} type="button" onClick={()=>setRange(v)} aria-pressed={v===range} className={"rounded-lg px-3 py-1.5 text-xs font-semibold "+(v===range?"bg-white text-[#11263E] shadow-sm":"text-[#64748B]")}>{v}</button>)}</div></div>
-  {!points.length?<div className="mt-5"><p className="text-3xl font-semibold tabular-nums text-[#14253D]">$0.00 <span className="text-sm font-normal text-[#64748B]">USDC P&amp;L</span></p><svg role="img" aria-label="Cumulative realized P&L chart, no settled trades for selected period. Zero baseline shown." viewBox="0 0 800 260" className="mt-4 w-full" preserveAspectRatio="xMidYMid meet"><line x1="40" x2="760" y1="36" y2="36" stroke="#E9EEF6" strokeDasharray="4 5"/><line x1="40" x2="760" y1="124" y2="124" stroke="#E9EEF6" strokeDasharray="4 5"/><line x1="40" x2="760" y1="212" y2="212" stroke="#DBE4F1"/><line x1="40" x2="760" y1="124" y2="124" stroke="#635BFF" strokeWidth="2" strokeDasharray="6 6"/><text x="40" y="243" fontSize="13" fill="#64748B">Start</text><text x="760" y="243" textAnchor="end" fontSize="13" fill="#64748B">Today</text></svg><p className="text-center text-xs text-[#64748B]">No settled trades in this period · zero baseline is illustrative</p></div>:
+  {!points.length?<div className="mt-5"><p className="text-3xl font-semibold tabular-nums text-[#14253D]">$0.00 <span className="text-sm font-normal text-[#64748B]">USDC P&amp;L</span></p><svg role="img" aria-label="Cumulative realized P&L chart, no settled trades for selected period. Zero baseline shown." viewBox="0 0 800 260" className="mt-4 w-full" preserveAspectRatio="xMidYMid meet"><line x1="40" x2="760" y1="36" y2="36" stroke="#E9EEF6" strokeDasharray="4 5"/><line x1="40" x2="760" y1="124" y2="124" stroke="#E9EEF6" strokeDasharray="4 5"/><line x1="40" x2="760" y1="212" y2="212" stroke="#DBE4F1"/><line x1="40" x2="760" y1="124" y2="124" stroke="#635BFF" strokeWidth="2" strokeDasharray="6 6"/><text x="40" y="243" fontSize="13" fill="#64748B">Start</text><text x="760" y="243" textAnchor="end" fontSize="13" fill="#64748B">Today</text></svg><p className="text-center text-xs text-[#64748B]">{compact?"No performance data yet. Results will appear after trades are completed.":"No settled trades in this period · zero baseline is illustrative"}</p></div>:
   <><p className={"mt-5 text-3xl font-semibold tabular-nums "+((points.at(-1)?.amount??0n)<0n?"text-red-600":"text-emerald-700")}>{money(points.at(-1)?.amount??0n)} <span className="text-sm font-normal text-[#64748B]">USDC P&amp;L</span></p>
   <svg role="img" aria-label={`Cumulative net realized P&L, ${points.length} daily observations, ending at ${money(points.at(-1)?.amount??0n)}`} viewBox="0 0 800 260" className="mt-4 w-full" preserveAspectRatio="xMidYMid meet">
    <line x1="40" x2="760" y1="212" y2="212" stroke="#DBE4F1"/>
