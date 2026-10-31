@@ -1,10 +1,10 @@
 import Link from "next/link";
-import {ArrowRight, ArrowUpRight, ChartNoAxesColumn, Layers3, House, Leaf, ShieldCheck, Users, CheckCircle2} from "lucide-react";
+import {ArrowRight, ArrowUpRight, ChartNoAxesColumn, Layers3, House, Leaf, ShieldCheck, Users} from "lucide-react";
 import {MarketingHeader, MarketingFooter} from "@/components/marketing";
 import {HomeInvestmentDemo} from "@/components/home-investment-demo";
 
 function MountainPath(){
- return <div className="relative h-[340px] w-full overflow-hidden sm:h-[440px] lg:absolute lg:inset-y-0 lg:right-0 lg:h-full lg:w-[72%]" aria-label="An illustrated journey from familiar investments to Zenvest">
+ return <div className="absolute bottom-[64px] right-0 h-[340px] w-full overflow-hidden sm:bottom-[55px] sm:h-[440px] lg:inset-y-0 lg:h-full lg:w-[72%]" aria-label="An illustrated journey from familiar investments to Zenvest">
   <div className="absolute inset-0 bg-[url('/home-investment-landscape.svg')] bg-cover bg-center lg:bg-[length:100%_100%]" aria-hidden="true"/>
   <svg className="absolute inset-0 h-full w-full" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet" role="img" aria-label="A winding violet line connects stocks, funds and real estate and finishes at Zenvest">
    <path d="M45 255C130 195 170 222 230 275S340 365 415 304S496 219 567 255S645 245 703 170S754 139 795 116" fill="none" stroke="#F9F8FF" strokeWidth="6" strokeLinecap="round"/>
