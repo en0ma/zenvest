@@ -1,45 +1,45 @@
 "use client";
-
 import {useState} from "react";
-import {ArrowUpRight, Check, Landmark, Layers3, Leaf, ChartNoAxesColumn, Info} from "lucide-react";
+import {ArrowUpRight, Landmark, Layers3, Leaf, ChartNoAxesColumn, Info} from "lucide-react";
 
 const choices=[
- {label:"Public stocks",icon:ChartNoAxesColumn},
- {label:"Funds",icon:Layers3},
- {label:"Real estate",icon:Landmark},
  {label:"Private credit",icon:Leaf},
+ {label:"Real estate",icon:Landmark},
+ {label:"Venture funds",icon:Layers3},
+ {label:"Public stocks",icon:ChartNoAxesColumn},
  {label:"Zenvest",icon:Leaf},
 ];
-
 export function HomeInvestmentDemo(){
  const [amount,setAmount]=useState(1000);
- return <div className="relative grid gap-0 lg:grid-cols-3">
-  <div className="px-5 py-7 sm:px-8 lg:border-r lg:border-[#E0E6ED]">
-   <div className="mb-5 flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-full border border-[#D8D5FF] bg-white text-sm font-semibold text-[#5549E8]">1</span><h3 className="text-lg font-semibold">Choose an option</h3></div>
-   <p className="mb-5 min-h-12 text-sm leading-6 text-[#64748B]">Explore different investment options, all in one place.</p>
-   <div className="overflow-hidden rounded-xl border border-[#E1E6EE] bg-white">
-    {choices.map(({label,icon:Icon})=><div key={label} className={`flex items-center gap-3 border-b border-[#EEF1F6] px-4 py-3 text-sm last:border-0 ${label==="Zenvest"?"bg-[#F0EEFF] font-semibold text-[#5146D9]":"text-[#35445B]"}`}><Icon size={18} aria-hidden="true"/><span className="flex-1">{label}</span>{label==="Zenvest"?<Check size={17} aria-label="Selected"/>:<ArrowUpRight size={14} aria-hidden="true" className="text-[#8A97A9]"/>}</div>)}
-   </div>
-  </div>
-  <div className="px-5 py-7 sm:px-8 lg:border-r lg:border-[#E0E6ED]">
-   <div className="mb-5 flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-full border border-[#D8D5FF] bg-white text-sm font-semibold text-[#5549E8]">2</span><h3 className="text-lg font-semibold">Set an amount</h3></div>
-   <p className="mb-5 min-h-12 text-sm leading-6 text-[#64748B]">Start with an amount that works for you.</p>
-   <div className="rounded-xl border border-[#E1E6EE] bg-white p-5">
-    <p className="text-center text-3xl font-semibold tracking-tight tabular-nums">{amount.toLocaleString("en-US")} <span className="text-base text-[#64748B]">USDC</span></p>
+ return <div className="relative grid items-stretch gap-4 sm:grid-cols-3 sm:gap-3">
+  <svg className="pointer-events-none absolute -top-6 left-0 hidden h-16 w-full sm:block" viewBox="0 0 900 70" preserveAspectRatio="none" aria-hidden="true"><path d="M45 56C130 0 204 0 295 50S460 88 540 35S726 7 855 42" stroke="#8F82E9" strokeWidth="1.7" fill="none"/></svg>
+  <article className="relative rounded-2xl border border-[#E7EBF4] bg-white p-4 sm:mt-0 sm:p-5">
+   <div className="absolute -top-4 left-4 flex size-9 items-center justify-center rounded-full bg-[#EEECFF] text-sm font-bold text-[#5549D9]">1</div>
+   <h3 className="mt-4 text-base font-semibold">Choose an option</h3>
+   <p className="mt-2 min-h-[66px] text-xs leading-5 text-[#627089]">Explore a range of investment options, all in one place.</p>
+   <div className="mt-4 overflow-hidden rounded-lg border border-[#E6EAF3]">{choices.map(({label,icon:Icon})=><div key={label} className={`flex items-center gap-2 border-b border-[#EDF0F5] px-2.5 py-2 text-[11px] last:border-0 ${label==="Zenvest"?"bg-[#EEECFF] font-bold text-[#5948E2]":"text-[#40516B]"}`}><Icon size={15} aria-hidden="true"/><span className="flex-1">{label}</span><ArrowUpRight size={13} aria-hidden="true"/></div>)}</div>
+  </article>
+  <article className="relative rounded-2xl border border-[#E7EBF4] bg-white p-4 sm:mt-9 sm:p-5">
+   <div className="absolute -top-4 left-4 flex size-9 items-center justify-center rounded-full bg-[#EEECFF] text-sm font-bold text-[#5549D9]">2</div>
+   <h3 className="mt-4 text-base font-semibold">Start with an amount that works for you</h3>
+   <p className="mt-2 min-h-[66px] text-xs leading-5 text-[#627089]">Explore an amount you're comfortable with.</p>
+   <div className="mt-4 rounded-xl border border-[#E6EAF3] bg-white p-3">
+    <p className="text-center text-xl font-bold tabular-nums">{amount.toLocaleString("en-US")} <span className="text-xs font-medium text-[#63728B]">USDC</span></p>
     <label htmlFor="home-amount" className="sr-only">Illustrative investment amount</label>
-    <input id="home-amount" className="mt-6 w-full accent-[#635BFF]" type="range" min="100" max="10000" step="100" value={amount} onChange={e=>setAmount(Number(e.target.value))}/>
-    <div className="mt-1 flex justify-between text-xs text-[#64748B]"><span>100</span><span>10,000</span></div>
+    <input id="home-amount" className="mt-4 w-full accent-[#635BFF]" type="range" min="100" max="10000" step="100" value={amount} onChange={e=>setAmount(Number(e.target.value))}/>
+    <div className="flex justify-between text-[10px] text-[#697892]"><span>100</span><span>10,000</span></div>
    </div>
-   <div className="mt-3 grid grid-cols-3 gap-2">{[500,1000,5000].map(n=><button type="button" key={n} aria-pressed={amount===n} onClick={()=>setAmount(n)} className={`rounded-lg border px-2 py-2 text-xs font-semibold tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#635BFF] ${amount===n?"border-[#635BFF] bg-[#F0EEFF] text-[#5146D9]":"border-[#E1E6EE] bg-white text-[#35445B] hover:border-[#8F87FF]"}`}>{n.toLocaleString("en-US")}</button>)}</div>
-  </div>
-  <div className="px-5 py-7 sm:px-8">
-   <div className="mb-5 flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-full border border-[#D8D5FF] bg-white text-sm font-semibold text-[#5549E8]">3</span><h3 className="text-lg font-semibold">Track your progress</h3></div>
-   <p className="mb-5 min-h-12 text-sm leading-6 text-[#64748B]">Keep track of your investments and see your results over time.</p>
-   <div className="rounded-xl border border-[#E1E6EE] bg-white p-4">
-    <div className="flex items-center justify-between gap-2"><span className="text-sm font-semibold">Your progress</span><span className="text-[10px] font-medium uppercase tracking-wider text-[#64748B]">Illustration</span></div>
-    <svg className="mt-5 w-full" viewBox="0 0 300 125" role="img" aria-label="Decorative sample line showing changing investment activity; not actual or projected performance"><path d="M0 105H300 M0 70H300 M0 35H300" stroke="#E9EDF3" strokeWidth="1"/><path d="M0 87 C20 79 32 96 48 80 S81 75 100 63 S133 84 154 66 S188 51 208 63 S239 43 255 54 S286 27 300 38" fill="none" stroke="#635BFF" strokeWidth="3" strokeLinecap="round"/><circle cx="300" cy="38" r="5" fill="#635BFF"/></svg>
-    <p className="mt-1 flex items-start gap-2 text-xs leading-5 text-[#64748B]"><Info size={15} className="mt-0.5 shrink-0" aria-hidden="true"/>Example visualization only. Not a forecast or promised return.</p>
+   <p className="mt-4 flex items-start gap-1.5 text-[10px] leading-4 text-[#63728B]"><Info size={13} className="mt-0.5 shrink-0"/>Example only — no investment is being made.</p>
+  </article>
+  <article className="relative rounded-2xl border border-[#E7EBF4] bg-white p-4 sm:mt-2 sm:p-5">
+   <div className="absolute -top-4 left-4 flex size-9 items-center justify-center rounded-full bg-[#EEECFF] text-sm font-bold text-[#5549D9]">3</div>
+   <h3 className="mt-4 text-base font-semibold">See your money in one place</h3>
+   <p className="mt-2 min-h-[66px] text-xs leading-5 text-[#627089]">Keep track of your investments and see your results over time.</p>
+   <div className="mt-4 rounded-xl border border-[#E6EAF3] bg-white p-3">
+    <div className="flex justify-between gap-1"><span className="text-xs font-semibold">Your progress</span><span className="text-[9px] text-[#66758C]">Illustration</span></div>
+    <svg className="mt-3 w-full" viewBox="0 0 240 125" role="img" aria-label="Illustrative investment activity line, not actual or projected returns"><path d="M0 103H240M0 68H240M0 33H240" stroke="#ECF0F7" fill="none"/><path d="M0 101C16 80 23 108 42 91S71 80 85 66S110 79 125 63S152 45 168 56S195 33 210 39S228 26 240 19V125H0Z" fill="#EEECFF"/><path d="M0 101C16 80 23 108 42 91S71 80 85 66S110 79 125 63S152 45 168 56S195 33 210 39S228 26 240 19" stroke="#635BFF" strokeWidth="2.5" fill="none" strokeLinecap="round"/><circle cx="240" cy="19" r="4" fill="#635BFF"/></svg>
+    <div className="flex justify-between text-[9px] text-[#7B8798]"><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span></div>
    </div>
-  </div>
+  </article>
  </div>
 }
