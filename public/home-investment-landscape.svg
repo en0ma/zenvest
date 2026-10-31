@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" role="img" aria-labelledby="title desc">
+<title id="title">A winding path through an illustrated green landscape</title>
+<desc id="desc">Layered rolling hills and rows of trees around a pale winding road.</desc>
+<defs>
+ <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#FBF9F1"/><stop offset=".55" stop-color="#F4F4E9"/><stop offset="1" stop-color="#F2F4E7"/></linearGradient>
+ <linearGradient id="hill1" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#E5ECCF"/><stop offset="1" stop-color="#CADBAD"/></linearGradient>
+ <linearGradient id="hill2" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#D2DDB6"/><stop offset="1" stop-color="#AECB98"/></linearGradient>
+ <linearGradient id="hill3" x2="1" y2="1"><stop stop-color="#B7D09F"/><stop offset="1" stop-color="#8DAE86"/></linearGradient>
+ <linearGradient id="road" x2="1" y2="1"><stop stop-color="#FFFEF4"/><stop offset="1" stop-color="#F6F5E7"/></linearGradient>
+ <symbol id="pine" viewBox="0 0 48 108"><path d="M23 8L11 48h7L5 75h11L0 94h46L31 75h12L29 48h7Z" fill="#537D60"/><path d="M23 8L23 94H1L16 75H5l13-27h-7Z" fill="#6F9B73"/><path d="M22 93h5v15h-5Z" fill="#866F5E"/></symbol>
+ <symbol id="pine2" viewBox="0 0 48 108"><path d="M23 8L11 48h7L5 75h11L0 94h46L31 75h12L29 48h7Z" fill="#87A476"/><path d="M23 8L23 94H1L16 75H5l13-27h-7Z" fill="#A1BC8A"/><path d="M22 93h5v15h-5Z" fill="#866F5E"/></symbol>
+ <symbol id="leaf-tree" viewBox="0 0 70 130"><path d="M35 83v47" stroke="#8B8666" stroke-width="5"/><ellipse cx="34" cy="55" rx="23" ry="48" fill="#9EBD86"/><path d="M35 12C9 27 8 83 35 103Z" fill="#B0C994"/><path d="M35 25v76M35 70L22 55M35 83l15-23" stroke="#7D9B72" stroke-width="1.8" fill="none"/></symbol>
+</defs>
+<rect width="900" height="620" fill="url(#sky)"/>
+<path d="M0 250C130 196 188 197 306 231S540 182 657 200S795 171 900 157V620H0Z" fill="#EDF0E0"/>
+<path d="M0 302C126 231 215 255 299 272S475 234 563 261S785 212 900 228V620H0Z" fill="#E1E8CC"/>
+<path d="M0 365C144 279 221 340 334 313S506 293 605 322S759 273 900 288V620H0Z" fill="url(#hill1)"/>
+<path d="M0 430C146 366 224 393 328 376S503 355 617 399S811 356 900 367V620H0Z" fill="url(#hill2)"/>
+<path d="M0 503C150 442 240 468 353 445S533 441 642 483S811 424 900 452V620H0Z" fill="url(#hill3)"/>
+<!-- Fine ground contours intentionally understated -->
+<g fill="none" stroke="#E9EED8" stroke-width="2" opacity=".65"><path d="M0 340C158 279 270 340 382 300S677 267 900 260"/><path d="M0 395C170 336 222 377 347 347S683 309 900 325"/><path d="M0 475C124 418 227 461 357 415S689 396 900 412"/></g>
+<!-- The winding cream trail is an illustrated path rather than a financial performance line -->
+<path d="M591 -50C696 31 641 92 625 138C593 198 713 208 703 276C693 353 534 329 559 411C581 486 749 492 655 598C633 620 615 640 617 671" stroke="#D3D7C2" stroke-width="90" stroke-linecap="round" fill="none" opacity=".22"/>
+<path d="M591 -50C696 31 641 92 625 138C593 198 713 208 703 276C693 353 534 329 559 411C581 486 749 492 655 598C633 620 615 640 617 671" stroke="url(#road)" stroke-width="80" stroke-linecap="round" fill="none"/>
+<path d="M591 -50C696 31 641 92 625 138C593 198 713 208 703 276C693 353 534 329 559 411C581 486 749 492 655 598C633 620 615 640 617 671" stroke="#8E83DC" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 14" fill="none" opacity=".7"/>
+<!-- Tree clusters border the pathway; none contain text -->
+<g opacity=".82"><use href="#pine2" x="762" y="132" width="72" height="162"/><use href="#pine" x="824" y="96" width="78" height="175"/><use href="#pine2" x="733" y="182" width="57" height="133"/><use href="#pine" x="860" y="188" width="65" height="150"/><use href="#pine2" x="720" y="450" width="59" height="139"/><use href="#pine" x="785" y="414" width="70" height="164"/><use href="#pine2" x="838" y="455" width="63" height="143"/></g>
+<g><use href="#leaf-tree" x="74" y="320" width="88" height="165"/><use href="#leaf-tree" x="260" y="226" width="43" height="100"/><use href="#leaf-tree" x="420" y="415" width="51" height="114"/><use href="#leaf-tree" x="822" y="327" width="46" height="104"/></g>
+<g fill="#8CAB80" opacity=".75"><ellipse cx="211" cy="424" rx="23" ry="9"/><ellipse cx="277" cy="479" rx="25" ry="9"/><ellipse cx="382" cy="384" rx="20" ry="8"/><ellipse cx="71" cy="528" rx="32" ry="10"/><ellipse cx="859" cy="573" rx="26" ry="8"/></g>
+</svg>
