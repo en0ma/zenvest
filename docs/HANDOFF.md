@@ -17,4 +17,5 @@ PR #55 treasury accounting merged October 27; PR #56 marketing venue language me
 Every future commit should update this file in the same commit, even if only a concise change-log entry. Keep date, changes, architectural decisions, current work, and blockers accurate. Resolve handoff conflicts when concurrent PRs modify it. This convention is not yet CI-enforced. Do not merge or deploy or change main without explicit approval.
 
 ## Change log
+- 2026-11-01: CI repair: restored the entire repository tree after an incorrectly constructed commit retained only two files, preventing Vercel from detecting package.json / Next.js. Homepage visual changes preserved. Validate deployment again.
 - 2026-11-01: Reworked PR #83 homepage structure/copy to reflect the explicitly approved Risevest-inspired visual. Main source: src/app/page.tsx. Removed the prior three interactive examples from the rendered homepage. Exact portrait asset and pixel-comparison validation remain outstanding.

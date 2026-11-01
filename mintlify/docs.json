@@ -1,0 +1,86 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Zenvest",
+  "colors": {
+    "primary": "#9C6139",
+    "light": "#B77D52",
+    "dark": "#D6A16F"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Start here",
+        "groups": [
+          {
+            "group": "Introduction",
+            "pages": [
+              "index",
+              "getting-started",
+              "how-it-works"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Strategy",
+        "groups": [
+          {
+            "group": "Methodology",
+            "pages": [
+              "strategy/yield",
+              "strategy/allocations",
+              "strategy/risk"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Account",
+        "groups": [
+          {
+            "group": "Account operations",
+            "pages": [
+              "account/security",
+              "account/deposits-and-withdrawals"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "Zenvest",
+          "href": "https://zenvest-rust.vercel.app"
+        },
+        {
+          "anchor": "Sign in",
+          "href": "https://zenvest-rust.vercel.app/login"
+        }
+      ]
+    }
+  },
+  "footer": {
+    "socials": {
+      "x": "https://x.com/demo",
+      "telegram": "https://t.me/demo"
+    }
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Website",
+        "href": "https://zenvest-rust.vercel.app"
+      },
+      {
+        "label": "Log in",
+        "href": "https://zenvest-rust.vercel.app/login"
+      }
+    ]
+  },
+  "appearance": {
+    "default": "light",
+    "strict": false
+  }
+}
