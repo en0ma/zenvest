@@ -1,1 +1,0 @@
-ALTER TYPE "PositionTransferStatus" ADD VALUE IF NOT EXISTS 'CONFIRMING';

@@ -1,1 +1,0 @@
-ALTER TABLE "action_tokens" ADD COLUMN "consumed_at" TIMESTAMP(3);
