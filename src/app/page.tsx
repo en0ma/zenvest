@@ -3,8 +3,8 @@ import {ArrowRight} from "lucide-react";
 
 /**
  * One-section homepage. Reference: approved 1536 × 1024 screenshot (2026-11-01).
- * The portrait uses a temporary remote photograph until the exact approved asset
- * can be added to /public; no claim of pixel-perfect fidelity is made.
+ * The portrait is cropped from the user's approved screenshot and stored locally.
+ * The reference screenshot was 1536x1024; responsive layouts are adaptations.
  */
 export default function Home(){
  return <>
@@ -33,9 +33,8 @@ export default function Home(){
       <p className="mt-8 max-w-[670px] text-[clamp(1.125rem,1.8vw,1.625rem)] leading-[1.25] text-[#52627B]">Access a different kind of investment opportunity. Choose how much to invest, while Zenvest handles the strategy behind the scenes.</p>
       <Link href="/register" className="mt-12 inline-flex items-center justify-center gap-7 rounded-[18px] bg-[#5200E9] px-10 py-[18px] text-[21px] font-semibold text-white transition-colors hover:bg-[#4000B6] focus-visible:outline-offset-4">Get started <ArrowRight aria-hidden="true" size={26}/></Link>
      </div>
-     <div className="relative mx-auto mt-2 h-[410px] w-full sm:h-[560px] lg:absolute lg:bottom-0 lg:right-0 lg:mt-0 lg:h-[870px] lg:w-[64%]" role="img" aria-label="Portrait of a confident Black woman">
-      <div aria-hidden="true" className="absolute bottom-[-46%] right-[-21%] h-[119%] w-[116%] -rotate-[28deg] rounded-[50%] bg-[#E2CDFF]/60"/>
-      <div aria-hidden="true" className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=1400&q=90')] bg-contain bg-bottom bg-no-repeat"/>
+     <div className="relative mx-auto mt-2 h-[420px] w-full sm:h-[560px] lg:absolute lg:-top-[8px] lg:right-0 lg:mt-0 lg:h-[934px] lg:w-[55.73%]" role="img" aria-label="The approved Zenvest hero portrait of a Black woman wearing a purple sweater">
+      <div aria-hidden="true" className="absolute inset-0 bg-[url('/approved-portrait.webp')] bg-contain bg-bottom bg-no-repeat lg:[mask-image:linear-gradient(to_right,transparent_0%,black_18%)]"/>
      </div>
     </div>
    </section>
