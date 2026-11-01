@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {ArrowRight} from "lucide-react";
-import {MarketingFooter} from "@/components/marketing";
 
 /**
  * One-section homepage. Reference: approved 1536 × 1024 screenshot (2026-11-01).
@@ -41,6 +40,5 @@ export default function Home(){
     </div>
    </section>
   </main>
-  <MarketingFooter/>
  </>;
 }
