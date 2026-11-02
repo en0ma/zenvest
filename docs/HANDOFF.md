@@ -67,3 +67,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Extracted 15-minute staff login age validation into a pure helper, with boundary and fail-closed unit tests. Sensitive API routes still require live session, permissions and verified factor.
 
 2026-11-02: Sensitive admin writes now return a distinct 401 STAFF_REAUTH_REQUIRED response when the server-verified login exceeds 15 minutes. Approval and role UI show a sign-in link for that code; all other errors remain generic and fail closed. No financial execution enabled.
+
+2026-11-02: Added tests for 401 reauthentication response and non-disclosure of unexpected errors; verify through CI.
