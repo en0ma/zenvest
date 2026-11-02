@@ -12,7 +12,7 @@ export async function POST(request:NextRequest){
  if(!parsed.success)return Response.json({error:"Invalid request"},{status:400});
  const input=parsed.data;const permission=supported[input.resource+":"+input.operation];
  if(!permission||!validateActionTarget(input.resource,input.operation))return Response.json({error:"Unsupported operation"},{status:400});
- const actor=await requireStaffPermission(permission);
+ const actor=await requireStaffPermission(permission,{requireFreshLogin:true});
  const exists=await (async()=>{
   if(input.resource==="users"||input.resource==="balances")return Boolean(await prisma.user.findUnique({where:{id:input.targetId},select:{id:true}}));
   if(input.resource==="deposits")return Boolean(await prisma.blockchainDeposit.findUnique({where:{id:input.targetId},select:{id:true}}));

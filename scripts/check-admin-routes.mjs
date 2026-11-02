@@ -37,6 +37,7 @@ state.existing=false;
 assert.equal((await propose(request(proposal))).status,404);
 state.existing=true;
 assert.equal((await propose(request(proposal))).status,201);
+assert.ok(state.granted.includes("withdrawals:approve"));
 assert.equal(state.actions.length,1);
 assert.equal(state.logs.length,1);
 state.deny=true;

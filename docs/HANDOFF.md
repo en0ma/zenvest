@@ -75,3 +75,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Expanded mocked-route CI coverage to role assignment and revocation: denied self-management, rejected super-admin changes, strict body schemas, restricted role creation, audited revocation/session-version bump and unauthorized requests. PostgreSQL-backed role lifecycle tests still required.
 
 2026-11-02: Added actual disposable PostgreSQL role lifecycle tests (membership creation, duplicate uniqueness, grant resolution, revocation, sessionVersion increment and two audit records); wired into CI coverage runner. No financial execution.
+
+2026-11-02: Require fresh verified admin login before creating sensitive user/financial action proposals, matching the existing reviewer freshness requirement. Reuse server-validated 15-minute session gate. No execution enabled.
