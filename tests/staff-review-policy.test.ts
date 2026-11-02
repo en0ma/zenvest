@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {canReviewAction,validateActionTarget} from "../src/lib/staff-review-policy.ts";
-const base={status:"PENDING" as const,requestedBy:"maker",actorId:"checker",hasPermission:true,isTwoFactorVerified:true};
+const base={status:"PENDING" as const,requestedBy:"maker",actorId:"checker",hasPermission:true,isTwoFactorVerified:true,createdAt:new Date()};
 test("independent authorized approver may decide pending actions",()=>assert.equal(canReviewAction(base),true));
 test("same actor may not approve their own action",()=>assert.equal(canReviewAction({...base,actorId:"maker"}),false));
 test("missing permission prevents approval",()=>assert.equal(canReviewAction({...base,hasPermission:false}),false));

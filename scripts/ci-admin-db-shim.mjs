@@ -1,6 +1,6 @@
 export const state={deny:false,actor:"ci-maker",existing:true,decision:"PENDING",logs:[],actions:[],granted:[]};
 const list=()=>[{id:"ci-id",userId:"ci-user",walletId:"ci-wallet",handle:"ci",unallocated:1000000n,amountUsdcMicros:1000000n,status:"PENDING",key:"support"}];
-const lookup={findMany:async()=>list(),findUnique:async()=>state.existing?{id:"ci-id",status:state.decision,requestedBy:"ci-maker",resource:"withdrawals",operation:"approve",targetId:"ci-withdrawal"}:null};
+const lookup={findMany:async()=>list(),findUnique:async()=>state.existing?{id:"ci-id",status:state.decision,createdAt:new Date(),requestedBy:"ci-maker",resource:"withdrawals",operation:"approve",targetId:"ci-withdrawal"}:null};
 export const prisma={
  user:{...lookup,findMany:async()=>[{id:"ci-id",handle:"ci",email:"ci@example.invalid",isActive:true}]},
  blockchainDeposit:{...lookup},
