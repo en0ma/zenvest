@@ -49,3 +49,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Fixed CI mock fixture to honor user/action route projections and omit BigInt from routes returning direct Response.json; prior test returned 403 because fixture's JSON serialization failed. Rechecking full coverage gate.
 
 2026-11-02: At commit 04565a8 CI and Vercel both passed. Hardened decision request validation with strict Zod schema to reject unexpected fields, added route regression check. Still no financial execution.
+
+2026-11-02: Added disposable-PostgreSQL staff approval integration checks: persisted role grant resolution, unique idempotency key, competing conditional decisions, exactly-once decision audit, no balance mutation, and repeat-decision refusal. Integrated into CI coverage runner. This is a DB-level test, not yet a complete live-session HTTP authorization test.
