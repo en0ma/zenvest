@@ -11,3 +11,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Added migration for staff permissions, roles, memberships, action proposals and audit records. No financial execution.
 
 2026-11-02: Added audit-tracked, idempotent staff action proposal and independent approval/rejection APIs. These do not execute financial transactions.
+
+2026-11-02: Added first explicit-projection users read endpoint guarded by staff users:read permission.
