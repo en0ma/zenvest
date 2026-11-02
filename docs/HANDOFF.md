@@ -69,3 +69,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Sensitive admin writes now return a distinct 401 STAFF_REAUTH_REQUIRED response when the server-verified login exceeds 15 minutes. Approval and role UI show a sign-in link for that code; all other errors remain generic and fail closed. No financial execution enabled.
 
 2026-11-02: Added tests for 401 reauthentication response and non-disclosure of unexpected errors; verify through CI.
+
+2026-11-02: Added explicit fail-closed financial execution guard and tests for all four money/custody operation classes. Guard never authorizes execution even for independently approved requests. This is a safety contract only; production financial adapters, ledger accounting, and limits remain unimplemented.
