@@ -42,6 +42,7 @@ assert.equal((await propose(request(proposal))).status,403);
 state.deny=false;
 const decisionContext={params:Promise.resolve({id:"ci-action"})};
 assert.equal((await decide(request({approve:"yes"}),decisionContext)).status,400);
+assert.equal((await decide(request({approve:true,extra:"unexpected"}),decisionContext)).status,400);
 state.existing=false;
 assert.equal((await decide(request({approve:true}),decisionContext)).status,404);
 state.existing=true;
