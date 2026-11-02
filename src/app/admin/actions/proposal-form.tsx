@@ -1,6 +1,7 @@
 "use client";
 import {useState} from "react";
 import {useRouter} from "next/navigation";
+import Link from "next/link";
 const operations=[
  {value:"users:write",label:"User change request"},
  {value:"deposits:reconcile",label:"Deposit reconciliation"},
@@ -16,17 +17,18 @@ export default function ActionProposalForm({allowed}:{allowed:string[]}){
  const [error,setError]=useState("");
  const [success,setSuccess]=useState("");
  const [busy,setBusy]=useState(false);
+ const [reauth,setReauth]=useState(false);
  const choices=operations.filter(o=>allowed.includes(o.value));
  if(!choices.length)return null;
  async function submit(event:React.FormEvent<HTMLFormElement>){
   event.preventDefault();
   if(busy)return;
-  setBusy(true);setError("");setSuccess("");
+  setBusy(true);setError("");setSuccess("");setReauth(false);
   const [resource,operation]=selected.split(":");
   try{
    const response=await fetch("/api/admin/actions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({resource,operation,targetId:targetId.trim(),reason:reason.trim(),idempotencyKey:crypto.randomUUID()})});
    const body=await response.json().catch(()=>({}));
-   if(!response.ok)throw new Error(typeof body.error==="string"?body.error:"Unable to submit request");
+   if(!response.ok){if(response.status===401&&body.code==="STAFF_REAUTH_REQUIRED")setReauth(true);throw new Error(typeof body.error==="string"?body.error:"Unable to submit request");}
    setSuccess("Request queued for independent review. No financial operation was executed.");
    setReason("");router.refresh();
   }catch(e){setError(e instanceof Error?e.message:"Request failed")}finally{setBusy(false)}
@@ -38,7 +40,7 @@ export default function ActionProposalForm({allowed}:{allowed:string[]}){
   <label className="block text-sm font-medium">Exact target ID<input required maxLength={128} className="mt-1 w-full rounded border p-2" value={targetId} onChange={e=>setTargetId(e.target.value)}/></label>
   <label className="block text-sm font-medium">Reason (12–500 characters)<textarea required minLength={12} maxLength={500} rows={3} className="mt-1 w-full rounded border p-2" value={reason} onChange={e=>setReason(e.target.value)}/></label>
   <button type="submit" disabled={busy} className="rounded bg-[#14253D] px-4 py-2 text-white disabled:opacity-50">{busy?"Submitting…":"Submit for review"}</button>
-  {error&&<p role="alert" className="text-sm text-red-700">{error}</p>}
+  {error&&<p role="alert" className="text-sm text-red-700">{error}</p>}{reauth&&<Link href="/login" className="text-sm text-violet-700 underline">Sign in again</Link>}
   {success&&<p role="status" className="text-sm text-emerald-800">{success}</p>}
  </form>;
 }
