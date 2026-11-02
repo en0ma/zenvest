@@ -99,3 +99,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Fixed admin withdrawal dispatch retry hazard. An already-claimed or missing target is now held for manual review, never rearmed for a second provider submission. Only an independently verified still-PENDING, unsubmitted target can rearm after a definitively preflight-only failure. No bypass of signed-webhook settlement.
 
 2026-11-02: Added classified dispatch-outcome policy and regression tests covering concurrent claim, missing target, unknown outcome, pre-provider failure and provider acceptance. The admin route uses the same fail-closed classification.
+
+2026-11-02: Added targeted independently approved admin deposit reconciliation with exact provider transaction webhook replay, atomic approval consumption, active master wallet verification and signed-webhook-only settlement. Disabled by default behind STAFF_DEPOSIT_RECONCILIATION_ENABLED.
