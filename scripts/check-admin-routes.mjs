@@ -13,6 +13,8 @@ const {GET:read}=await import("../src/app/api/admin/resources/[resource]/route.t
 const {GET:users}=await import("../src/app/api/admin/users/route.ts");
 const {POST:propose,GET:actions}=await import("../src/app/api/admin/actions/route.ts");
 const {POST:decide}=await import("../src/app/api/admin/actions/[id]/decision/route.ts");
+const {POST:assign}=await import("../src/app/api/admin/roles/assign/route.ts");
+const {POST:revoke}=await import("../src/app/api/admin/roles/revoke/route.ts");
 function request(payload){return new Request("https://ci.invalid/api/admin/actions",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)})}
 const ctx=resource=>({params:Promise.resolve({resource})});
 assert.equal((await read({nextUrl:new URL("https://ci.invalid")},ctx("invalid"))).status,404);
@@ -53,3 +55,20 @@ assert.equal(state.decision,"APPROVED");
 assert.equal((await decide(request({approve:true}),decisionContext)).status,403);
 assert.equal(state.logs.length,2);
 console.log("Admin RBAC API route validation and two-person approval simulation passed");
+
+state.actor="ci-admin";
+const roleRequest=(body)=>request(body);
+assert.equal((await assign(roleRequest({userId:"ci-admin",roleKey:"support"}))).status,403,"self assignment blocked");
+assert.equal((await assign(roleRequest({userId:"ci-other",roleKey:"super-admin"}))).status,400,"super-admin assignment blocked");
+assert.equal((await assign(roleRequest({userId:"ci-other",roleKey:"support",unknown:true}))).status,400,"unknown assignment fields blocked");
+assert.equal((await assign(roleRequest({userId:"ci-other",roleKey:"support"}))).status,201,"eligible restricted assignment allowed");
+assert.equal((await revoke(roleRequest({userId:"ci-admin",roleKey:"support"}))).status,403,"self revocation blocked");
+assert.equal((await revoke(roleRequest({userId:"ci-other",roleKey:"super-admin"}))).status,400,"super-admin revocation blocked");
+assert.equal((await revoke(roleRequest({userId:"ci-other",roleKey:"support"}))).status,200,"role revocation allowed");
+assert.equal(state.revocations,1);
+assert.equal(state.sessionBumps,1,"role revocation must invalidate sessions");
+state.deny=true;
+assert.equal((await assign(roleRequest({userId:"ci-other",roleKey:"support"}))).status,403);
+assert.equal((await revoke(roleRequest({userId:"ci-other",roleKey:"support"}))).status,403);
+state.deny=false;
+console.log("Restricted role assignment, revocation and session invalidation route tests passed");
