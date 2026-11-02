@@ -77,3 +77,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Added actual disposable PostgreSQL role lifecycle tests (membership creation, duplicate uniqueness, grant resolution, revocation, sessionVersion increment and two audit records); wired into CI coverage runner. No financial execution.
 
 2026-11-02: Require fresh verified admin login before creating sensitive user/financial action proposals, matching the existing reviewer freshness requirement. Reuse server-validated 15-minute session gate. No execution enabled.
+
+2026-11-02: Sensitive action proposal route now returns the standard 401 STAFF_REAUTH_REQUIRED response when login is stale, matching the role and approval APIs.

@@ -1,6 +1,7 @@
 import type {NextRequest} from "next/server";
 import {z} from "zod";
 import {prisma} from "@/lib/db";
+import {staffWriteError} from "@/lib/staff-write-error";
 import {validateActionTarget} from "@/lib/staff-review-policy";
 import {requireStaffPermission} from "@/lib/staff-access";
 import type {StaffPermissionKey} from "@/lib/staff-permissions";
@@ -29,7 +30,7 @@ export async function POST(request:NextRequest){
  return Response.json({id:record.id,status:record.status,execution:"NOT_EXECUTED"},{status:201});
  }catch(error){
  if(error&&typeof error==="object"&&"code" in error&&error.code==="P2002")return Response.json({error:"Duplicate idempotency key"},{status:409});
- return Response.json({error:"Not authorized"},{status:403});
+ return staffWriteError(error);
  }
 }
 
