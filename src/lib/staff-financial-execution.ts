@@ -8,13 +8,14 @@ export type ExecutionGuardInput={
  actorId:string;
  idempotencyKey:string;
 };
-export type ExecutionGuardResult={allowed:false;reason:string};
+export type ExecutionGuardResult={allowed:false;reason:string}|{allowed:true;reason:"WITHDRAWAL_DISPATCH_ALLOWED"};
 /** All current financial action approvals are records only.
  * No funds, ledger or provider API call is permitted through this module.
  */
-export function guardFinancialExecution(input:ExecutionGuardInput):ExecutionGuardResult {
+export function guardFinancialExecution(input:ExecutionGuardInput,withdrawalDispatchEnabled=false):ExecutionGuardResult {
  if(input.actionStatus!=="APPROVED")return {allowed:false,reason:"APPROVAL_REQUIRED"};
  if(!input.approvedBy||input.approvedBy===input.requestedBy)return {allowed:false,reason:"INDEPENDENT_APPROVAL_REQUIRED"};
  if(!input.actorId||!input.idempotencyKey)return {allowed:false,reason:"EXECUTION_IDENTITY_REQUIRED"};
+ if(withdrawalDispatchEnabled&&input.operation==="withdrawals:approve")return {allowed:true,reason:"WITHDRAWAL_DISPATCH_ALLOWED"};
  return {allowed:false,reason:"FINANCIAL_EXECUTION_DISABLED"};
 }

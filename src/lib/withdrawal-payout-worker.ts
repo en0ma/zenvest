@@ -7,7 +7,7 @@ import {WITHDRAWAL_FEE_USDC_MICROS} from "./withdrawal-fee";
 import {masterCustodyCoversTreasury} from "./withdrawal-worker-rules";
 import {reviewExpiryCutoff} from "./withdrawal-review-timeout";
 
-export async function processPendingWithdrawal(){
+export async function processPendingWithdrawal(targetWithdrawalId?:string){
  const {key,walletId}=blockradarConfig();
  const assetId=process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID;
  if(!assetId)throw new Error("Missing Blockradar asset ID");
@@ -15,7 +15,7 @@ export async function processPendingWithdrawal(){
  if(!master||master.walletId!==walletId||master.source!=="MASTER_WALLET"||master.asset!=="USDC")throw new Error("Missing master deposit treasury");
  // Expire REVIEW records two hours after their original creation time.
  // Conditional updates and the matching treasury mutation remain atomic.
- const expired=await prisma.withdrawal.findFirst({
+ const expired=targetWithdrawalId?null:await prisma.withdrawal.findFirst({
   where:{status:"REVIEW",createdAt:{lte:reviewExpiryCutoff(new Date())}},
   orderBy:{createdAt:"asc"},
  });
@@ -30,7 +30,7 @@ export async function processPendingWithdrawal(){
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
   return expiredNow?"review_expired":"already_settled";
  }
- const candidate=await prisma.withdrawal.findFirst({where:{status:"PENDING",treasuryTransactionId:null},orderBy:[{updatedAt:"asc"},{createdAt:"asc"}]});
+ const candidate=await prisma.withdrawal.findFirst({where:{status:"PENDING",treasuryTransactionId:null,...(targetWithdrawalId?{id:targetWithdrawalId}:{})},orderBy:[{updatedAt:"asc"},{createdAt:"asc"}]});
  if(!candidate)return "empty";
  const claim=await prisma.$transaction(async tx=>{
   const current=await tx.withdrawal.findUnique({where:{id:candidate.id}});

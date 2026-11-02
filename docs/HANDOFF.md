@@ -87,3 +87,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Proposal UI now collects explicit credit/debit and positive integer USDC micros for balance-adjustment review; API is still authoritative on configured maximum. Other operations submit only empty payload. No actual financial adjustment execution.
 
 2026-11-02: Approval queue displays immutable proposal parameters before review, and decision endpoint revalidates typed payload and the current configured balance-adjustment cap before marking approved. Policy changes can block stale/over-limit requests; execution remains disabled.
+
+2026-11-02: Restricted existing Blockradar withdrawal worker to an optional exact withdrawal ID for staff-directed dispatch (rather than processing the oldest unrelated request). Explicit withdraw-only dispatch opt-in accepted by financial guard only for already approved independent actions; all other operations remain disabled. Existing provider preflight, balance reservations and signed-webhook settlement unchanged.
