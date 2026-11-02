@@ -3,6 +3,7 @@ import {prisma} from "@/lib/db";
 import {staffWriteError} from "@/lib/staff-write-error";
 import {z} from "zod";
 import {canReviewAction} from "@/lib/staff-review-policy";
+import {validateProposalPayload} from "@/lib/staff-financial-limits";
 import {requireStaffPermission} from "@/lib/staff-access";
 import type {StaffPermissionKey} from "@/lib/staff-permissions";
 const decisionSchema=z.object({approve:z.boolean()}).strict();
@@ -16,6 +17,8 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{id:stri
  const permission=supported[action.resource+":"+action.operation];
  if(!permission)return Response.json({error:"Unsupported operation"},{status:400});
  const actor=await requireStaffPermission(permission,{requireFreshLogin:true});
+ const payloadCheck=validateProposalPayload(action.resource,action.operation,action.payload,process.env.STAFF_BALANCE_ADJUSTMENT_LIMIT_MICROS);
+ if(!payloadCheck.ok)return Response.json({error:"Action parameters violate current financial policy",code:payloadCheck.reason},{status:422});
  if(!canReviewAction({status:action.status,requestedBy:action.requestedBy,actorId:actor,hasPermission:true,isTwoFactorVerified:true,createdAt:action.createdAt}))return Response.json({error:"Approval policy denied"},{status:403});
  const state=parsed.data.approve?"APPROVED":"REJECTED";
  const cutoff=new Date(Date.now()-24*60*60*1000);
