@@ -4,6 +4,7 @@ import {requireStaffPermission} from "@/lib/staff-access";
 import {staffWriteError} from "@/lib/staff-write-error";
 import {guardFinancialExecution} from "@/lib/staff-financial-execution";
 import {processPendingWithdrawal} from "@/lib/withdrawal-payout-worker";
+import {classifyStaffDispatchResult} from "@/lib/staff-withdrawal-dispatch-policy";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 /** Dispatch an already-created user withdrawal through the existing Blockradar payout worker.
@@ -45,12 +46,13 @@ export async function POST(_request:Request,{params}:{params:Promise<{id:string}
    // Unknown whether the provider was contacted: never reset to APPROVED.
    return Response.json({status:"REVIEW_REQUIRED",execution:"UNKNOWN_DO_NOT_RETRY"},{status:503});
   }
-  if(result==="already_claimed"||result==="empty"){
+  const disposition=classifyStaffDispatchResult(result);
+  if(disposition==="REVIEW"){
    // Another worker may have claimed or submitted the target. Never rearm an
    // approval after a possibly started custody transfer.
    return Response.json({status:result,execution:"REVIEW_REQUIRED_DO_NOT_RETRY"},{status:409,headers:{"Cache-Control":"no-store"}});
   }
-  if(result==="preflight_retry"||result==="failed_validation"){
+  if(disposition==="SAFE_NO_PROVIDER_ATTEMPT"){
    // The worker reports these only when it did not call the custody provider.
    // Re-enable approval only after verifying the target has not been claimed.
    await prisma.$transaction(async tx=>{

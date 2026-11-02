@@ -97,3 +97,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Extended real PostgreSQL + mocked Blockradar withdrawal-worker test to prove staff-directed payout targets only the specified withdrawal, skips an older unrelated request and never resends a processed target.
 
 2026-11-02: Fixed admin withdrawal dispatch retry hazard. An already-claimed or missing target is now held for manual review, never rearmed for a second provider submission. Only an independently verified still-PENDING, unsubmitted target can rearm after a definitively preflight-only failure. No bypass of signed-webhook settlement.
+
+2026-11-02: Added classified dispatch-outcome policy and regression tests covering concurrent claim, missing target, unknown outcome, pre-provider failure and provider acceptance. The admin route uses the same fail-closed classification.
