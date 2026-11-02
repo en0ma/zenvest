@@ -13,3 +13,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Added audit-tracked, idempotent staff action proposal and independent approval/rejection APIs. These do not execute financial transactions.
 
 2026-11-02: Added first explicit-projection users read endpoint guarded by staff users:read permission.
+
+2026-11-02: Added idempotent role/permission seed and minimal protected /admin shell. Seed does not provision any staff users or confer access.
