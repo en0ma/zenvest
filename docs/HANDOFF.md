@@ -83,3 +83,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Proposal form now displays a reauthentication link when the backend rejects a stale login. This matches approval and role-management UI behavior.
 
 2026-11-02: Added validated, typed balance-adjustment proposal payloads with strict USDC micro integer parsing and deny-by-default configured maximum STAFF_BALANCE_ADJUSTMENT_LIMIT_MICROS; no float, extra fields, or amount above max allowed. Non-balance operations reject arbitrary payload injection. No ledger or custody execution enabled; amount limits are provisional proposal controls only.
+
+2026-11-02: Proposal UI now collects explicit credit/debit and positive integer USDC micros for balance-adjustment review; API is still authoritative on configured maximum. Other operations submit only empty payload. No actual financial adjustment execution.
