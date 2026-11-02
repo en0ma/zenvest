@@ -4,6 +4,7 @@ import {requireStaffPermission} from "@/lib/staff-access";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/lib/auth";
 import ReviewControls from "./review-controls";
+import WithdrawalDispatch from "./withdrawal-dispatch";
 import ActionProposalForm from "./proposal-form";
 import {isWithinReviewWindow} from "@/lib/staff-review-policy";
 import type {StaffPermissionKey} from "@/lib/staff-permissions";
@@ -25,7 +26,7 @@ export default async function ActionQueue(){
   <tbody>{items.map(item=>{
    const permission=reviewPermissions[item.resource+":"+item.operation];
    const canDecide=Boolean(permission&&grants.has(permission)&&actor&&actor!==item.requestedBy&&item.status==="PENDING"&&isWithinReviewWindow(item.createdAt));
-   return <tr key={item.id} className="border-t align-top"><td className="p-3">{item.resource} / {item.operation}</td><td className="p-3">{item.targetId}</td><td className="max-w-xs p-3"><pre className="whitespace-pre-wrap break-all text-xs">{JSON.stringify(item.payload)}</pre></td><td className="max-w-xs p-3">{item.reason}</td><td className="p-3">{item.status}</td><td className="p-3">{item.status==="PENDING"?<ReviewControls id={item.id} canDecide={canDecide}/>:<span>Reviewed</span>}</td></tr>
+   return <tr key={item.id} className="border-t align-top"><td className="p-3">{item.resource} / {item.operation}</td><td className="p-3">{item.targetId}</td><td className="max-w-xs p-3"><pre className="whitespace-pre-wrap break-all text-xs">{JSON.stringify(item.payload)}</pre></td><td className="max-w-xs p-3">{item.reason}</td><td className="p-3">{item.status}</td><td className="p-3">{item.status==="PENDING"?<ReviewControls id={item.id} canDecide={canDecide}/>:item.status==="APPROVED"&&item.resource==="withdrawals"&&item.operation==="approve"&&grants.has("withdrawals:approve")?<WithdrawalDispatch id={item.id}/>:<span>Reviewed</span>}</td></tr>
   })}</tbody></table>
   {items.length===0&&<p className="p-6 text-slate-500">No review requests.</p>}
   </div></div></main>;
