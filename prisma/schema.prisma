@@ -569,3 +569,59 @@ model TwoFactorRecoveryCode {
  createdAt DateTime @default(now()) @map("created_at")
  @@index([userId,usedAt])
 }
+
+model StaffRole {
+  id String @id @default(cuid())
+  key String @unique
+  grants StaffRolePermission[]
+  members StaffRoleMembership[]
+}
+model StaffPermission {
+  id String @id @default(cuid())
+  key String @unique
+  roles StaffRolePermission[]
+}
+model StaffRolePermission {
+  roleId String
+  permissionId String
+  role StaffRole @relation(fields:[roleId],references:[id],onDelete:Cascade)
+  permission StaffPermission @relation(fields:[permissionId],references:[id],onDelete:Cascade)
+  @@id([roleId,permissionId])
+}
+model StaffRoleMembership {
+  userId String
+  roleId String
+  assignedBy String
+  role StaffRole @relation(fields:[roleId],references:[id],onDelete:Cascade)
+  @@id([userId,roleId])
+}
+enum StaffActionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXECUTED
+}
+model StaffAction {
+  id String @id @default(cuid())
+  resource String
+  operation String
+  targetId String
+  payload Json
+  reason String
+  requestedBy String
+  decidedBy String?
+  status StaffActionStatus @default(PENDING)
+  idempotencyKey String @unique
+  createdAt DateTime @default(now())
+  decidedAt DateTime?
+  @@index([status,createdAt])
+}
+model StaffAudit {
+  id String @id @default(cuid())
+  actorId String
+  action String
+  resource String
+  targetId String
+  createdAt DateTime @default(now())
+  @@index([actorId,createdAt])
+}
