@@ -93,3 +93,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Added tightly permissioned POST /api/admin/actions/[id]/execute for only already independently approved user withdrawals; requires fresh login, STAFF_WITHDRAWAL_EXECUTION_ENABLED=true, atomic one-time approval consumption and audit, and delegates to existing targeted Blockradar payout worker. API never settles ledger or declares chain completion; signed webhook remains sole ledger settlement. Unknown provider outcomes never retry automatically. Remaining production deployment and failure-injection verification required.
 
 2026-11-02: Added explicitly confirmed admin withdrawal dispatch control for already-approved withdrawal actions. Requires permission server-side, shows unknown-result no-retry warning, and blocks when execution flag is off; provider acceptance is not treated as settlement.
+
+2026-11-02: Extended real PostgreSQL + mocked Blockradar withdrawal-worker test to prove staff-directed payout targets only the specified withdrawal, skips an older unrelated request and never resends a processed target.
