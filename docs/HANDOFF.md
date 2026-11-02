@@ -55,3 +55,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Limited approval/rejection to requests created within the last 24 hours, with fail-closed clock validation and unit tests. UI disables aged requests; API remains authoritative. Pending old actions require a fresh separately reviewed proposal. No financial execution enabled.
 
 2026-11-02: Made approval timestamp mandatory in shared review policy, and updated unit and route fixtures to exercise the expiry gate. No missing-timestamp bypass.
+
+2026-11-02: Aligned users:write with mandatory maker-checker permission catalog and test. Decision compare-and-swap now checks pending status, live timestamp window and non-requester in the same database transaction, guarding time-of-check/time-of-use races. Financial execution remains disabled.

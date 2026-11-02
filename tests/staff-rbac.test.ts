@@ -11,7 +11,7 @@ test("role templates contain only declared permissions",()=>{
 });
 test("sensitive financial actions are explicitly approval-gated",()=>{
  const gated=new Set<string>(APPROVAL_REQUIRED);
- for(const permission of ["deposits:reconcile","withdrawals:approve","balances:adjust","wallets:operate"]){
+ for(const permission of ["users:write","deposits:reconcile","withdrawals:approve","balances:adjust","wallets:operate"]){
   assert.ok(gated.has(permission),"Missing approval gate "+permission);
  }
 });

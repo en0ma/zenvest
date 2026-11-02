@@ -17,8 +17,9 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{id:stri
  const actor=await requireStaffPermission(permission);
  if(!canReviewAction({status:action.status,requestedBy:action.requestedBy,actorId:actor,hasPermission:true,isTwoFactorVerified:true,createdAt:action.createdAt}))return Response.json({error:"Approval policy denied"},{status:403});
  const state=parsed.data.approve?"APPROVED":"REJECTED";
+ const cutoff=new Date(Date.now()-24*60*60*1000);
  const changed=await prisma.$transaction(async tx=>{
- const result=await tx.staffAction.updateMany({where:{id,status:"PENDING"},data:{status:state,decidedBy:actor,decidedAt:new Date()}});
+ const result=await tx.staffAction.updateMany({where:{id,status:"PENDING",createdAt:{gte:cutoff,lte:new Date()},requestedBy:{not:actor}},data:{status:state,decidedBy:actor,decidedAt:new Date()}});
  if(result.count!==1)return false;
  await tx.staffAudit.create({data:{actorId:actor,action:state,resource:action.resource,targetId:action.targetId}});
  return true;
