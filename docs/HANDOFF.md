@@ -59,3 +59,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Aligned users:write with mandatory maker-checker permission catalog and test. Decision compare-and-swap now checks pending status, live timestamp window and non-requester in the same database transaction, guarding time-of-check/time-of-use races. Financial execution remains disabled.
 
 2026-11-02: Added role-filtered admin action proposal form. Requires exact target ID and reason; uses per-submission idempotency key and explicitly discloses non-execution; existing server-side authorization and validation remain authoritative. No amount/payload or custody execution added.
+
+2026-11-02: Added permission-protected staff role management UI (assign/revoke restricted roles with confirmation, feedback and session invalidation on revoke), plus admin navigation links for review queue and role manager. Super Admin cannot be granted by this UI. End-to-end role-management tests and bootstrap remain outstanding.

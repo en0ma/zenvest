@@ -14,6 +14,8 @@ const sections: Array<{ name: string; permission: StaffPermissionKey }> = [
  {name:"wallets",permission:"wallets:read"},
  {name:"roles",permission:"roles:read"},
  {name:"audit",permission:"audit:read"},
+ {name:"actions",permission:"audit:read"},
+ {name:"roles/manage",permission:"roles:manage"},
 ];
 export default async function AdminPage(){
  const session=await getServerSession(authOptions);
@@ -35,7 +37,7 @@ export default async function AdminPage(){
    <h1 className="text-3xl font-bold">Zenvest operations</h1>
    <p className="mt-3 text-slate-600">Sensitive actions require independent approval and do not move funds automatically.</p>
    <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-    {sections.filter(s=>grants.has(s.permission)).map(s=><Link key={s.name} href={"/admin/"+s.name} className="rounded-xl border bg-white p-6 text-lg font-semibold capitalize shadow-sm hover:border-violet-500">{s.name}</Link>)}
+    {sections.filter(s=>grants.has(s.permission)).map(s=><Link key={s.name} href={"/admin/"+s.name} className="rounded-xl border bg-white p-6 text-lg font-semibold capitalize shadow-sm hover:border-violet-500">{s.name==="roles/manage"?"Manage roles":s.name}</Link>)}
    </div>
   </div>
  </main>;
