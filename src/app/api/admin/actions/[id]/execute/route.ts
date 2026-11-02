@@ -45,13 +45,21 @@ export async function POST(_request:Request,{params}:{params:Promise<{id:string}
    // Unknown whether the provider was contacted: never reset to APPROVED.
    return Response.json({status:"REVIEW_REQUIRED",execution:"UNKNOWN_DO_NOT_RETRY"},{status:503});
   }
-  if(["preflight_retry","empty","already_claimed","failed_validation"].includes(result)){
-   // Safe to restore only if no external dispatch was attempted by this path.
+  if(result==="already_claimed"||result==="empty"){
+   // Another worker may have claimed or submitted the target. Never rearm an
+   // approval after a possibly started custody transfer.
+   return Response.json({status:result,execution:"REVIEW_REQUIRED_DO_NOT_RETRY"},{status:409,headers:{"Cache-Control":"no-store"}});
+  }
+  if(result==="preflight_retry"||result==="failed_validation"){
+   // The worker reports these only when it did not call the custody provider.
+   // Re-enable approval only after verifying the target has not been claimed.
    await prisma.$transaction(async tx=>{
+    const pending=await tx.withdrawal.findUnique({where:{id:withdrawal.id},select:{status:true,providerTransactionId:true,treasuryTransactionId:true}});
+    if(!pending||pending.status!=="PENDING"||pending.providerTransactionId||pending.treasuryTransactionId)return;
     const updated=await tx.staffAction.updateMany({where:{id:action.id,status:"EXECUTED"},data:{status:"APPROVED"}});
     if(updated.count===1)await tx.staffAudit.create({data:{actorId:actor,action:"withdrawal.dispatch.not_submitted",resource:"withdrawals",targetId:withdrawal.id}});
    },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
-   return Response.json({status:result,execution:"NOT_SUBMITTED"},{status:409});
+   return Response.json({status:result,execution:"NOT_SUBMITTED_OR_REVIEW_REQUIRED"},{status:409,headers:{"Cache-Control":"no-store"}});
   }
   return Response.json({status:result,execution:result==="submitted"?"PROVIDER_ACCEPTED_AWAITING_WEBHOOK":"UNKNOWN_DO_NOT_RETRY"},{headers:{"Cache-Control":"no-store"}});
  }catch(error){return staffWriteError(error)}

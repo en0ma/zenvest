@@ -95,3 +95,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Added explicitly confirmed admin withdrawal dispatch control for already-approved withdrawal actions. Requires permission server-side, shows unknown-result no-retry warning, and blocks when execution flag is off; provider acceptance is not treated as settlement.
 
 2026-11-02: Extended real PostgreSQL + mocked Blockradar withdrawal-worker test to prove staff-directed payout targets only the specified withdrawal, skips an older unrelated request and never resends a processed target.
+
+2026-11-02: Fixed admin withdrawal dispatch retry hazard. An already-claimed or missing target is now held for manual review, never rearmed for a second provider submission. Only an independently verified still-PENDING, unsubmitted target can rearm after a definitively preflight-only failure. No bypass of signed-webhook settlement.
