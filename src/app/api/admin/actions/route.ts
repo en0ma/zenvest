@@ -23,3 +23,14 @@ export async function POST(request:NextRequest){
  return Response.json({error:"Not authorized"},{status:403});
  }
 }
+
+
+export async function GET(){
+ try{
+  await requireStaffPermission("audit:read");
+  const data=await prisma.staffAction.findMany({take:50,orderBy:{createdAt:"desc"},select:{id:true,resource:true,operation:true,targetId:true,reason:true,requestedBy:true,decidedBy:true,status:true,createdAt:true,decidedAt:true}});
+  return Response.json({data},{headers:{"Cache-Control":"no-store"}});
+ }catch{
+  return Response.json({error:"Access denied"},{status:403});
+ }
+}
