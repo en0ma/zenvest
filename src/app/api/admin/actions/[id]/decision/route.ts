@@ -1,5 +1,6 @@
 import type {NextRequest} from "next/server";
 import {prisma} from "@/lib/db";
+import {staffWriteError} from "@/lib/staff-write-error";
 import {z} from "zod";
 import {canReviewAction} from "@/lib/staff-review-policy";
 import {requireStaffPermission} from "@/lib/staff-access";
@@ -25,5 +26,5 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{id:stri
  return true;
  });
  return changed?Response.json({status:state,execution:"NOT_EXECUTED"}):Response.json({error:"Already decided"},{status:409});
- }catch{return Response.json({error:"Not authorized"},{status:403})}
+ }catch(error){return staffWriteError(error)}
 }

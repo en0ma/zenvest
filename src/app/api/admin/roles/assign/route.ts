@@ -1,6 +1,7 @@
 import type {NextRequest} from "next/server";
 import {z} from "zod";
 import {prisma} from "@/lib/db";
+import {staffWriteError} from "@/lib/staff-write-error";
 import {requireStaffPermission} from "@/lib/staff-access";
 export const dynamic="force-dynamic";
 const assignment=z.object({userId:z.string().min(1).max(100),roleKey:z.enum(["operations","finance","support","auditor"])}).strict();
@@ -33,6 +34,6 @@ export async function POST(request:NextRequest){
   return Response.json({status:"ASSIGNED"},{status:201});
  }catch(error){
   if(error&&typeof error==="object"&&"code" in error&&error.code==="P2002")return Response.json({error:"Role already assigned"},{status:409});
-  return Response.json({error:"Access denied or assignment unavailable"},{status:403});
+  return staffWriteError(error);
  }
 }

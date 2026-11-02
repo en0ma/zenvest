@@ -1,6 +1,7 @@
 import type {NextRequest} from "next/server";
 import {z} from "zod";
 import {prisma} from "@/lib/db";
+import {staffWriteError} from "@/lib/staff-write-error";
 import {requireStaffPermission} from "@/lib/staff-access";
 export const dynamic="force-dynamic";
 const input=z.object({userId:z.string().min(1).max(100),roleKey:z.enum(["operations","finance","support","auditor"])}).strict();
@@ -22,5 +23,5 @@ export async function POST(request:NextRequest){
   });
   if(outcome==="NOT_FOUND")return Response.json({error:"Role membership not found"},{status:404});
   return Response.json({status:"REVOKED"},{headers:{"Cache-Control":"no-store"}});
- }catch{return Response.json({error:"Access denied or revocation unavailable"},{status:403})}
+ }catch(error){return staffWriteError(error)}
 }

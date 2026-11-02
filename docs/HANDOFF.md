@@ -65,3 +65,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: High-risk approval/rejection and staff role assignment/revocation now require login within past 15 minutes (including sign-in 2FA), based on server-verified securitySession.createdAt relayed through NextAuth JWT/session, not client input. Missing/future/expired timestamp fails closed. UI should prompt re-login; full step-up per action remains outstanding. No financial execution.
 
 2026-11-02: Extracted 15-minute staff login age validation into a pure helper, with boundary and fail-closed unit tests. Sensitive API routes still require live session, permissions and verified factor.
+
+2026-11-02: Sensitive admin writes now return a distinct 401 STAFF_REAUTH_REQUIRED response when the server-verified login exceeds 15 minutes. Approval and role UI show a sign-in link for that code; all other errors remain generic and fail closed. No financial execution enabled.
