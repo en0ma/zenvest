@@ -4,6 +4,7 @@ import {requireStaffPermission} from "@/lib/staff-access";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/lib/auth";
 import ReviewControls from "./review-controls";
+import {isWithinReviewWindow} from "@/lib/staff-review-policy";
 import type {StaffPermissionKey} from "@/lib/staff-permissions";
 export const dynamic="force-dynamic";
 const reviewPermissions:Record<string,StaffPermissionKey>={"users:write":"users:write","deposits:reconcile":"deposits:reconcile","withdrawals:approve":"withdrawals:approve","balances:adjust":"balances:adjust","wallets:operate":"wallets:operate"};
@@ -12,7 +13,7 @@ export default async function ActionQueue(){
  const session=await getServerSession(authOptions),actor=session?.user?.id;
  const memberships=actor?await prisma.staffRoleMembership.findMany({where:{userId:actor},include:{role:{include:{grants:{include:{permission:true}}}}}}):[];
  const grants=new Set(memberships.flatMap(m=>m.role.grants.map(g=>g.permission.key)));
- const items=await prisma.staffAction.findMany({take:50,orderBy:{createdAt:"desc"},select:{id:true,resource:true,operation:true,targetId:true,reason:true,status:true,requestedBy:true,decidedBy:true}});
+ const items=await prisma.staffAction.findMany({take:50,orderBy:{createdAt:"desc"},select:{id:true,resource:true,operation:true,targetId:true,reason:true,status:true,createdAt:true,requestedBy:true,decidedBy:true}});
  return <main className="min-h-screen bg-slate-50 p-8 text-[#14253D]"><div className="mx-auto max-w-6xl">
   <Link href="/admin" className="text-violet-700">← Operations</Link>
   <h1 className="mt-6 text-3xl font-bold">Financial action review queue</h1>
@@ -21,7 +22,7 @@ export default async function ActionQueue(){
   <thead className="bg-slate-100"><tr>{["Operation","Target","Reason","Status","Review"].map(x=><th key={x} className="p-3">{x}</th>)}</tr></thead>
   <tbody>{items.map(item=>{
    const permission=reviewPermissions[item.resource+":"+item.operation];
-   const canDecide=Boolean(permission&&grants.has(permission)&&actor&&actor!==item.requestedBy&&item.status==="PENDING");
+   const canDecide=Boolean(permission&&grants.has(permission)&&actor&&actor!==item.requestedBy&&item.status==="PENDING"&&isWithinReviewWindow(item.createdAt));
    return <tr key={item.id} className="border-t align-top"><td className="p-3">{item.resource} / {item.operation}</td><td className="p-3">{item.targetId}</td><td className="max-w-xs p-3">{item.reason}</td><td className="p-3">{item.status}</td><td className="p-3">{item.status==="PENDING"?<ReviewControls id={item.id} canDecide={canDecide}/>:<span>Reviewed</span>}</td></tr>
   })}</tbody></table>
   {items.length===0&&<p className="p-6 text-slate-500">No review requests.</p>}

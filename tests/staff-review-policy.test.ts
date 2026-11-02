@@ -13,3 +13,13 @@ test("financial request targets use an explicit allowlist",()=>{
  for(const [resource,operation] of [["users","write"],["deposits","reconcile"],["withdrawals","approve"],["balances","adjust"],["wallets","operate"]])assert.equal(validateActionTarget(resource,operation),true);
  for(const [resource,operation] of [["balances","write"],["wallets","delete"],["deposits","credit"],["users","make-super-admin"],["unknown","approve"]])assert.equal(validateActionTarget(resource,operation),false);
 });
+
+import {isWithinReviewWindow,REVIEW_WINDOW_MS} from "../src/lib/staff-review-policy.ts";
+test("review window expires after 24 hours",()=>{
+ const now=new Date("2026-11-02T12:00:00Z");
+ assert.equal(isWithinReviewWindow(new Date(now.getTime()-REVIEW_WINDOW_MS),now),true);
+ assert.equal(isWithinReviewWindow(new Date(now.getTime()-REVIEW_WINDOW_MS-1),now),false);
+ assert.equal(isWithinReviewWindow(new Date(now.getTime()+1),now),false);
+ assert.equal(canReviewAction({...base,createdAt:new Date(now.getTime()-REVIEW_WINDOW_MS-1),now}),false);
+ assert.equal(canReviewAction({...base,createdAt:new Date(now.getTime()-60000),now}),true);
+});
