@@ -13,6 +13,14 @@ export async function POST(request:NextRequest){
  const input=parsed.data;const permission=supported[input.resource+":"+input.operation];
  if(!permission||!validateActionTarget(input.resource,input.operation))return Response.json({error:"Unsupported operation"},{status:400});
  const actor=await requireStaffPermission(permission);
+ const exists=await (async()=>{
+  if(input.resource==="users"||input.resource==="balances")return Boolean(await prisma.user.findUnique({where:{id:input.targetId},select:{id:true}}));
+  if(input.resource==="deposits")return Boolean(await prisma.blockchainDeposit.findUnique({where:{id:input.targetId},select:{id:true}}));
+  if(input.resource==="withdrawals")return Boolean(await prisma.withdrawal.findUnique({where:{id:input.targetId},select:{id:true}}));
+  if(input.resource==="wallets")return Boolean(await prisma.investorDepositWallet.findUnique({where:{id:input.targetId},select:{id:true}}));
+  return false;
+ })();
+ if(!exists)return Response.json({error:"Target not found"},{status:404});
  const record=await prisma.$transaction(async tx=>{
  const action=await tx.staffAction.create({data:{...input,requestedBy:actor,payload:{}}});
  await tx.staffAudit.create({data:{actorId:actor,action:"proposed",resource:input.resource,targetId:input.targetId}});
