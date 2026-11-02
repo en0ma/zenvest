@@ -3,6 +3,7 @@ import {prisma} from "@/lib/db";
 import {blockradarConfig} from "@/lib/blockradar";
 import {requireStaffPermission} from "@/lib/staff-access";
 import {staffWriteError} from "@/lib/staff-write-error";
+import {canReplayApprovedDeposit} from "@/lib/staff-deposit-replay-policy";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 export async function POST(_request:Request,{params}:{params:Promise<{id:string}>}){
@@ -16,7 +17,7 @@ export async function POST(_request:Request,{params}:{params:Promise<{id:string}
   const deposit=await prisma.blockchainDeposit.findUnique({where:{id:action.targetId},include:{wallet:true}});
   if(!deposit||deposit.status!=="CONFIRMING"||deposit.creditedAt||!deposit.providerTransactionId)return Response.json({error:"Deposit not eligible for replay"},{status:409});
   const {key,walletId}=blockradarConfig();
-  if(deposit.wallet.masterWalletId!==walletId||deposit.wallet.status!=="ACTIVE"||deposit.wallet.provider!=="BLOCKRADAR"||deposit.wallet.network!=="solana")return Response.json({error:"Wallet identity mismatch"},{status:409});
+  if(!canReplayApprovedDeposit({actionStatus:action.status,resource:action.resource,operation:action.operation,requestedBy:action.requestedBy,decidedBy:action.decidedBy,depositStatus:deposit.status,creditedAt:deposit.creditedAt,providerTransactionId:deposit.providerTransactionId,masterWalletId:deposit.wallet.masterWalletId,expectedWalletId:walletId,walletStatus:deposit.wallet.status,walletProvider:deposit.wallet.provider,walletNetwork:deposit.wallet.network}))return Response.json({error:"Deposit policy denied"},{status:409});
   const claimed=await prisma.$transaction(async tx=>{
    const current=await tx.blockchainDeposit.findUnique({where:{id:deposit.id},select:{status:true,creditedAt:true}});
    if(!current||current.status!=="CONFIRMING"||current.creditedAt)return false;
