@@ -25,3 +25,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Adjusted RBAC test typing to explicit string sets for TypeScript strict compatibility.
 
 2026-11-02: Repaired CI-detected admin landing page syntax error; restructured role-grant fetch into separately typed queries. CI rerun required.
+
+2026-11-02: Added restricted staff role assignment API requiring roles:manage. No self-assignment or Super Admin API grants; target must be active, verified and enrolled in 2FA; changes are transactionally audited. Root administrator must be provisioned out of band.
