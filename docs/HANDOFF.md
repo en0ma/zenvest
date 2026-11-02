@@ -45,3 +45,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Corrected the CI harness request stub to expose NextRequest.nextUrl for paginated admin resource handlers.
 
 2026-11-02: CI admin route harness failed because NextRequest was imported as runtime symbol from next/server; fixed testable route imports to type-only. Coverage numbers from aborted run were not meaningful.
+
+2026-11-02: Fixed CI mock fixture to honor user/action route projections and omit BigInt from routes returning direct Response.json; prior test returned 403 because fixture's JSON serialization failed. Rechecking full coverage gate.
