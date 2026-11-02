@@ -15,16 +15,16 @@ const {POST:propose,GET:actions}=await import("../src/app/api/admin/actions/rout
 const {POST:decide}=await import("../src/app/api/admin/actions/[id]/decision/route.ts");
 function request(payload){return new Request("https://ci.invalid/api/admin/actions",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)})}
 const ctx=resource=>({params:Promise.resolve({resource})});
-assert.equal((await read(new Request("https://ci.invalid"),ctx("invalid"))).status,404);
+assert.equal((await read({nextUrl:new URL("https://ci.invalid")},ctx("invalid"))).status,404);
 for(const resource of ["deposits","withdrawals","balances","wallets","audit","roles"]){
- const response=await read(new Request("https://ci.invalid?page=1"),ctx(resource));
+ const response=await read({nextUrl:new URL("https://ci.invalid?page=1")},ctx(resource));
  assert.equal(response.status,200,resource);
  assert.ok((await response.json()).records.length>0);
 }
 assert.equal((await users()).status,200);
 assert.equal((await actions()).status,200);
 state.deny=true;
-assert.equal((await read(new Request("https://ci.invalid"),ctx("wallets"))).status,403);
+assert.equal((await read({nextUrl:new URL("https://ci.invalid")},ctx("wallets"))).status,403);
 assert.equal((await users()).status,403);
 assert.equal((await actions()).status,403);
 state.deny=false;

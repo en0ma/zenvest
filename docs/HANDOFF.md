@@ -41,3 +41,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Admin action creation checks target existence for user/balance/deposit/withdrawal/wallet resources before queue entry. This is preliminary validation only; execution must still revalidate target state and monetary invariants.
 
 2026-11-02: Added isolated admin route integration harness exercising resource reads, denied access, proposal target verification, maker-checker rejection and audit transitions; integrated into c8 CI runner. The harness uses mocked DB/access to target route behavior, not genuine Postgres/auth integration. CI verification pending.
+
+2026-11-02: Corrected the CI harness request stub to expose NextRequest.nextUrl for paginated admin resource handlers.
