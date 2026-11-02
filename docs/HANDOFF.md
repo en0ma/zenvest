@@ -81,3 +81,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Sensitive action proposal route now returns the standard 401 STAFF_REAUTH_REQUIRED response when login is stale, matching the role and approval APIs.
 
 2026-11-02: Proposal form now displays a reauthentication link when the backend rejects a stale login. This matches approval and role-management UI behavior.
+
+2026-11-02: Added validated, typed balance-adjustment proposal payloads with strict USDC micro integer parsing and deny-by-default configured maximum STAFF_BALANCE_ADJUSTMENT_LIMIT_MICROS; no float, extra fields, or amount above max allowed. Non-balance operations reject arbitrary payload injection. No ledger or custody execution enabled; amount limits are provisional proposal controls only.

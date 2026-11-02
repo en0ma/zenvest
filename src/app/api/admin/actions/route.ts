@@ -3,10 +3,11 @@ import {z} from "zod";
 import {prisma} from "@/lib/db";
 import {staffWriteError} from "@/lib/staff-write-error";
 import {validateActionTarget} from "@/lib/staff-review-policy";
+import {validateProposalPayload} from "@/lib/staff-financial-limits";
 import {requireStaffPermission} from "@/lib/staff-access";
 import type {StaffPermissionKey} from "@/lib/staff-permissions";
 const supported:Record<string,StaffPermissionKey>={"users:write":"users:write","deposits:reconcile":"deposits:reconcile","withdrawals:approve":"withdrawals:approve","balances:adjust":"balances:adjust","wallets:operate":"wallets:operate"};
-const proposal=z.object({resource:z.string(),operation:z.string(),targetId:z.string().min(1).max(128),reason:z.string().min(12).max(500),idempotencyKey:z.string().min(12).max(100)}).strict();
+const proposal=z.object({resource:z.string(),operation:z.string(),targetId:z.string().min(1).max(128),reason:z.string().min(12).max(500),idempotencyKey:z.string().min(12).max(100),payload:z.unknown().optional()}).strict();
 export async function POST(request:NextRequest){
  try{
  const parsed=proposal.safeParse(await request.json());
@@ -14,6 +15,8 @@ export async function POST(request:NextRequest){
  const input=parsed.data;const permission=supported[input.resource+":"+input.operation];
  if(!permission||!validateActionTarget(input.resource,input.operation))return Response.json({error:"Unsupported operation"},{status:400});
  const actor=await requireStaffPermission(permission,{requireFreshLogin:true});
+ const validated=validateProposalPayload(input.resource,input.operation,input.payload,process.env.STAFF_BALANCE_ADJUSTMENT_LIMIT_MICROS);
+ if(!validated.ok)return Response.json({error:validated.reason},{status:422});
  const exists=await (async()=>{
   if(input.resource==="users"||input.resource==="balances")return Boolean(await prisma.user.findUnique({where:{id:input.targetId},select:{id:true}}));
   if(input.resource==="deposits")return Boolean(await prisma.blockchainDeposit.findUnique({where:{id:input.targetId},select:{id:true}}));
@@ -23,7 +26,7 @@ export async function POST(request:NextRequest){
  })();
  if(!exists)return Response.json({error:"Target not found"},{status:404});
  const record=await prisma.$transaction(async tx=>{
- const action=await tx.staffAction.create({data:{...input,requestedBy:actor,payload:{}}});
+ const action=await tx.staffAction.create({data:{resource:input.resource,operation:input.operation,targetId:input.targetId,reason:input.reason,idempotencyKey:input.idempotencyKey,requestedBy:actor,payload:validated.payload}});
  await tx.staffAudit.create({data:{actorId:actor,action:"proposed",resource:input.resource,targetId:input.targetId}});
  return action;
  });

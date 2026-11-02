@@ -32,6 +32,8 @@ assert.equal((await actions()).status,403);
 state.deny=false;
 const proposal={resource:"withdrawals",operation:"approve",targetId:"ci-withdrawal",reason:"CI independent review",idempotencyKey:"ci-key-123456789"};
 assert.equal((await propose(request({...proposal,resource:"invalid"}))).status,400);
+assert.equal((await propose(request({...proposal,payload:{destination:"unknown"}}))).status,422);
+assert.equal((await propose(request({...proposal,resource:"balances",operation:"adjust",payload:{direction:"CREDIT",amountUsdcMicros:"1"}}))).status,422);
 assert.equal((await propose(request({resource:"users",operation:"delete",targetId:"u",reason:"CI reason for reject",idempotencyKey:"wrong-key-12345"}))).status,400);
 state.existing=false;
 assert.equal((await propose(request(proposal))).status,404);
