@@ -35,3 +35,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Wired shared allowlist and maker-checker policy helpers into the action proposal and decision routes; keeps DB conditional state transition, server-side authentication and zero execution boundary.
 
 2026-11-02: Added interactive Approve/Reject controls in admin action queue; client confirms intent, POSTs to server decision endpoint, refreshes results. Controls shown only for pending requests with corresponding permission and another requester. Server remains authority; financial execution remains disabled.
+
+2026-11-02: Added roles:manage-gated revocation for restricted non-super-admin roles. No self-revocation, transactionally audited, and increments target sessionVersion to invalidate existing sessions. Staff role removal requires permission re-evaluation. CI still needs coverage tests.
