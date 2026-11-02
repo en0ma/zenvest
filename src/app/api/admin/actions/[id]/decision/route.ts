@@ -1,5 +1,6 @@
 import {NextRequest} from "next/server";
 import {prisma} from "@/lib/db";
+import {canReviewAction} from "@/lib/staff-review-policy";
 import {requireStaffPermission} from "@/lib/staff-access";
 import type {StaffPermissionKey} from "@/lib/staff-permissions";
 const supported:Record<string,StaffPermissionKey>={"users:write":"users:write","deposits:reconcile":"deposits:reconcile","withdrawals:approve":"withdrawals:approve","balances:adjust":"balances:adjust","wallets:operate":"wallets:operate"};
@@ -12,7 +13,7 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{id:stri
  const permission=supported[action.resource+":"+action.operation];
  if(!permission)return Response.json({error:"Unsupported operation"},{status:400});
  const actor=await requireStaffPermission(permission);
- if(actor===action.requestedBy)return Response.json({error:"Self-approval prohibited"},{status:403});
+ if(!canReviewAction({status:action.status,requestedBy:action.requestedBy,actorId:actor,hasPermission:true,isTwoFactorVerified:true}))return Response.json({error:"Approval policy denied"},{status:403});
  const state=body.approve?"APPROVED":"REJECTED";
  const changed=await prisma.$transaction(async tx=>{
  const result=await tx.staffAction.updateMany({where:{id,status:"PENDING"},data:{status:state,decidedBy:actor,decidedAt:new Date()}});

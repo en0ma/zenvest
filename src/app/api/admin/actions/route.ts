@@ -1,6 +1,7 @@
 import {NextRequest} from "next/server";
 import {z} from "zod";
 import {prisma} from "@/lib/db";
+import {validateActionTarget} from "@/lib/staff-review-policy";
 import {requireStaffPermission} from "@/lib/staff-access";
 import type {StaffPermissionKey} from "@/lib/staff-permissions";
 const supported:Record<string,StaffPermissionKey>={"users:write":"users:write","deposits:reconcile":"deposits:reconcile","withdrawals:approve":"withdrawals:approve","balances:adjust":"balances:adjust","wallets:operate":"wallets:operate"};
@@ -10,7 +11,7 @@ export async function POST(request:NextRequest){
  const parsed=proposal.safeParse(await request.json());
  if(!parsed.success)return Response.json({error:"Invalid request"},{status:400});
  const input=parsed.data;const permission=supported[input.resource+":"+input.operation];
- if(!permission)return Response.json({error:"Unsupported operation"},{status:400});
+ if(!permission||!validateActionTarget(input.resource,input.operation))return Response.json({error:"Unsupported operation"},{status:400});
  const actor=await requireStaffPermission(permission);
  const record=await prisma.$transaction(async tx=>{
  const action=await tx.staffAction.create({data:{...input,requestedBy:actor,payload:{}}});
