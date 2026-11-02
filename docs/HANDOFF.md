@@ -23,3 +23,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Added pure permission catalogue tests for uniqueness, valid role grants, enforced approval list, denied high-risk permissions for support/auditor and restricted role management. Integration tests are still needed.
 
 2026-11-02: Adjusted RBAC test typing to explicit string sets for TypeScript strict compatibility.
+
+2026-11-02: Repaired CI-detected admin landing page syntax error; restructured role-grant fetch into separately typed queries. CI rerun required.
