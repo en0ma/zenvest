@@ -9,3 +9,5 @@ Current PR is a draft. No production-ready financial execution is authorized unt
 Every future commit must update this document. Do not merge or touch main without approval.
 
 2026-11-02: Added migration for staff permissions, roles, memberships, action proposals and audit records. No financial execution.
+
+2026-11-02: Added audit-tracked, idempotent staff action proposal and independent approval/rejection APIs. These do not execute financial transactions.
