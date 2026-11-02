@@ -105,3 +105,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Added review-queue button for approved per-deposit Blockradar signed-webhook replay; explicit user confirmation, fresh-session recovery link and no direct balance minting. Server execution flag remains off by default.
 
 2026-11-02: Extracted deposit replay eligibility gate and added negative tests for self-approval, mismatched master custody, credited deposits, inactive wallets and unrelated operations. Webhook replay never mutates ledger directly.
+
+2026-11-02: Fixed strict TypeScript nullable checker ID in serializable deposit approval claim, using independently validated non-null approver; prompted by failed CI build. No runtime authorization relaxation.

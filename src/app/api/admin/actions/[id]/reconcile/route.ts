@@ -21,7 +21,7 @@ export async function POST(_request:Request,{params}:{params:Promise<{id:string}
   const claimed=await prisma.$transaction(async tx=>{
    const current=await tx.blockchainDeposit.findUnique({where:{id:deposit.id},select:{status:true,creditedAt:true}});
    if(!current||current.status!=="CONFIRMING"||current.creditedAt)return false;
-   const updated=await tx.staffAction.updateMany({where:{id,status:"APPROVED",decidedBy:{not:null},requestedBy:{not:action.decidedBy},resource:"deposits",operation:"reconcile"},data:{status:"EXECUTED"}});
+   const updated=await tx.staffAction.updateMany({where:{id,status:"APPROVED",decidedBy:{not:null},requestedBy:{not:action.decidedBy!},resource:"deposits",operation:"reconcile"},data:{status:"EXECUTED"}});
    if(updated.count!==1)return false;
    await tx.staffAudit.create({data:{actorId:actor,action:"deposit.webhook_replay.claimed",resource:"deposits",targetId:deposit.id}});
    return true;
