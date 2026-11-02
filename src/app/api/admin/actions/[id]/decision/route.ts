@@ -1,4 +1,4 @@
-import {NextRequest} from "next/server";
+import type {NextRequest} from "next/server";
 import {prisma} from "@/lib/db";
 import {canReviewAction} from "@/lib/staff-review-policy";
 import {requireStaffPermission} from "@/lib/staff-access";
