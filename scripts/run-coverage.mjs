@@ -18,6 +18,7 @@ for(const [command,args] of [
  ["node",["scripts/check-verified-blockradar-processing.mjs"]],
  ["node",["scripts/check-wallet-activation-lifecycle.mjs"]],
  ["node",["scripts/check-account-route-validation.mjs"]],
+ ["node",["--experimental-strip-types","scripts/check-admin-routes.mjs"]],
  ["node",["scripts/check-transactional-email.mjs"]],
  ["node",["scripts/check-two-factor-security.mjs"]],
  ["node",["scripts/check-blockradar-address-validation.mjs"]],

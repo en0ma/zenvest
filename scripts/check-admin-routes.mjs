@@ -1,0 +1,54 @@
+import assert from "node:assert/strict";
+import {registerHooks} from "node:module";
+const here=new URL(".",import.meta.url);
+registerHooks({resolve(specifier,context,nextResolve){
+ if(specifier==="next/server")return nextResolve(new URL("ci-route-runtime-shim.mjs",here).href,context);
+ if(specifier==="@/lib/db")return nextResolve(new URL("ci-admin-db-shim.mjs",here).href,context);
+ if(specifier==="@/lib/staff-access")return nextResolve(new URL("ci-admin-access-shim.mjs",here).href,context);
+ if(specifier.startsWith("@/lib/"))return nextResolve(new URL("../src/lib/"+specifier.slice(6)+".ts",here).href,context);
+ return nextResolve(specifier,context);
+}});
+const {state}=await import("./ci-admin-db-shim.mjs");
+const {GET:read}=await import("../src/app/api/admin/resources/[resource]/route.ts");
+const {GET:users}=await import("../src/app/api/admin/users/route.ts");
+const {POST:propose,GET:actions}=await import("../src/app/api/admin/actions/route.ts");
+const {POST:decide}=await import("../src/app/api/admin/actions/[id]/decision/route.ts");
+function request(payload){return new Request("https://ci.invalid/api/admin/actions",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)})}
+const ctx=resource=>({params:Promise.resolve({resource})});
+assert.equal((await read(new Request("https://ci.invalid"),ctx("invalid"))).status,404);
+for(const resource of ["deposits","withdrawals","balances","wallets","audit","roles"]){
+ const response=await read(new Request("https://ci.invalid?page=1"),ctx(resource));
+ assert.equal(response.status,200,resource);
+ assert.ok((await response.json()).records.length>0);
+}
+assert.equal((await users()).status,200);
+assert.equal((await actions()).status,200);
+state.deny=true;
+assert.equal((await read(new Request("https://ci.invalid"),ctx("wallets"))).status,403);
+assert.equal((await users()).status,403);
+assert.equal((await actions()).status,403);
+state.deny=false;
+const proposal={resource:"withdrawals",operation:"approve",targetId:"ci-withdrawal",reason:"CI independent review",idempotencyKey:"ci-key-123456789"};
+assert.equal((await propose(request({...proposal,resource:"invalid"}))).status,400);
+assert.equal((await propose(request({resource:"users",operation:"delete",targetId:"u",reason:"CI reason for reject",idempotencyKey:"wrong-key-12345"}))).status,400);
+state.existing=false;
+assert.equal((await propose(request(proposal))).status,404);
+state.existing=true;
+assert.equal((await propose(request(proposal))).status,201);
+assert.equal(state.actions.length,1);
+assert.equal(state.logs.length,1);
+state.deny=true;
+assert.equal((await propose(request(proposal))).status,403);
+state.deny=false;
+const decisionContext={params:Promise.resolve({id:"ci-action"})};
+assert.equal((await decide(request({approve:"yes"}),decisionContext)).status,400);
+state.existing=false;
+assert.equal((await decide(request({approve:true}),decisionContext)).status,404);
+state.existing=true;
+assert.equal((await decide(request({approve:true}),decisionContext)).status,403);
+state.actor="ci-checker";
+assert.equal((await decide(request({approve:true}),decisionContext)).status,200);
+assert.equal(state.decision,"APPROVED");
+assert.equal((await decide(request({approve:true}),decisionContext)).status,403);
+assert.equal(state.logs.length,2);
+console.log("Admin RBAC API route validation and two-person approval simulation passed");
