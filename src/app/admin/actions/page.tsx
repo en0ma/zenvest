@@ -4,6 +4,7 @@ import {requireStaffPermission} from "@/lib/staff-access";
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/lib/auth";
 import ReviewControls from "./review-controls";
+import ActionProposalForm from "./proposal-form";
 import {isWithinReviewWindow} from "@/lib/staff-review-policy";
 import type {StaffPermissionKey} from "@/lib/staff-permissions";
 export const dynamic="force-dynamic";
@@ -18,6 +19,7 @@ export default async function ActionQueue(){
   <Link href="/admin" className="text-violet-700">← Operations</Link>
   <h1 className="mt-6 text-3xl font-bold">Financial action review queue</h1>
   <p className="mt-3 text-slate-600">Two-person approval. Approved requests are recorded, never executed automatically.</p>
+  <ActionProposalForm allowed={Object.values(reviewPermissions).filter(key=>grants.has(key))}/>
   <div className="mt-8 overflow-x-auto rounded-xl border bg-white"><table className="w-full text-left text-sm">
   <thead className="bg-slate-100"><tr>{["Operation","Target","Reason","Status","Review"].map(x=><th key={x} className="p-3">{x}</th>)}</tr></thead>
   <tbody>{items.map(item=>{
