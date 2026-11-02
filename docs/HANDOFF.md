@@ -107,3 +107,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Extracted deposit replay eligibility gate and added negative tests for self-approval, mismatched master custody, credited deposits, inactive wallets and unrelated operations. Webhook replay never mutates ledger directly.
 
 2026-11-02: Fixed strict TypeScript nullable checker ID in serializable deposit approval claim, using independently validated non-null approver; prompted by failed CI build. No runtime authorization relaxation.
+
+2026-11-02: Added automated route-level tests for targeted Blockradar deposit replay, strict permission/fresh-login gate, self-approval denial, credited deposit denial, custody master mismatch, exact provider URL, one-shot approval consumption and no-retry ambiguous provider errors; wired into CI.
