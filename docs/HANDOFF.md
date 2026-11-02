@@ -61,3 +61,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Added role-filtered admin action proposal form. Requires exact target ID and reason; uses per-submission idempotency key and explicitly discloses non-execution; existing server-side authorization and validation remain authoritative. No amount/payload or custody execution added.
 
 2026-11-02: Added permission-protected staff role management UI (assign/revoke restricted roles with confirmation, feedback and session invalidation on revoke), plus admin navigation links for review queue and role manager. Super Admin cannot be granted by this UI. End-to-end role-management tests and bootstrap remain outstanding.
+
+2026-11-02: High-risk approval/rejection and staff role assignment/revocation now require login within past 15 minutes (including sign-in 2FA), based on server-verified securitySession.createdAt relayed through NextAuth JWT/session, not client input. Missing/future/expired timestamp fails closed. UI should prompt re-login; full step-up per action remains outstanding. No financial execution.

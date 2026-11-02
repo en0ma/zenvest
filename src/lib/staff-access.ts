@@ -3,10 +3,16 @@ import {authOptions} from "@/lib/auth";
 import {prisma} from "@/lib/db";
 import type {StaffPermissionKey} from "@/lib/staff-permissions";
 
-export async function requireStaffPermission(key:StaffPermissionKey):Promise<string>{
+export const STAFF_SENSITIVE_SESSION_MAX_AGE_MS=15*60*1000;
+export async function requireStaffPermission(key:StaffPermissionKey,options?:{requireFreshLogin?:boolean}):Promise<string>{
  const session=await getServerSession(authOptions);
  const userId=session?.user?.id;
  if(!userId)throw new Error("UNAUTHENTICATED");
+ if(options?.requireFreshLogin){
+  const issued=(session as typeof session & {staffLoginAt?:number}).staffLoginAt;
+  const age=Date.now()-(issued??NaN);
+  if(!Number.isFinite(age)||age<0||age>STAFF_SENSITIVE_SESSION_MAX_AGE_MS)throw new Error("STAFF_FRESH_LOGIN_REQUIRED");
+ }
  const [account,memberships,factor]=await Promise.all([
   prisma.user.findUnique({where:{id:userId},select:{isActive:true,emailVerifiedAt:true}}),
   prisma.staffRoleMembership.findMany({where:{userId},select:{role:{select:{grants:{select:{permission:{select:{key:true}}}}}}}}),

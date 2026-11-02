@@ -14,7 +14,7 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{id:stri
  if(!action)return Response.json({error:"Not found"},{status:404});
  const permission=supported[action.resource+":"+action.operation];
  if(!permission)return Response.json({error:"Unsupported operation"},{status:400});
- const actor=await requireStaffPermission(permission);
+ const actor=await requireStaffPermission(permission,{requireFreshLogin:true});
  if(!canReviewAction({status:action.status,requestedBy:action.requestedBy,actorId:actor,hasPermission:true,isTwoFactorVerified:true,createdAt:action.createdAt}))return Response.json({error:"Approval policy denied"},{status:403});
  const state=parsed.data.approve?"APPROVED":"REJECTED";
  const cutoff=new Date(Date.now()-24*60*60*1000);

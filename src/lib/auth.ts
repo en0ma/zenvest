@@ -57,11 +57,12 @@ export const authOptions: NextAuthOptions = {
       if (token.sessionVersion === undefined && user && record) token.sessionVersion = record.sessionVersion;
       token.active = Boolean(record?.isActive && record.emailVerifiedAt && token.sessionVersion === record.sessionVersion && device?.userId===token.sub && Date.now()-device.lastActivityAt.getTime()<IDLE_MS && Date.now()-device.createdAt.getTime()<12*60*60*1000);
       token.role = record?.role ?? "USER";
+      token.staffLoginAt = token.active && device?.userId===token.sub ? device.createdAt.getTime() : undefined;
       return token;
     },
     async session({ session, token }) {
       if (!token.active || !token.sub) return { ...session, user: undefined };
-      return { ...session, user: { id: token.sub, role: token.role ?? "USER", name: session.user?.name, email: session.user?.email } };
+      return { ...session, staffLoginAt: typeof token.staffLoginAt==="number"?token.staffLoginAt:undefined, user: { id: token.sub, role: token.role ?? "USER", name: session.user?.name, email: session.user?.email } };
     },
   },
 };

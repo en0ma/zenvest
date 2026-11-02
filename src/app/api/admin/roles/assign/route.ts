@@ -10,7 +10,7 @@ const assignment=z.object({userId:z.string().min(1).max(100),roleKey:z.enum(["op
  */
 export async function POST(request:NextRequest){
  try{
-  const actorId=await requireStaffPermission("roles:manage");
+  const actorId=await requireStaffPermission("roles:manage",{requireFreshLogin:true});
   const parsed=assignment.safeParse(await request.json());
   if(!parsed.success)return Response.json({error:"Invalid role assignment"},{status:400});
   const {userId,roleKey}=parsed.data;

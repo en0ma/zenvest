@@ -6,7 +6,7 @@ export const dynamic="force-dynamic";
 const input=z.object({userId:z.string().min(1).max(100),roleKey:z.enum(["operations","finance","support","auditor"])}).strict();
 export async function POST(request:NextRequest){
  try{
-  const actor=await requireStaffPermission("roles:manage");
+  const actor=await requireStaffPermission("roles:manage",{requireFreshLogin:true});
   const parsed=input.safeParse(await request.json());
   if(!parsed.success)return Response.json({error:"Invalid revocation request"},{status:400});
   const {userId,roleKey}=parsed.data;
