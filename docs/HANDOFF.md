@@ -15,3 +15,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Added first explicit-projection users read endpoint guarded by staff users:read permission.
 
 2026-11-02: Added idempotent role/permission seed and minimal protected /admin shell. Seed does not provision any staff users or confer access.
+
+2026-11-02: Added protected paginated read endpoints for deposits, withdrawals, balances, wallets, audit and roles. Financial amounts serialize as decimal strings.
