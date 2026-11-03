@@ -19,17 +19,20 @@ const ids=["ci-kalshi-sim-valid","ci-kalshi-sim-unapproved","ci-kalshi-sim-exces
 const strategyId="ci_staff_kalshi_sim_strategy";
 const saved=Object.fromEntries(["STAFF_KALSHI_WITHDRAWALS_ENABLED","STAFF_WALLET_TRANSFER_LIMIT_MICROS","BLOCK_RADAR_API_KEY","BLOCK_RADAR_MASTER_WALLET_ID","BLOCKRADAR_SOLANA_USDC_MINT","BLOCKRADAR_DEPOSITS_ENABLED"].map(key=>[key,process.env[key]]));
 const call=id=>POST(new Request("https://ci.invalid/api/admin/actions/"+id+"/kalshi-withdrawal",{method:"POST"}),{params:Promise.resolve({id})});
-let initialBank,initialMaster,initialMBank,createdStrategy=false;
+let initialBank,initialMaster,initialMBank,initialMBankAddress,createdStrategy=false;
 try{
  const master=await db.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}});
  initialMaster={walletAddress:master.walletAddress};
  const bank=await db.treasury.findUniqueOrThrow({where:{kind:"K_BANK"}});
  initialBank=bank.amount;
- initialMBank=(await db.treasury.findUniqueOrThrow({where:{kind:"M_BANK"}})).amount;
+ const mBank=await db.treasury.findUniqueOrThrow({where:{kind:"M_BANK"}});
+ initialMBank=mBank.amount;
+ initialMBankAddress=mBank.walletAddress;
  const properMaster="11111111111111111111111111111111";
  const strategyDeposit="22222222222222222222222222222222";
  const strategyAddressId="ci-staff-strategy-deposit-address";
  await db.treasury.update({where:{kind:"DEPOSIT"},data:{walletAddress:properMaster}});
+ await db.treasury.update({where:{kind:"M_BANK"},data:{walletAddress:properMaster,walletId:master.walletId}});
  await db.treasury.update({where:{kind:"K_BANK"},data:{amount:20_000_000n}});
  await db.strategy.create({data:{id:strategyId,name:"CI Admin Kalshi Withdrawal",description:"Simulated no-custody Kalshi return fixture",kalshiWalletAddress:properMaster,blockRadarAddress:strategyDeposit,blockRadarAddressId:strategyAddressId}});
  createdStrategy=true;
@@ -136,7 +139,7 @@ try{
  await db.staffAction.deleteMany({where:{id:{in:ids}}});
  if(createdStrategy)await db.strategy.deleteMany({where:{id:strategyId}});
  if(initialBank!==undefined)await db.treasury.update({where:{kind:"K_BANK"},data:{amount:initialBank}});
- if(initialMBank!==undefined)await db.treasury.update({where:{kind:"M_BANK"},data:{amount:initialMBank}});
+ if(initialMBank!==undefined)await db.treasury.update({where:{kind:"M_BANK"},data:{amount:initialMBank,walletAddress:initialMBankAddress}});
  if(initialMaster)await db.treasury.update({where:{kind:"DEPOSIT"},data:{walletAddress:initialMaster.walletAddress}});
  await db.$disconnect();
  for(const [key,value] of Object.entries(saved)){if(value===undefined)delete process.env[key];else process.env[key]=value}
