@@ -6,7 +6,7 @@ export type BlockradarTransfer={reference:string;address:string;amount:bigint;me
  * Only a durable claimed worker may call this function.
  */
 export async function submitBlockradarWithdrawal(input:BlockradarTransfer,config:{key:string;walletId:string;assetId:string},send:typeof fetch=fetch){
- if(!/^(withdrawal|platform_withdrawal):[a-zA-Z0-9_-]{8,100}$/.test(input.reference))throw new Error("Invalid payout reference");
+ if(!/^(withdrawal:[a-zA-Z0-9_-]{1,100}|platform_withdrawal:[a-zA-Z0-9_-]{8,100})$/.test(input.reference))throw new Error("Invalid payout reference");
  if(input.amount<=0n||!input.metadata||typeof input.metadata!=="object")throw new Error("Invalid payout input");
  const reference=input.reference;
  const response=await send(`https://api.blockradar.co/v1/wallets/${encodeURIComponent(config.walletId)}/withdraw`,{

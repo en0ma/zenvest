@@ -123,3 +123,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-03: Added fail-closed resolver and tests proving Kalshi return destination is read only from the configured, Solana-USDC master custody record; invalid/mismatched master data is rejected and browser cannot supply an alternative destination, source bucket or accounting override. Execution stays disabled until Kalshi provider and settlement path implemented.
 
 2026-11-03: Confirmed admin MASTER_TO_WALLET reuses Blockradar withdrawal HTTP transport and signed webhook lifecycle, with separate platform-only treasury accounting. Introduced shared provider transport and distinct platform_withdrawal reference namespace, preserving existing investor wrapper. No platform settlement webhook routing or live execution has been enabled: never debit investor balances for platform transfers.
+
+2026-11-03: Repaired shared Blockradar transport regression found by CI: existing investor withdrawal reference IDs of fewer than 8 characters are permitted as before, while new platform references require >=8 characters. Investor API compatibility preserved.
