@@ -663,6 +663,10 @@ model StaffKalshiWithdrawal {
   masterWalletAddress String @db.VarChar(180)
   providerWithdrawalId String? @unique @map("mockWithdrawalId") @db.VarChar(200)
   status String @default("SUBMITTING") @db.VarChar(32)
+  sourceConfirmed Boolean @default(false)
+  destinationConfirmed Boolean @default(false)
+  masterReceiptId String? @unique @db.VarChar(180)
+  treasuryTransactionId String? @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([strategyId,createdAt])
