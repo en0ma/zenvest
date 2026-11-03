@@ -137,3 +137,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-03: Added disposable-PostgreSQL and mocked-Blockradar platform withdrawal integration: atomic reservation, one approval claim, shared withdraw API, verified webhook HMAC, wrong destination/signature denial, exactly-once settlement, provider failure reservation refund, unknown response REVIEW/no retry and no investor balance changes. Wired into CI coverage runner. Feature flag remains off by default until tests pass and deployment review.
 
 2026-11-03: Fixed CI platform reference regression by restricting generic platform transfer calls to platform_withdrawal: references; only the legacy investor adapter may submit withdrawal: references. CI must pass before enabling any payout flags.
+
+2026-11-03: Added separate confirmation controls in approval queue for approved MASTER_TO_WALLET admin actions: reserve only allowed platform treasury first; subsequently dispatch the durable pending platform withdrawal with a distinct confirmation. Displays non-pending status without retry. Server enforces fresh login/permissions/flags; no generic K_BANK payout button.
