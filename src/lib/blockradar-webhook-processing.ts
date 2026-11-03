@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { blockradarConfig } from "@/lib/blockradar";
 import { handleWithdrawalWebhook } from "@/lib/withdrawal-webhook";
+import {handlePlatformWithdrawalWebhook} from "@/lib/platform-withdrawal-webhook";
 import {handleAllocationWebhook} from "@/lib/allocation-webhook";
 import {handleStrategySweptDeposit} from "@/lib/strategy-blockradar-sweep";
 
@@ -38,6 +39,11 @@ export async function processVerifiedBlockradarQueueItem(request: Request) {
        const outcome=await handleAllocationWebhook(event.event,event.data,masterWalletId);
        log("allocation_"+outcome,200);
        return NextResponse.json({message:"success"},{status:200,headers:{"Cache-Control":"no-store"}});
+      }
+      if(typeof event.data.reference==="string"&&event.data.reference.startsWith("platform_withdrawal:")){
+       const outcome=await handlePlatformWithdrawalWebhook(event.event,event.data,masterWalletId);
+       log("platform_withdrawal_"+outcome,outcome==="late_success_review"?503:200);
+       return NextResponse.json(outcome==="late_success_review"?{error:"Platform payout late success requires reconciliation"}:{message:"success"},{status:outcome==="late_success_review"?503:200,headers:{"Cache-Control":"no-store"}});
       }
       const outcome = await handleWithdrawalWebhook(event.event,event.data,masterWalletId,payload as Record<string,unknown>);
       log("withdrawal_"+outcome,200);
