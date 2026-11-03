@@ -64,7 +64,7 @@ try{
  console.log("Admin Kalshi simulation passed: one-shot approved claim, existing mock adapter, master-only destination, no K_BANK/M_BANK/ledger/user mutation");
 }finally{
  await db.staffAudit.deleteMany({where:{targetId:{in:ids}}});
- const sims=await db.staffKalshiReturnSimulation.findMany({where:{staffActionId:{in:ids}}},select:{id:true}});
+ const sims=await db.staffKalshiReturnSimulation.findMany({where:{staffActionId:{in:ids}},select:{id:true}});
  await db.staffAudit.deleteMany({where:{targetId:{in:sims.map(s=>s.id)}}});
  await db.staffKalshiReturnSimulation.deleteMany({where:{staffActionId:{in:ids}}});
  await db.staffAction.deleteMany({where:{id:{in:ids}}});

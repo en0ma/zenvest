@@ -149,3 +149,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-03: Wired disposable PostgreSQL admin Kalshi mock integration into coverage CI: deny disabled/self-approved/over-K_BANK/override-destination actions; one-shot simulate with exact existing investor mock ID, configured master destination, no treasury ledger or user mutations. This is a simulation, not confirmed custody movement.
 
 2026-11-03: Strengthened Kalshi simulation PostgreSQL test to compare M_BANK against its original value rather than a tautology; explicit no-credit assertion protects the mock-only boundary.
+
+2026-11-03: Fixed first CI-detected syntax error in admin Kalshi simulation PostgreSQL test query. Full CI rerun required before claiming validation success.
