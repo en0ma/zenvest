@@ -113,3 +113,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-03: User fixed admin wallet funding rules: MASTER_TO_WALLET may debit only M_BANK, DEPOSIT_FEE and WITHDRAWAL_FEE; KALSHI_TO_MASTER may debit only K_BANK and credit M_BANK only after verified confirmation. Added pure fail-closed wallet amount/address/limit validation and treasury funding planner excluding investor DEPOSIT/DEALLOCATE/ALLOCATE and keeping K_BANK separate. Execution remains off pending settlement integration.
 
 2026-11-03: Admin wallet proposals now carry strictly validated kind+amount (and destination only for MASTER_TO_WALLET), require a configured server-side maximum at both proposal and approval, and bind target IDs to the real master DEPOSIT treasury or a strategy with a Kalshi address. No wallet execution API enabled.
+
+2026-11-03: Proposal form now offers precisely two wallet actions: master-to-external (M_BANK+DEPOSIT_FEE+WITHDRAWAL_FEE source only) and Kalshi-to-master (K_BANK source, M_BANK destination); inputs include exact target, amount, destination when applicable and reason. The form does not move funds.
