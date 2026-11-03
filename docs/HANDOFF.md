@@ -115,3 +115,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-03: Admin wallet proposals now carry strictly validated kind+amount (and destination only for MASTER_TO_WALLET), require a configured server-side maximum at both proposal and approval, and bind target IDs to the real master DEPOSIT treasury or a strategy with a Kalshi address. No wallet execution API enabled.
 
 2026-11-03: Proposal form now offers precisely two wallet actions: master-to-external (M_BANK+DEPOSIT_FEE+WITHDRAWAL_FEE source only) and Kalshi-to-master (K_BANK source, M_BANK destination); inputs include exact target, amount, destination when applicable and reason. The form does not move funds.
+
+2026-11-03: Added treasury-source and wallet-payload unit tests: master bank/fees only, no K_BANK leakage to master payouts, K_BANK-only Kalshi returns, reservations, negative balances, exact fields, valid Solana destination and configured maximum. Fund-moving execution still disabled for new wallet operations.

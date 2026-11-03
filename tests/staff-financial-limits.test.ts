@@ -16,6 +16,6 @@ test("unknown adjustment attributes and direction are rejected",()=>{
  assert.equal(validateBalanceAdjustment({direction:"TRANSFER",amountUsdcMicros:"1"},"100").ok,false);
 });
 test("non-balance proposals reject operation payload injection",()=>{
- assert.equal(validateProposalPayload("wallets","operate",{destination:"attacker"},"999").ok,false);
+ assert.equal(validateProposalPayload("wallets","operate",{destination:"attacker"},"999","999").ok,false);
  assert.equal(validateProposalPayload("withdrawals","approve",{},"999").ok,true);
 });
