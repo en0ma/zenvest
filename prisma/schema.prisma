@@ -625,3 +625,31 @@ model StaffAudit {
   createdAt DateTime @default(now())
   @@index([actorId,createdAt])
 }
+
+/** Platform-owned master wallet USDC payout. Not an investor Withdrawal. */
+enum PlatformWithdrawalStatus {
+  PENDING
+  SUBMITTING
+  PROCESSING
+  REVIEW
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+model PlatformWithdrawal {
+  id String @id @default(cuid())
+  staffActionId String @unique
+  destinationAddress String @db.VarChar(128)
+  amountUsdcMicros BigInt
+  reservedMBankMicros BigInt @default(0)
+  reservedDepositFeeMicros BigInt @default(0)
+  reservedWithdrawalFeeMicros BigInt @default(0)
+  status PlatformWithdrawalStatus @default(PENDING)
+  providerTransactionId String? @unique @db.VarChar(180)
+  transactionHash String? @db.VarChar(180)
+  failureCode String? @db.VarChar(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  completedAt DateTime?
+  @@index([status,createdAt])
+}

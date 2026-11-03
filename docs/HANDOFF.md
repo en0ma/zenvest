@@ -125,3 +125,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-03: Confirmed admin MASTER_TO_WALLET reuses Blockradar withdrawal HTTP transport and signed webhook lifecycle, with separate platform-only treasury accounting. Introduced shared provider transport and distinct platform_withdrawal reference namespace, preserving existing investor wrapper. No platform settlement webhook routing or live execution has been enabled: never debit investor balances for platform transfers.
 
 2026-11-03: Repaired shared Blockradar transport regression found by CI: existing investor withdrawal reference IDs of fewer than 8 characters are permitted as before, while new platform references require >=8 characters. Investor API compatibility preserved.
+
+2026-11-03: Added dedicated PlatformWithdrawal table/status and PostgreSQL constraints: exact positive platform treasury reservations from M_BANK, DEPOSIT_FEE and WITHDRAWAL_FEE, unique staff approval and provider receipt, durable status. Never mix platform payouts with investor Withdrawal rows or debit user balances. No live execution enabled yet.
