@@ -11,6 +11,7 @@ for(const [command,args] of [
  ["node",["scripts/check-payout-workers.mjs"]],
  ["node",["scripts/check-withdrawal-worker.mjs"]],
  ["node",["scripts/check-platform-withdrawal-db.mjs"]],
+ ["node",["scripts/check-admin-kalshi-simulation.mjs"]],
  ["node",["scripts/check-authenticated-routes.mjs"]],
  ["node",["scripts/check-withdrawal-request-route.mjs"]],
  ["node",["scripts/check-wallet-sends-route.mjs"]],
