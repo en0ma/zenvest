@@ -28,13 +28,14 @@ export async function POST(_request:Request,{params}:{params:Promise<{id:string}
   const {walletId}=blockradarConfig();
   const amount=BigInt(check.payload.amountUsdcMicros);
   const claimed=await prisma.$transaction(async tx=>{
-   const [master,strategy,bank]=await Promise.all([
+   const [master,strategy,bank,outstanding]=await Promise.all([
     tx.treasury.findUnique({where:{kind:"DEPOSIT"}}),
     tx.strategy.findUnique({where:{id:action.targetId}}),
-    tx.treasury.findUnique({where:{kind:"K_BANK"}})
+    tx.treasury.findUnique({where:{kind:"K_BANK"}}),
+    tx.staffKalshiWithdrawal.aggregate({where:{status:{in:["SUBMITTING","PROCESSING","REVIEW"]}},_sum:{amountUsdcMicros:true}})
    ]);
    if(!master||!strategy||!strategy.kalshiWalletAddress||!bank||bank.source!=="KALSHI"||
-      bank.asset!=="USDC"||bank.amount<amount)return null;
+      bank.asset!=="USDC"||bank.amount<amount+(outstanding._sum.amountUsdcMicros??0n))return null;
    const destination=resolveKalshiReturnDestination(master,walletId);
    if(!destination)return null;
    const changed=await tx.staffAction.updateMany({where:{
@@ -74,7 +75,7 @@ export async function POST(_request:Request,{params}:{params:Promise<{id:string}
   }catch{
    await prisma.staffKalshiWithdrawal.updateMany({where:{id:claimed.id,status:"SUBMITTING"},
     data:{status:"REVIEW"}});
-   return Response.json({id:claimed.id,status:"REVIEW",simulated:true,
+   return Response.json({id:claimed.id,status:"REVIEW",providerMode:"MOCK",
     execution:"WITHDRAWAL_OUTCOME_REQUIRES_REVIEW"},{status:503,headers:{"Cache-Control":"no-store"}});
   }
  }catch(error){

@@ -4,7 +4,7 @@ import {registerHooks} from "node:module";
 const here=new URL(".",import.meta.url);
 registerHooks({resolve(specifier,context,nextResolve){
  if(specifier==="server-only")return nextResolve(new URL("ci-server-only-shim.mjs",here).href,context);
- if(specifier==="@/lib/staff-access")return nextResolve(new URL("ci-kalshi-withdrawal-access-shim.mjs",here).href,context);
+ if(specifier==="@/lib/staff-access")return nextResolve(new URL("ci-kalshi-simulation-access-shim.mjs",here).href,context);
  if(specifier.startsWith("@/lib/"))return nextResolve(new URL("../src/lib/"+specifier.slice(6)+".ts",here).href,context);
  return nextResolve(specifier,context);
 }});
