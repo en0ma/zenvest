@@ -15,13 +15,19 @@ export async function POST(request:NextRequest){
  const input=parsed.data;const permission=supported[input.resource+":"+input.operation];
  if(!permission||!validateActionTarget(input.resource,input.operation))return Response.json({error:"Unsupported operation"},{status:400});
  const actor=await requireStaffPermission(permission,{requireFreshLogin:true});
- const validated=validateProposalPayload(input.resource,input.operation,input.payload,process.env.STAFF_BALANCE_ADJUSTMENT_LIMIT_MICROS);
+ const validated=validateProposalPayload(input.resource,input.operation,input.payload,process.env.STAFF_BALANCE_ADJUSTMENT_LIMIT_MICROS,process.env.STAFF_WALLET_TRANSFER_LIMIT_MICROS);
  if(!validated.ok)return Response.json({error:validated.reason},{status:422});
  const exists=await (async()=>{
   if(input.resource==="users"||input.resource==="balances")return Boolean(await prisma.user.findUnique({where:{id:input.targetId},select:{id:true}}));
   if(input.resource==="deposits")return Boolean(await prisma.blockchainDeposit.findUnique({where:{id:input.targetId},select:{id:true}}));
   if(input.resource==="withdrawals")return Boolean(await prisma.withdrawal.findUnique({where:{id:input.targetId},select:{id:true}}));
-  if(input.resource==="wallets")return Boolean(await prisma.investorDepositWallet.findUnique({where:{id:input.targetId},select:{id:true}}));
+  if(input.resource==="wallets"){
+   const payload=validated.payload;
+   if(!("kind" in payload))return false;
+   if(payload.kind==="MASTER_TO_WALLET")return Boolean(await prisma.treasury.findFirst({where:{id:input.targetId,kind:"DEPOSIT",source:"MASTER_WALLET"},select:{id:true}}));
+   if(payload.kind==="KALSHI_TO_MASTER")return Boolean(await prisma.strategy.findFirst({where:{id:input.targetId,kalshiWalletAddress:{not:null}},select:{id:true}}));
+   return false;
+  }
   return false;
  })();
  if(!exists)return Response.json({error:"Target not found"},{status:404});
