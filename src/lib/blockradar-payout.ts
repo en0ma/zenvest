@@ -5,8 +5,8 @@ export type BlockradarTransfer={reference:string;address:string;amount:bigint;me
 /** Shared HTTP transport; neither provider acceptance nor this wrapper settles a transfer.
  * Only a durable claimed worker may call this function.
  */
-export async function submitBlockradarWithdrawal(input:BlockradarTransfer,config:{key:string;walletId:string;assetId:string},send:typeof fetch=fetch){
- if(!/^(withdrawal:[a-zA-Z0-9_-]{1,100}|platform_withdrawal:[a-zA-Z0-9_-]{8,100})$/.test(input.reference))throw new Error("Invalid payout reference");
+export async function submitBlockradarWithdrawal(input:BlockradarTransfer,config:{key:string;walletId:string;assetId:string},send:typeof fetch=fetch,allowInvestorReference=false){
+ if(!(allowInvestorReference?/^withdrawal:[a-zA-Z0-9_-]{1,100}$/.test(input.reference):/^platform_withdrawal:[a-zA-Z0-9_-]{8,100}$/.test(input.reference)))throw new Error("Invalid payout reference");
  if(input.amount<=0n||!input.metadata||typeof input.metadata!=="object")throw new Error("Invalid payout input");
  const reference=input.reference;
  const response=await send(`https://api.blockradar.co/v1/wallets/${encodeURIComponent(config.walletId)}/withdraw`,{
@@ -28,6 +28,6 @@ export async function submitBlockradarWithdrawal(input:BlockradarTransfer,config
 
 /** Keep the existing investor payout contract unchanged. */
 export async function submitBlockradarPayout(input:Payout,config:{key:string;walletId:string;assetId:string},send:typeof fetch=fetch){
- return submitBlockradarWithdrawal({reference:withdrawalReference(input.id),address:input.address,amount:input.amount,metadata:{userId:input.userId}},config,send);
+ return submitBlockradarWithdrawal({reference:withdrawalReference(input.id),address:input.address,amount:input.amount,metadata:{userId:input.userId}},config,send,true);
 }
 export function platformWithdrawalReference(id:string){return `platform_withdrawal:${id}`}
