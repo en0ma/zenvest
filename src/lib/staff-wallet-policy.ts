@@ -55,3 +55,15 @@ export function planAdminWalletFunding(kind:AdminWalletTransferKind,amount:bigin
  }
  return {ok:true,amount,debits:result};
 }
+
+/** The Kalshi destination is derived exclusively from the configured master custody
+ * record. A proposal never contains a destination override. This is validation
+ * for future execution and does not itself submit a provider transfer.
+ */
+export function resolveKalshiReturnDestination(master:{
+ source:string;kind:string;walletId:string;walletAddress:string;asset:string;network:string
+},configuredMasterWalletId:string):string|null{
+ if(master.source!=="MASTER_WALLET"||master.kind!=="DEPOSIT"||master.walletId!==configuredMasterWalletId||
+ master.asset!=="USDC"||master.network!=="solana"||!address.test(master.walletAddress))return null;
+ return master.walletAddress;
+}
