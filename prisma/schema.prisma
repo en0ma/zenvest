@@ -654,16 +654,17 @@ model PlatformWithdrawal {
   @@index([status,createdAt])
 }
 
-/** Simulation-only staff Kalshi return. Never treated as a real custody transfer. */
-model StaffKalshiReturnSimulation {
+/** Admin Kalshi withdrawal; adapter currently mocked, settlement awaits verified custody. */
+model StaffKalshiWithdrawal {
   id String @id @default(cuid())
   staffActionId String @unique
   strategyId String
   amountUsdcMicros BigInt
   masterWalletAddress String @db.VarChar(180)
-  mockWithdrawalId String? @unique @db.VarChar(200)
-  status String @default("CLAIMED") @db.VarChar(32)
+  providerWithdrawalId String? @unique @map("mockWithdrawalId") @db.VarChar(200)
+  status String @default("SUBMITTING") @db.VarChar(32)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([strategyId,createdAt])
+  @@map("StaffKalshiReturnSimulation")
 }

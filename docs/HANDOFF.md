@@ -151,3 +151,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-03: Strengthened Kalshi simulation PostgreSQL test to compare M_BANK against its original value rather than a tautology; explicit no-credit assertion protects the mock-only boundary.
 
 2026-11-03: Fixed first CI-detected syntax error in admin Kalshi simulation PostgreSQL test query. Full CI rerun required before claiming validation success.
+
+2026-11-03: Corrected admin KALSHI_TO_MASTER UX to a normal 'Withdraw from Kalshi' action, as with investor deallocation. Uses the same currently mocked Kalshi withdrawal adapter (HTTP 200) but records SUBMITTING -> PROCESSING, not a separate user-facing Simulation action; no confirmed custody or K_BANK/M_BANK settlement on acceptance. Renamed typed Prisma model to StaffKalshiWithdrawal (existing database table mapped for additive migration compatibility), uses providerWithdrawalId and migration for PROCESSING/REVIEW states; changed flag to STAFF_KALSHI_WITHDRAWALS_ENABLED and route to kalshi-withdrawal. The mock remains a provider implementation detail; real adapter deferred.
