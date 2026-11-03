@@ -653,3 +653,17 @@ model PlatformWithdrawal {
   completedAt DateTime?
   @@index([status,createdAt])
 }
+
+/** Simulation-only staff Kalshi return. Never treated as a real custody transfer. */
+model StaffKalshiReturnSimulation {
+  id String @id @default(cuid())
+  staffActionId String @unique
+  strategyId String
+  amountUsdcMicros BigInt
+  masterWalletAddress String @db.VarChar(180)
+  mockWithdrawalId String? @unique @db.VarChar(200)
+  status String @default("CLAIMED") @db.VarChar(32)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([strategyId,createdAt])
+}

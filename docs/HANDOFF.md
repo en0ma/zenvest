@@ -139,3 +139,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-03: Fixed CI platform reference regression by restricting generic platform transfer calls to platform_withdrawal: references; only the legacy investor adapter may submit withdrawal: references. CI must pass before enabling any payout flags.
 
 2026-11-03: Added separate confirmation controls in approval queue for approved MASTER_TO_WALLET admin actions: reserve only allowed platform treasury first; subsequently dispatch the durable pending platform withdrawal with a distinct confirmation. Displays non-pending status without retry. Server enforces fresh login/permissions/flags; no generic K_BANK payout button.
+
+2026-11-03: User deferred live Kalshi integration and instructed admin K_BANK to M_BANK requests to use existing submitMockKalshiWithdrawal simulation, exactly as investor deallocation currently does. Added a distinct StaffKalshiReturnSimulation record (unique staff action, strategy, fixed master destination, MOCK_ACCEPTED/SIMULATION_REVIEW) to track simulations without ledger or custody mutations; no real K_BANK->M_BANK postings are authorized by mock HTTP 200.
