@@ -15,12 +15,13 @@ const ids=["ci-kalshi-sim-valid","ci-kalshi-sim-unapproved","ci-kalshi-sim-exces
 const strategyId="ci_staff_kalshi_sim_strategy";
 const saved=Object.fromEntries(["STAFF_KALSHI_SIMULATION_ENABLED","STAFF_WALLET_TRANSFER_LIMIT_MICROS","BLOCK_RADAR_API_KEY","BLOCK_RADAR_MASTER_WALLET_ID"].map(key=>[key,process.env[key]]));
 const call=id=>POST(new Request("https://ci.invalid/api/admin/actions/"+id+"/kalshi-simulate",{method:"POST"}),{params:Promise.resolve({id})});
-let initialBank,initialMaster,createdStrategy=false;
+let initialBank,initialMaster,initialMBank,createdStrategy=false;
 try{
  const master=await db.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}});
  initialMaster={walletAddress:master.walletAddress};
  const bank=await db.treasury.findUniqueOrThrow({where:{kind:"K_BANK"}});
  initialBank=bank.amount;
+ initialMBank=(await db.treasury.findUniqueOrThrow({where:{kind:"M_BANK"}})).amount;
  const properMaster="11111111111111111111111111111111";
  await db.treasury.update({where:{kind:"DEPOSIT"},data:{walletAddress:properMaster}});
  await db.treasury.update({where:{kind:"K_BANK"},data:{amount:20_000_000n}});
@@ -57,8 +58,7 @@ try{
  assert.equal(await db.staffKalshiReturnSimulation.count({where:{staffActionId:ids[0]}}),1);
  assert.equal((await call(ids[0])).status,409,"consumed approval is one-shot");
  assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"K_BANK"}})).amount,20_000_000n);
- assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"M_BANK"}})).amount,
-  (await db.treasury.findUniqueOrThrow({where:{kind:"M_BANK"}})).amount);
+ assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"M_BANK"}})).amount,initialMBank,"simulation cannot credit M_BANK");
  assert.equal((await db.user.findUniqueOrThrow({where:{id:"ci_test_user"}})).unallocated,investorBefore);
  assert.equal(await db.treasuryTransfer.count({where:{reference:{startsWith:"kalshi_staff_simulation:"}}}),0);
  console.log("Admin Kalshi simulation passed: one-shot approved claim, existing mock adapter, master-only destination, no K_BANK/M_BANK/ledger/user mutation");

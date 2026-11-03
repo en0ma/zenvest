@@ -147,3 +147,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-03: Added explicit Simulate Kalshi return button only for approved KALSHI_TO_MASTER wallet actions. Separate confirmation states no real USDC will move and neither K_BANK nor M_BANK will change. Server requires fresh authorized session, maker-checker approval and simulation feature flag; no live Kalshi service touched.
 
 2026-11-03: Wired disposable PostgreSQL admin Kalshi mock integration into coverage CI: deny disabled/self-approved/over-K_BANK/override-destination actions; one-shot simulate with exact existing investor mock ID, configured master destination, no treasury ledger or user mutations. This is a simulation, not confirmed custody movement.
+
+2026-11-03: Strengthened Kalshi simulation PostgreSQL test to compare M_BANK against its original value rather than a tautology; explicit no-credit assertion protects the mock-only boundary.
