@@ -1,6 +1,7 @@
 import {prisma} from "./db.ts";
 import {validSweptDeposit,parsePositiveUsdcMicros} from "./blockradar-event-validation.ts";
 import {settleVerifiedStrategyReturn} from "./strategy-return-settlement.ts";
+import {settleVerifiedStaffKalshiReturn} from "./staff-kalshi-return-settlement.ts";
 
 /** Called only from the HMAC-authenticated Blockradar webhook processor.
  * Metadata routes strategy funds separately from user deposits. A signed,
@@ -19,6 +20,24 @@ export async function handleStrategySweptDeposit(data:Record<string,unknown>,min
   return "invalid_sweep";
  const strategy=await prisma.strategy.findUnique({where:{blockRadarAddress:recipient}});
  if(!strategy||!strategy.blockRadarAddressId||address.id!==strategy.blockRadarAddressId)return "unknown_strategy_address";
+ // Staff returns arrive via the SAME signed strategy-sweep handler as investor
+ // deallocation. Their distinct immutable staff withdrawal ID directs only
+ // the accounting treatment: K_BANK -> M_BANK, PLATFORM_K_BANK transfer.
+ const staffId=typeof metadata.staff_kalshi_withdrawal_id==="string"?metadata.staff_kalshi_withdrawal_id:null;
+ if(staffId){
+  if(metadata.strategy_event_id!==undefined)return "mismatch";
+  const staff=await prisma.staffKalshiWithdrawal.findUnique({where:{id:staffId}});
+  if(!staff||staff.strategyId!==strategy.id||!staff.sourceConfirmed||
+   !staff.providerWithdrawalId||staff.providerWithdrawalId.startsWith("mock-withdrawal:")||
+   staff.amountUsdcMicros!==amount||staff.masterWalletAddress!==master.address)
+   return "unmatched_withdrawal";
+  return settleVerifiedStaffKalshiReturn({
+   withdrawalId:staff.id,providerWithdrawalId:staff.providerWithdrawalId,
+   masterReceiptId:data.id,kalshiWalletAddress:strategy.kalshiWalletAddress??"",
+   masterWalletAddress:String(master.address??""),amountUsdcMicros:amount,
+   asset:"USDC",network:"solana",
+  });
+ }
  const candidateId=typeof metadata.strategy_event_id==="string"?metadata.strategy_event_id:null;
  const candidates=await prisma.strategyEvent.findMany({where:{
   strategyId:strategy.id,kind:"DEALLOCATE",
