@@ -1,5 +1,5 @@
 /** Monetary figures are integer USDC micros. Policy is deny-by-default. */
-import {validateAdminWalletTransfer} from "./staff-wallet-policy";
+import {validateAdminWalletTransfer} from "./staff-wallet-policy.ts";
 import type {AdminWalletTransferPayload} from "./staff-wallet-policy";
 export type BalanceAdjustmentPayload={direction:"CREDIT"|"DEBIT";amountUsdcMicros:string};
 export type FinancialProposalPayload=Record<string,never>|BalanceAdjustmentPayload|AdminWalletTransferPayload;

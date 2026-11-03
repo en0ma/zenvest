@@ -117,3 +117,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-03: Proposal form now offers precisely two wallet actions: master-to-external (M_BANK+DEPOSIT_FEE+WITHDRAWAL_FEE source only) and Kalshi-to-master (K_BANK source, M_BANK destination); inputs include exact target, amount, destination when applicable and reason. The form does not move funds.
 
 2026-11-03: Added treasury-source and wallet-payload unit tests: master bank/fees only, no K_BANK leakage to master payouts, K_BANK-only Kalshi returns, reservations, negative balances, exact fields, valid Solana destination and configured maximum. Fund-moving execution still disabled for new wallet operations.
+
+2026-11-03: Fixed CI's native Node TypeScript module resolution for the staff wallet policy import (explicit .ts extension). Accounting policy remains master spend M_BANK+DEPOSIT_FEE+WITHDRAWAL_FEE only; Kalshi return K_BANK to configured master and M_BANK after independently verified settlement. Treasury schema classifications alone do not establish legal ownership. Wallet transfer execution remains disabled pending domain/provider integration.
