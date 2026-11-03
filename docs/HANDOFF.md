@@ -109,3 +109,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-02: Fixed strict TypeScript nullable checker ID in serializable deposit approval claim, using independently validated non-null approver; prompted by failed CI build. No runtime authorization relaxation.
 
 2026-11-02: Added automated route-level tests for targeted Blockradar deposit replay, strict permission/fresh-login gate, self-approval denial, credited deposit denial, custody master mismatch, exact provider URL, one-shot approval consumption and no-retry ambiguous provider errors; wired into CI.
+
+2026-11-03: User fixed admin wallet funding rules: MASTER_TO_WALLET may debit only M_BANK, DEPOSIT_FEE and WITHDRAWAL_FEE; KALSHI_TO_MASTER may debit only K_BANK and credit M_BANK only after verified confirmation. Added pure fail-closed wallet amount/address/limit validation and treasury funding planner excluding investor DEPOSIT/DEALLOCATE/ALLOCATE and keeping K_BANK separate. Execution remains off pending settlement integration.
