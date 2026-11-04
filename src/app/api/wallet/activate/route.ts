@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST() {
   const startedAt = Date.now();
-  const user = await requireUser();
+  const user = await requireUser("deposits:create:own");
   const log = (outcome: string, status: number, details: {walletStatus?:string;providerAddressId?:string} = {}) =>
     journeyLog(status>=500?"error":status>=400?"warn":"info","wallet_activation",outcome,{userId:user.id,status,durationMs:Date.now()-startedAt,...details});
   if (process.env.BLOCKRADAR_DEPOSITS_ENABLED !== "true") {

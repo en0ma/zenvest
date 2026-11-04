@@ -14,7 +14,7 @@ const pendingReturnStatuses=["PENDING","SUBMITTING","DEALLOCATING","PROCESSING",
 function date(value:Date){return value.toLocaleDateString("en-US",{timeZone:"UTC",month:"short",day:"numeric",year:"numeric"});}
 function signed(value:bigint){return (value>0n?"+":"")+formatUsdc(value);}
 export default async function Dashboard(){
- const user=await requireUser();
+ const user=await requireUser("portfolio:read:own");
  const [account,positions,settled,deposits,withdrawals,withdrawHolds,allocationHolds,returnHolds,completedAllocations,sendsOut,sendsIn,requests]=await Promise.all([
   prisma.user.findUniqueOrThrow({where:{id:user.id},select:{unallocated:true}}),
   prisma.investorPosition.findMany({where:{userId:user.id},include:{strategy:{select:{name:true}}},orderBy:{createdAt:"desc"}}),

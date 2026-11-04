@@ -4,11 +4,14 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { requireStaffPermission } from "@/lib/staff-access";
 
-export async function requireUser() {
+export type InvestorPermission="account:access"|"portfolio:read:own"|"wallet:read:own"|"deposits:create:own"|"withdrawals:create:own"|"allocations:create:own";
+export async function requireUser(permission:InvestorPermission="account:access") {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
-  const baseline=await prisma.userRole.findFirst({where:{userId:session.user.id,role:{key:"user"}},select:{userId:true}});
-  if(!baseline)redirect("/login");
+  const memberships=await prisma.userRole.findMany({where:{userId:session.user.id},
+    select:{role:{select:{key:true,grants:{select:{permission:{select:{key:true}}}}}}}});
+  if(!memberships.some(m=>m.role.key==="user")||
+     !memberships.some(m=>m.role.grants.some(g=>g.permission.key===permission)))redirect("/login");
   return session.user;
 }
 

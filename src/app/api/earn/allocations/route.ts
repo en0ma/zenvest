@@ -14,7 +14,7 @@ function micros(raw: unknown): bigint | null {
 }
 
 export async function POST(request: Request) {
-  const user = await requireUser();
+  const user = await requireUser("allocations:create:own");
   let input: unknown;
   try { input = await request.json(); } catch { return NextResponse.json({error:"Invalid JSON"},{status:400}); }
   const body = input && typeof input === "object" ? input as Record<string,unknown> : {};

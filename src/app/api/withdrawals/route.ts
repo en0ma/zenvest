@@ -19,7 +19,7 @@ function parseMicros(value: unknown): bigint | null {
 }
 
 export async function POST(request: Request) {
-  const user = await requireUser();
+  const user = await requireUser("withdrawals:create:own");
   if (process.env.BLOCKRADAR_WITHDRAWALS_ENABLED !== "true") return NextResponse.json({error:"Withdrawals are not yet enabled"},{status:503});
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({error:"Invalid JSON"},{status:400}); }

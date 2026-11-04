@@ -193,3 +193,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-04: Added PostgreSQL integration test for unified RBAC: legacy users.role absence, four unified table names, automatic baseline on user creation, correct inherited user capabilities and no admin grants, additive staff role, non-revocable baseline, FK to real user and cascading cleanup on account removal. Wired into coverage CI.
 
 2026-11-04: Fixed role test teardown to restrict temporary keys rather than reference a try-block local from finally.
+
+2026-11-04: Investor access now also checks effective role-based permissions (not just presence of baseline role): the permission union across memberships is evaluated server-side, and key own-account routes require allocations:create:own, withdrawals:create:own, deposits:create:own, portfolio:read:own. Existing owner-specific query filters remain unchanged.
