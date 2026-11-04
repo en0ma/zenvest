@@ -171,3 +171,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-04: Phase 2 unified RBAC Prisma models now Role, Permission, RolePermission, UserRole mapped to existing Staff* storage to retain all staff grants and avoid migration data loss. Next change updates application delegates and removes legacy account role enum.
 
 2026-11-04: Unified Prisma role delegates adopted across staff role assignment/revocation, audit resources and dashboards, seed scripts and disposable PostgreSQL RBAC integration tests. The underlying tables still retain historical Staff* names via @@map for safe additive migration.
+
+2026-11-04: Registration now relies on database auto-assigned baseline user membership instead of legacy enum. NextAuth validates mandatory user role in DB on every session refresh, no longer exports legacy role claim. Legacy requireAdmin now demands real roles:manage permission. Investor requireUser checks baseline membership. Seeded investor permission keys and CI fixture checks updated. Legacy role SQL removal follows validation.

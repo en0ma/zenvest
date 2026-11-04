@@ -2,8 +2,9 @@
 // Does not create or assign any administrator accounts.
 import {PrismaClient} from "@prisma/client";
 const db=new PrismaClient();
-const permissions=["users:read","users:write","deposits:read","deposits:reconcile","withdrawals:read","withdrawals:approve","balances:read","balances:adjust","wallets:read","wallets:operate","roles:read","roles:manage","audit:read"];
+const permissions=["account:access","portfolio:read:own","wallet:read:own","deposits:create:own","withdrawals:create:own","allocations:create:own","users:read","users:write","deposits:read","deposits:reconcile","withdrawals:read","withdrawals:approve","balances:read","balances:adjust","wallets:read","wallets:operate","roles:read","roles:manage","audit:read"];
 const roleGrants={
+ user:["account:access","portfolio:read:own","wallet:read:own","deposits:create:own","withdrawals:create:own","allocations:create:own"],
  auditor:["users:read","deposits:read","withdrawals:read","balances:read","wallets:read","roles:read","audit:read"],
  support:["users:read","deposits:read","withdrawals:read","balances:read","wallets:read"],
  operations:["users:read","users:write","deposits:read","deposits:reconcile","withdrawals:read","withdrawals:approve","wallets:read","wallets:operate"],

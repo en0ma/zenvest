@@ -4,7 +4,7 @@ const prisma=new PrismaClient();
 if(!process.env.DATABASE_URL?.includes("zenvest_ci"))throw new Error("Refusing to inspect non-CI database");
 try {
  const user=await prisma.user.findUniqueOrThrow({where:{id:"ci_test_user"}});
- assert.equal(user.role,"USER");
+ assert.equal(await prisma.userRole.count({where:{userId:user.id,role:{key:"user"}}}),1,"fixture account must hold user RBAC role");
  assert.equal(user.unallocated,123_000_000n);
  const position=await prisma.investorPosition.findUniqueOrThrow({where:{id:"ci_test_position"},include:{strategy:true}});
  assert.equal(position.strategy.name,"CI Test Strategy");
