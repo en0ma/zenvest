@@ -43,7 +43,7 @@ try{
 }finally{
  try{
   await db.staffAudit.deleteMany({where:{targetId:userId}});
-  await db.userRole.deleteMany({where:{userId,roleId:role.id}});
+  await db.userRole.deleteMany({where:{userId,role:{key:{startsWith:prefix}}}});
   await db.rolePermission.deleteMany({where:{role:{key:{startsWith:prefix}}}});
   await db.role.deleteMany({where:{key:{startsWith:prefix}}});
   await db.permission.deleteMany({where:{key:{startsWith:prefix}}});

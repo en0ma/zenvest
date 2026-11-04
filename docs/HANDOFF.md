@@ -191,3 +191,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-04: Updated disposable CI fixture teardown to remove only temporary staff roles, never mandatory user baseline membership; user deletion cleans up baseline via user FK cascade. Database now prevents manual baseline revocation.
 
 2026-11-04: Added PostgreSQL integration test for unified RBAC: legacy users.role absence, four unified table names, automatic baseline on user creation, correct inherited user capabilities and no admin grants, additive staff role, non-revocable baseline, FK to real user and cascading cleanup on account removal. Wired into coverage CI.
+
+2026-11-04: Fixed role test teardown to restrict temporary keys rather than reference a try-block local from finally.
