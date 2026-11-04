@@ -26,6 +26,14 @@ try{
  assert.ok(union.has("account:access")&&union.has(permissionKey),"staff membership adds, never replaces baseline");
  await assert.rejects(()=>db.userRole.deleteMany({where:{userId,role:{key:"user"}}}),"baseline cannot be manually revoked");
  assert.equal((await db.userRole.findMany({where:{userId,role:{key:"user"}}})).length,1);
+ // The mandatory baseline role itself must not be renamed or deleted: either
+ // operation would orphan the logical investor role despite intact memberships.
+ const baselineRole=await db.role.findUniqueOrThrow({where:{key:"user"}});
+ await assert.rejects(()=>db.role.update({where:{id:baselineRole.id},data:{key:"disabled-user"}}),
+  /Cannot modify the mandatory baseline user role/,"baseline role must not be renamed");
+ await assert.rejects(()=>db.role.delete({where:{id:baselineRole.id}}),
+  /Cannot modify the mandatory baseline user role/,"baseline role must not be deleted");
+ assert.equal((await db.role.findUniqueOrThrow({where:{id:baselineRole.id}})).key,"user");
  await db.userRole.delete({where:{userId_roleId:{userId,roleId}}});
  assert.equal(await db.userRole.count({where:{userId}}),1,"revoked staff role retains baseline");
  await assert.rejects(()=>db.userRole.create({data:{userId:"ci_nonexistent_unified_account",roleId,assignedBy:"ci-test"}}),"memberships cannot refer to missing users");
