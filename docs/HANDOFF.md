@@ -199,3 +199,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-04: Fixed remaining TS test reference to removed balances:adjust FinancialOperation. All policy tests and builds must pass before merge.
 
 2026-11-04: Preserved existing plain requireUser() authentication contract on investor money routes and added a separate requireInvestorPermission(userId,permission) RBAC grant check for allocations, withdrawals and wallet activation. The original security contract test remains unchanged and the new checks add a second guard.
+
+2026-11-04: Fixed admin landing gate for universal baseline roles: an account with only user permissions is redirected to investor dashboard; the admin shell is shown only when there is at least one granted staff section. Endpoint authorization remains server-side.

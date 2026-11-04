@@ -31,13 +31,14 @@ export default async function AdminPage(){
   include:{role:{include:{grants:{include:{permission:true}}}}}
  });
  const grants=new Set(memberships.flatMap(m=>m.role.grants.map(g=>g.permission.key)));
- if(grants.size===0)return <main className="p-10">No staff permissions assigned.</main>;
+ const visibleSections=sections.filter(section=>grants.has(section.permission));
+ if(visibleSections.length===0)redirect("/dashboard");
  return <main className="min-h-screen bg-slate-50 p-8 text-[#14253D]">
   <div className="mx-auto max-w-5xl">
    <h1 className="text-3xl font-bold">Zenvest operations</h1>
    <p className="mt-3 text-slate-600">Sensitive actions require independent approval and do not move funds automatically.</p>
    <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-    {sections.filter(s=>grants.has(s.permission)).map(s=><Link key={s.name} href={"/admin/"+s.name} className="rounded-xl border bg-white p-6 text-lg font-semibold capitalize shadow-sm hover:border-violet-500">{s.name==="roles/manage"?"Manage roles":s.name}</Link>)}
+    {visibleSections.map(s=><Link key={s.name} href={"/admin/"+s.name} className="rounded-xl border bg-white p-6 text-lg font-semibold capitalize shadow-sm hover:border-violet-500">{s.name==="roles/manage"?"Manage roles":s.name}</Link>)}
    </div>
   </div>
  </main>;
