@@ -10,7 +10,7 @@ export function canReviewAction(input:ReviewInput & {createdAt:Date;now?:Date}):
 }
 export function validateActionTarget(resource:string,operation:string):boolean {
  const supported:Record<string,readonly string[]> = {
-  users:["write"],deposits:["reconcile"],withdrawals:["approve"],balances:["adjust"],wallets:["operate"]
+  users:["write"],deposits:["reconcile"],withdrawals:["approve"],wallets:["operate"]
  };
  return supported[resource]?.includes(operation)??false;
 }

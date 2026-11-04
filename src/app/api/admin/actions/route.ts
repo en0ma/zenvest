@@ -6,7 +6,7 @@ import {validateActionTarget} from "@/lib/staff-review-policy";
 import {validateProposalPayload} from "@/lib/staff-financial-limits";
 import {requireStaffPermission} from "@/lib/staff-access";
 import type {StaffPermissionKey} from "@/lib/staff-permissions";
-const supported:Record<string,StaffPermissionKey>={"users:write":"users:write","deposits:reconcile":"deposits:reconcile","withdrawals:approve":"withdrawals:approve","balances:adjust":"balances:adjust","wallets:operate":"wallets:operate"};
+const supported:Record<string,StaffPermissionKey>={"users:write":"users:write","deposits:reconcile":"deposits:reconcile","withdrawals:approve":"withdrawals:approve","wallets:operate":"wallets:operate"};
 const proposal=z.object({resource:z.string(),operation:z.string(),targetId:z.string().min(1).max(128),reason:z.string().min(12).max(500),idempotencyKey:z.string().min(12).max(100),payload:z.unknown().optional()}).strict();
 export async function POST(request:NextRequest){
  try{
@@ -18,7 +18,7 @@ export async function POST(request:NextRequest){
  const validated=validateProposalPayload(input.resource,input.operation,input.payload,process.env.STAFF_BALANCE_ADJUSTMENT_LIMIT_MICROS,process.env.STAFF_WALLET_TRANSFER_LIMIT_MICROS);
  if(!validated.ok)return Response.json({error:validated.reason},{status:422});
  const exists=await (async()=>{
-  if(input.resource==="users"||input.resource==="balances")return Boolean(await prisma.user.findUnique({where:{id:input.targetId},select:{id:true}}));
+  if(input.resource==="users")return Boolean(await prisma.user.findUnique({where:{id:input.targetId},select:{id:true}}));
   if(input.resource==="deposits")return Boolean(await prisma.blockchainDeposit.findUnique({where:{id:input.targetId},select:{id:true}}));
   if(input.resource==="withdrawals")return Boolean(await prisma.withdrawal.findUnique({where:{id:input.targetId},select:{id:true}}));
   if(input.resource==="wallets"){

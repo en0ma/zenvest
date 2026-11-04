@@ -12,7 +12,7 @@ import ActionProposalForm from "./proposal-form";
 import {isWithinReviewWindow} from "@/lib/staff-review-policy";
 import type {StaffPermissionKey} from "@/lib/staff-permissions";
 export const dynamic="force-dynamic";
-const reviewPermissions:Record<string,StaffPermissionKey>={"users:write":"users:write","deposits:reconcile":"deposits:reconcile","withdrawals:approve":"withdrawals:approve","balances:adjust":"balances:adjust","wallets:operate":"wallets:operate"};
+const reviewPermissions:Record<string,StaffPermissionKey>={"users:write":"users:write","deposits:reconcile":"deposits:reconcile","withdrawals:approve":"withdrawals:approve","wallets:operate":"wallets:operate"};
 export default async function ActionQueue(){
  try{await requireStaffPermission("audit:read")}catch{return <main className="p-10">Access denied</main>}
  const session=await getServerSession(authOptions),actor=session?.user?.id;

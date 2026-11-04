@@ -7,7 +7,7 @@ import {validateProposalPayload} from "@/lib/staff-financial-limits";
 import {requireStaffPermission} from "@/lib/staff-access";
 import type {StaffPermissionKey} from "@/lib/staff-permissions";
 const decisionSchema=z.object({approve:z.boolean()}).strict();
-const supported:Record<string,StaffPermissionKey>={"users:write":"users:write","deposits:reconcile":"deposits:reconcile","withdrawals:approve":"withdrawals:approve","balances:adjust":"balances:adjust","wallets:operate":"wallets:operate"};
+const supported:Record<string,StaffPermissionKey>={"users:write":"users:write","deposits:reconcile":"deposits:reconcile","withdrawals:approve":"withdrawals:approve","wallets:operate":"wallets:operate"};
 export async function POST(request:NextRequest,{params}:{params:Promise<{id:string}>}){
  try{
  const {id}=await params;const parsed=decisionSchema.safeParse(await request.json());

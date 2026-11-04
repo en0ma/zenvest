@@ -1,5 +1,5 @@
 export const FINANCIAL_EXECUTION_MODE="DISABLED" as const;
-export type FinancialOperation="deposits:reconcile"|"withdrawals:approve"|"balances:adjust"|"wallets:operate";
+export type FinancialOperation="deposits:reconcile"|"withdrawals:approve"|"wallets:operate";
 export type ExecutionGuardInput={
  operation:FinancialOperation;
  actionStatus:"PENDING"|"APPROVED"|"REJECTED"|"EXECUTED";

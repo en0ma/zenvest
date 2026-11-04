@@ -6,21 +6,21 @@ const prefix="ci_staff_approvals_";
 try{
  const [requester,checker]=await Promise.all(["maker","checker"].map((suffix)=>db.user.create({data:{id:prefix+suffix,email:prefix+suffix+"@example.invalid",name:"CI staff",passwordHash:"not-a-login"}})));
  const role=await db.role.create({data:{key:prefix+"finance"}});
- const perm=await db.permission.create({data:{key:prefix+"balances:adjust"}});
+ const perm=await db.permission.create({data:{key:prefix+"wallets:operate"}});
  await db.rolePermission.create({data:{roleId:role.id,permissionId:perm.id}});
  await db.userRole.create({data:{userId:checker.id,roleId:role.id,assignedBy:requester.id}});
  const grant=await db.userRole.findUniqueOrThrow({where:{userId_roleId:{userId:checker.id,roleId:role.id}},include:{role:{include:{grants:{include:{permission:true}}}}}});
  assert.equal(grant.role.grants[0].permission.key,perm.key,"permissions must resolve through persisted memberships");
  const request=await db.$transaction(async(tx)=>{
-  const action=await tx.staffAction.create({data:{resource:"balances",operation:"adjust",targetId:requester.id,payload:{},reason:"PostgreSQL maker-checker test",requestedBy:requester.id,idempotencyKey:prefix+"idempotency"}});
-  await tx.staffAudit.create({data:{actorId:requester.id,action:"proposed",resource:"balances",targetId:requester.id}});
+  const action=await tx.staffAction.create({data:{resource:"wallets",operation:"operate",targetId:requester.id,payload:{},reason:"PostgreSQL maker-checker test",requestedBy:requester.id,idempotencyKey:prefix+"idempotency"}});
+  await tx.staffAudit.create({data:{actorId:requester.id,action:"proposed",resource:"wallets",targetId:requester.id}});
   return action;
  });
  assert.equal(request.status,"PENDING");
- await assert.rejects(db.staffAction.create({data:{resource:"balances",operation:"adjust",targetId:requester.id,payload:{},reason:"Duplicate should fail",requestedBy:requester.id,idempotencyKey:prefix+"idempotency"}}),e=>e.code==="P2002","database must reject duplicate action keys");
+ await assert.rejects(db.staffAction.create({data:{resource:"wallets",operation:"operate",targetId:requester.id,payload:{},reason:"Duplicate should fail",requestedBy:requester.id,idempotencyKey:prefix+"idempotency"}}),e=>e.code==="P2002","database must reject duplicate action keys");
  const decisions=await Promise.allSettled(Array.from({length:4},(_,index)=>db.$transaction(async(tx)=>{
   const updated=await tx.staffAction.updateMany({where:{id:request.id,status:"PENDING"},data:{status:index%2?"REJECTED":"APPROVED",decidedBy:checker.id,decidedAt:new Date()}});
-  if(updated.count===1)await tx.staffAudit.create({data:{actorId:checker.id,action:"decision",resource:"balances",targetId:requester.id}});
+  if(updated.count===1)await tx.staffAudit.create({data:{actorId:checker.id,action:"decision",resource:"wallets",targetId:requester.id}});
   return updated.count;
  })));
  const completed=decisions.filter(x=>x.status==="fulfilled").reduce((n,x)=>n+x.value,0);
