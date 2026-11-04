@@ -35,7 +35,7 @@ try{
 }finally{
  await db.staffAudit.deleteMany({where:{targetId:{startsWith:prefix}}});
  await db.staffAction.deleteMany({where:{targetId:{startsWith:prefix}}});
- await db.userRole.deleteMany({where:{userId:{startsWith:prefix}}});
+ await db.userRole.deleteMany({where:{userId:{startsWith:prefix},role:{key:{not:"user"}}}});
  await db.rolePermission.deleteMany({where:{role:{key:{startsWith:prefix}}}});
  await db.role.deleteMany({where:{key:{startsWith:prefix}}});
  await db.permission.deleteMany({where:{key:{startsWith:prefix}}});
