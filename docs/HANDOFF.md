@@ -181,3 +181,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-04: Fixed recurring seeded strategy-design account to rely on auto-assigned baseline user RBAC membership rather than removed Prisma User.role. Prior GitHub Actions completed coverage but failed post-test fixture seed because it still provided the legacy role argument.
 
 2026-11-04: Updated RBAC policy tests to enforce that manual balances:adjust does not exist as a grant or approved action target. This was an expected policy change, not weakening a security test.
+
+2026-11-04: Fixed resource preview /admin/[resource] to read roles from unified Prisma Role model rather than removed staffRole model; detected in Vercel typecheck logs.
