@@ -5,10 +5,6 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-enum Role {
-  USER
-  ADMIN
-}
 enum TokenPurpose {
   VERIFY_EMAIL
   RESET_PASSWORD
@@ -19,7 +15,6 @@ model User {
   name         String   @db.VarChar(120) // Legacy account label while existing consumers migrate to handle.
   handle       String   @unique @default(dbgenerated("substr(md5(random()::text || clock_timestamp()::text), 1, 8)")) @db.VarChar(8)
   passwordHash String   @map("password_hash") @db.VarChar(255)
-  role         Role     @default(USER)
   isActive     Boolean  @default(true) @map("is_active")
   emailVerifiedAt DateTime? @map("email_verified_at")
   sessionVersion Int @default(0) @map("session_version")
@@ -37,6 +32,7 @@ model User {
   positionAllocations PositionAllocation[]
   tradePnls PositionTradePnl[]
   activity InvestorActivity[]
+  roles UserRole[]
   tokens       ActionToken[]
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -570,30 +566,35 @@ model TwoFactorRecoveryCode {
  @@index([userId,usedAt])
 }
 
-model StaffRole {
+model Role {
   id String @id @default(cuid())
   key String @unique
-  grants StaffRolePermission[]
-  members StaffRoleMembership[]
+  grants RolePermission[]
+  members UserRole[]
+  @@map("StaffRole")
 }
-model StaffPermission {
+model Permission {
   id String @id @default(cuid())
   key String @unique
-  roles StaffRolePermission[]
+  roles RolePermission[]
+  @@map("StaffPermission")
 }
-model StaffRolePermission {
+model RolePermission {
   roleId String
   permissionId String
-  role StaffRole @relation(fields:[roleId],references:[id],onDelete:Cascade)
-  permission StaffPermission @relation(fields:[permissionId],references:[id],onDelete:Cascade)
+  role Role @relation(fields:[roleId],references:[id],onDelete:Cascade)
+  permission Permission @relation(fields:[permissionId],references:[id],onDelete:Cascade)
   @@id([roleId,permissionId])
+  @@map("StaffRolePermission")
 }
-model StaffRoleMembership {
+model UserRole {
   userId String
   roleId String
   assignedBy String
-  role StaffRole @relation(fields:[roleId],references:[id],onDelete:Cascade)
+  role Role @relation(fields:[roleId],references:[id],onDelete:Cascade)
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
   @@id([userId,roleId])
+  @@map("StaffRoleMembership")
 }
 enum StaffActionStatus {
   PENDING
