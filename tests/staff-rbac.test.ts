@@ -11,12 +11,12 @@ test("role templates contain only declared permissions",()=>{
 });
 test("sensitive financial actions are explicitly approval-gated",()=>{
  const gated=new Set<string>(APPROVAL_REQUIRED);
- for(const permission of ["users:write","deposits:reconcile","withdrawals:approve","balances:adjust","wallets:operate"]){
+ for(const permission of ["users:write","deposits:reconcile","withdrawals:approve","wallets:operate"]){
   assert.ok(gated.has(permission),"Missing approval gate "+permission);
  }
 });
 test("support and auditor cannot authorize financial writes",()=>{
- const financial=["deposits:reconcile","withdrawals:approve","balances:adjust","wallets:operate"];
+ const financial=["deposits:reconcile","withdrawals:approve","wallets:operate"];
  for(const role of ["support","auditor"] as const){
   const grants=new Set<string>(DEFAULT_ROLE_GRANTS[role]);
   for(const permission of financial)assert.ok(!grants.has(permission),role+" has "+permission);

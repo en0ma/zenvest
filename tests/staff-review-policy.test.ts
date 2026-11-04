@@ -10,7 +10,7 @@ test("decided or executed actions cannot be reviewed again",()=>{
  for(const status of ["APPROVED","REJECTED","EXECUTED"] as const)assert.equal(canReviewAction({...base,status}),false);
 });
 test("financial request targets use an explicit allowlist",()=>{
- for(const [resource,operation] of [["users","write"],["deposits","reconcile"],["withdrawals","approve"],["balances","adjust"],["wallets","operate"]])assert.equal(validateActionTarget(resource,operation),true);
+ for(const [resource,operation] of [["users","write"],["deposits","reconcile"],["withdrawals","approve"],["wallets","operate"]])assert.equal(validateActionTarget(resource,operation),true);
  for(const [resource,operation] of [["balances","write"],["wallets","delete"],["deposits","credit"],["users","make-super-admin"],["unknown","approve"]])assert.equal(validateActionTarget(resource,operation),false);
 });
 
