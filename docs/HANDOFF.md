@@ -177,3 +177,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-04: Updated role lifecycle tests to account for mandatory baseline user membership: explicitly select assigned staff role and verify staff revocation retains exactly the baseline user role. CI first failure was this old assumption, not a production error.
 
 2026-11-04: Removed manual balances:adjust capability, role grants, approval flow, proposal UI and validator, and purged old permission grants in additive SQL migration and role-seed. Balances remain read-only; only independently verified financial events may mutate funds. Updated tests to assert adjustment requests are prohibited.
+
+2026-11-04: Fixed recurring seeded strategy-design account to rely on auto-assigned baseline user RBAC membership rather than removed Prisma User.role. Prior GitHub Actions completed coverage but failed post-test fixture seed because it still provided the legacy role argument.

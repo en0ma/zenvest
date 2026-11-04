@@ -20,7 +20,7 @@ try{
  const results=[];
  await prisma.user.upsert({where:{id:investorId},create:{
   id:investorId,email:"market-history@zenvest.invalid",name:"marketdata",
-  handle:"mktdata",passwordHash:"disabled-market-history-account",role:"USER",
+  handle:"mktdata",passwordHash:"disabled-market-history-account",
   isActive:false,unallocated:0n
  },update:{}});
  for(const config of catalogs){
