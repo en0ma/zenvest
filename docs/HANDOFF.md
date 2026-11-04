@@ -183,3 +183,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-04: Updated RBAC policy tests to enforce that manual balances:adjust does not exist as a grant or approved action target. This was an expected policy change, not weakening a security test.
 
 2026-11-04: Fixed resource preview /admin/[resource] to read roles from unified Prisma Role model rather than removed staffRole model; detected in Vercel typecheck logs.
+
+2026-11-04: Fixed JSX/TS syntax found in preview build after removing manual balance adjustment form, keeping amount validation only for wallet transfers.

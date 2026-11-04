@@ -29,7 +29,7 @@ export default function ActionProposalForm({allowed}:{allowed:string[]}){
   const [resource,operation]=selected.split(":");
   try{
    const amountPattern=/^[1-9][0-9]{0,17}$/;
-   if(resource==="wallets"&&!amountPattern.test(amount)throw new Error("Enter a positive integer number of USDC micros");
+   if(resource==="wallets"&&!amountPattern.test(amount))throw new Error("Enter a positive integer number of USDC micros");
    const payload=resource==="wallets"?(walletKind==="MASTER_TO_WALLET"?{kind:walletKind,amountUsdcMicros:amount,destinationAddress:destinationAddress.trim()}:{kind:walletKind,amountUsdcMicros:amount}):{};
    const response=await fetch("/api/admin/actions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({resource,operation,targetId:targetId.trim(),reason:reason.trim(),payload,idempotencyKey:crypto.randomUUID()})});
    const body=await response.json().catch(()=>({}));
