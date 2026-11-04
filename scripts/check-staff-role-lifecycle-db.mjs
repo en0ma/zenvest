@@ -21,7 +21,8 @@ try{
  assert.equal(assigned.userId,userId);
  assert.equal(assigned.assignedBy,adminId);
  const roles=await db.userRole.findMany({where:{userId},include:{role:{include:{grants:{include:{permission:true}}}}}});
- assert.deepEqual(roles[0].role.grants.map(x=>x.permission.key),[permission.key]);
+ assert.deepEqual(roles.find(x=>x.roleId===role.id)?.role.grants.map(x=>x.permission.key),[permission.key]);
+ assert.equal(roles.some(x=>x.role.key==="user"),true,"every account has baseline role");
  await assert.rejects(db.userRole.create({data:{userId,roleId:role.id,assignedBy:adminId}}),e=>e.code==="P2002","one role membership per user and role");
  const revoked=await db.$transaction(async tx=>{
   const result=await tx.userRole.deleteMany({where:{userId,roleId:role.id}});
@@ -31,7 +32,7 @@ try{
   return result.count;
  });
  assert.equal(revoked,1);
- assert.equal(await db.userRole.count({where:{userId}}),0);
+ assert.equal(await db.userRole.count({where:{userId}}),1,"revoking staff keeps baseline user role");
  const after=await db.user.findUniqueOrThrow({where:{id:userId},select:{sessionVersion:true}});
  assert.equal(after.sessionVersion,before.sessionVersion+1);
  const audit=await db.staffAudit.findMany({where:{actorId:adminId,targetId:userId},orderBy:{createdAt:"asc"}});

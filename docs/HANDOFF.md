@@ -173,3 +173,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-04: Unified Prisma role delegates adopted across staff role assignment/revocation, audit resources and dashboards, seed scripts and disposable PostgreSQL RBAC integration tests. The underlying tables still retain historical Staff* names via @@map for safe additive migration.
 
 2026-11-04: Registration now relies on database auto-assigned baseline user membership instead of legacy enum. NextAuth validates mandatory user role in DB on every session refresh, no longer exports legacy role claim. Legacy requireAdmin now demands real roles:manage permission. Investor requireUser checks baseline membership. Seeded investor permission keys and CI fixture checks updated. Legacy role SQL removal follows validation.
+
+2026-11-04: Updated role lifecycle tests to account for mandatory baseline user membership: explicitly select assigned staff role and verify staff revocation retains exactly the baseline user role. CI first failure was this old assumption, not a production error.
