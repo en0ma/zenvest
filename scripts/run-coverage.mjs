@@ -7,6 +7,7 @@ for(const [command,args] of [
  ["node",["scripts/check-ci-db.mjs"]],
  ["node",["scripts/check-staff-approval-db.mjs"]],
  ["node",["scripts/check-staff-role-lifecycle-db.mjs"]],
+ ["node",["scripts/check-unified-rbac-db.mjs"]],
  ["node",["--conditions=react-server","scripts/check-financial-workers.mjs"]],
  ["node",["scripts/check-payout-workers.mjs"]],
  ["node",["scripts/check-withdrawal-worker.mjs"]],

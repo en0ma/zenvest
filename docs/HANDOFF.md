@@ -189,3 +189,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-04: Final RBAC table migration (draft branch only): drops obsolete users.role and PostgreSQL Role enum, then renames existing StaffRole, StaffPermission, StaffRolePermission, StaffRoleMembership to Role, Permission, RolePermission, UserRole without dropping grants or memberships; Prisma models now use exact table names. Rebinds baseline user creation trigger, and protects baseline user role from deletion or reassignment. Must confirm full CI/preview before any merge.
 
 2026-11-04: Updated disposable CI fixture teardown to remove only temporary staff roles, never mandatory user baseline membership; user deletion cleans up baseline via user FK cascade. Database now prevents manual baseline revocation.
+
+2026-11-04: Added PostgreSQL integration test for unified RBAC: legacy users.role absence, four unified table names, automatic baseline on user creation, correct inherited user capabilities and no admin grants, additive staff role, non-revocable baseline, FK to real user and cascading cleanup on account removal. Wired into coverage CI.
