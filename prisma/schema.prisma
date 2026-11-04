@@ -571,13 +571,13 @@ model Role {
   key String @unique
   grants RolePermission[]
   members UserRole[]
-  @@map("StaffRole")
+
 }
 model Permission {
   id String @id @default(cuid())
   key String @unique
   roles RolePermission[]
-  @@map("StaffPermission")
+
 }
 model RolePermission {
   roleId String
@@ -585,7 +585,7 @@ model RolePermission {
   role Role @relation(fields:[roleId],references:[id],onDelete:Cascade)
   permission Permission @relation(fields:[permissionId],references:[id],onDelete:Cascade)
   @@id([roleId,permissionId])
-  @@map("StaffRolePermission")
+
 }
 model UserRole {
   userId String
@@ -594,7 +594,7 @@ model UserRole {
   role Role @relation(fields:[roleId],references:[id],onDelete:Cascade)
   user User @relation(fields:[userId],references:[id],onDelete:Cascade)
   @@id([userId,roleId])
-  @@map("StaffRoleMembership")
+
 }
 enum StaffActionStatus {
   PENDING

@@ -185,3 +185,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-04: Fixed resource preview /admin/[resource] to read roles from unified Prisma Role model rather than removed staffRole model; detected in Vercel typecheck logs.
 
 2026-11-04: Fixed JSX/TS syntax found in preview build after removing manual balance adjustment form, keeping amount validation only for wallet transfers.
+
+2026-11-04: Final RBAC table migration (draft branch only): drops obsolete users.role and PostgreSQL Role enum, then renames existing StaffRole, StaffPermission, StaffRolePermission, StaffRoleMembership to Role, Permission, RolePermission, UserRole without dropping grants or memberships; Prisma models now use exact table names. Rebinds baseline user creation trigger, and protects baseline user role from deletion or reassignment. Must confirm full CI/preview before any merge.
