@@ -15,7 +15,7 @@ function run(command,args){
  if(result.status!==0)throw Error(command+" "+args.join(" ")+" failed ("+result.status+")");
 }
 try{
- for(const dir of readdirSync(root).filter(x=>x>=cutover&&/^\\d{14}_/.test(x)).sort()){
+ for(const dir of readdirSync(root).filter(x=>x>=cutover&&/^\d{14}_/.test(x)).sort()){
   renameSync(join(root,dir),join(held,dir));moved.push(dir);
  }
  if(!moved.includes(cutover)||!moved.includes("20261104124500_unified_rbac_table_cutover"))
