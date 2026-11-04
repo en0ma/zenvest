@@ -26,7 +26,7 @@ export default async function AdminPage(){
  if(!account?.isActive||!account.emailVerifiedAt||!factor?.verifiedAt){
   return <main className="p-10">Staff access requires an active verified account and two-factor authentication.</main>;
  }
- const memberships=await prisma.staffRoleMembership.findMany({
+ const memberships=await prisma.userRole.findMany({
   where:{userId},
   include:{role:{include:{grants:{include:{permission:true}}}}}
  });

@@ -13,9 +13,9 @@ export async function POST(request:NextRequest){
   const {userId,roleKey}=parsed.data;
   if(userId===actor)return Response.json({error:"Self-revocation requires independent authorization"},{status:403});
   const outcome=await prisma.$transaction(async tx=>{
-   const role=await tx.staffRole.findUnique({where:{key:roleKey},select:{id:true}});
+   const role=await tx.role.findUnique({where:{key:roleKey},select:{id:true}});
    if(!role)return "NOT_FOUND";
-   const removed=await tx.staffRoleMembership.deleteMany({where:{userId,roleId:role.id}});
+   const removed=await tx.userRole.deleteMany({where:{userId,roleId:role.id}});
    if(removed.count===0)return "NOT_FOUND";
    await tx.user.update({where:{id:userId},data:{sessionVersion:{increment:1}}});
    await tx.staffAudit.create({data:{actorId:actor,action:"role.revoked:"+roleKey,resource:"roles",targetId:userId}});

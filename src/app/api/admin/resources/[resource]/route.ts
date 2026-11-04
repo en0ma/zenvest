@@ -18,7 +18,7 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{resource
  else if(resource==="balances") records=await prisma.user.findMany({...paging,orderBy:{createdAt:"desc"},select:{id:true,handle:true,unallocated:true}});
  else if(resource==="wallets") records=await prisma.investorDepositWallet.findMany({...paging,orderBy:{createdAt:"desc"},select:{id:true,userId:true,address:true,status:true,createdAt:true}});
  else if(resource==="audit") records=await prisma.staffAudit.findMany({...paging,orderBy:{createdAt:"desc"}});
- else records=await prisma.staffRole.findMany({...paging,select:{id:true,key:true}});
+ else records=await prisma.role.findMany({...paging,select:{id:true,key:true}});
  return Response.json({records:JSON.parse(JSON.stringify(records,(_k,v)=>typeof v==="bigint"?v.toString():v)),skip},{headers:{"Cache-Control":"no-store"}});
  }catch{return Response.json({error:"Access denied"},{status:403})}
 }

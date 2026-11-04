@@ -169,3 +169,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-04: Phase 1 unified RBAC: backfilled existing accounts into mandatory logical user role and created investor baseline permissions; database insert trigger assigns baseline to newly inserted accounts; added FK on role membership after fail-closed orphan check. Legacy User.role remains temporarily for compatibility; subsequent commits migrate all code, then remove enum/column.
 
 2026-11-04: Phase 2 unified RBAC Prisma models now Role, Permission, RolePermission, UserRole mapped to existing Staff* storage to retain all staff grants and avoid migration data loss. Next change updates application delegates and removes legacy account role enum.
+
+2026-11-04: Unified Prisma role delegates adopted across staff role assignment/revocation, audit resources and dashboards, seed scripts and disposable PostgreSQL RBAC integration tests. The underlying tables still retain historical Staff* names via @@map for safe additive migration.

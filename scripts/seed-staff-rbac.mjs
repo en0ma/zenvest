@@ -12,12 +12,12 @@ const roleGrants={
 };
 try{
  await db.$transaction(async tx=>{
- for(const key of permissions)await tx.staffPermission.upsert({where:{key},create:{key},update:{}});
+ for(const key of permissions)await tx.permission.upsert({where:{key},create:{key},update:{}});
  for(const [key,grants] of Object.entries(roleGrants)){
- const role=await tx.staffRole.upsert({where:{key},create:{key},update:{}});
+ const role=await tx.role.upsert({where:{key},create:{key},update:{}});
  for(const permission of grants){
- const item=await tx.staffPermission.findUniqueOrThrow({where:{key:permission}});
- await tx.staffRolePermission.upsert({where:{roleId_permissionId:{roleId:role.id,permissionId:item.id}},create:{roleId:role.id,permissionId:item.id},update:{}});
+ const item=await tx.permission.findUniqueOrThrow({where:{key:permission}});
+ await tx.rolePermission.upsert({where:{roleId_permissionId:{roleId:role.id,permissionId:item.id}},create:{roleId:role.id,permissionId:item.id},update:{}});
  }
  }
  });

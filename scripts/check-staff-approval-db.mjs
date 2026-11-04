@@ -5,11 +5,11 @@ const db=new PrismaClient();
 const prefix="ci_staff_approvals_";
 try{
  const [requester,checker]=await Promise.all(["maker","checker"].map((suffix)=>db.user.create({data:{id:prefix+suffix,email:prefix+suffix+"@example.invalid",name:"CI staff",passwordHash:"not-a-login"}})));
- const role=await db.staffRole.create({data:{key:prefix+"finance"}});
- const perm=await db.staffPermission.create({data:{key:prefix+"balances:adjust"}});
- await db.staffRolePermission.create({data:{roleId:role.id,permissionId:perm.id}});
- await db.staffRoleMembership.create({data:{userId:checker.id,roleId:role.id,assignedBy:requester.id}});
- const grant=await db.staffRoleMembership.findUniqueOrThrow({where:{userId_roleId:{userId:checker.id,roleId:role.id}},include:{role:{include:{grants:{include:{permission:true}}}}}});
+ const role=await db.role.create({data:{key:prefix+"finance"}});
+ const perm=await db.permission.create({data:{key:prefix+"balances:adjust"}});
+ await db.rolePermission.create({data:{roleId:role.id,permissionId:perm.id}});
+ await db.userRole.create({data:{userId:checker.id,roleId:role.id,assignedBy:requester.id}});
+ const grant=await db.userRole.findUniqueOrThrow({where:{userId_roleId:{userId:checker.id,roleId:role.id}},include:{role:{include:{grants:{include:{permission:true}}}}}});
  assert.equal(grant.role.grants[0].permission.key,perm.key,"permissions must resolve through persisted memberships");
  const request=await db.$transaction(async(tx)=>{
   const action=await tx.staffAction.create({data:{resource:"balances",operation:"adjust",targetId:requester.id,payload:{},reason:"PostgreSQL maker-checker test",requestedBy:requester.id,idempotencyKey:prefix+"idempotency"}});
@@ -35,10 +35,10 @@ try{
 }finally{
  await db.staffAudit.deleteMany({where:{targetId:{startsWith:prefix}}});
  await db.staffAction.deleteMany({where:{targetId:{startsWith:prefix}}});
- await db.staffRoleMembership.deleteMany({where:{userId:{startsWith:prefix}}});
- await db.staffRolePermission.deleteMany({where:{role:{key:{startsWith:prefix}}}});
- await db.staffRole.deleteMany({where:{key:{startsWith:prefix}}});
- await db.staffPermission.deleteMany({where:{key:{startsWith:prefix}}});
+ await db.userRole.deleteMany({where:{userId:{startsWith:prefix}}});
+ await db.rolePermission.deleteMany({where:{role:{key:{startsWith:prefix}}}});
+ await db.role.deleteMany({where:{key:{startsWith:prefix}}});
+ await db.permission.deleteMany({where:{key:{startsWith:prefix}}});
  await db.user.deleteMany({where:{id:{startsWith:prefix}}});
  await db.$disconnect();
 }

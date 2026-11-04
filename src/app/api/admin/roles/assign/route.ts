@@ -20,11 +20,11 @@ export async function POST(request:NextRequest){
    const target=await tx.user.findUnique({where:{id:userId},select:{isActive:true,emailVerifiedAt:true}});
    const factor=await tx.twoFactor.findUnique({where:{userId},select:{verifiedAt:true}});
    if(!target?.isActive||!target.emailVerifiedAt||!factor?.verifiedAt)return "INELIGIBLE";
-   const role=await tx.staffRole.findUnique({where:{key:roleKey}});
+   const role=await tx.role.findUnique({where:{key:roleKey}});
    if(!role)return "UNKNOWN_ROLE";
-   const existing=await tx.staffRoleMembership.findUnique({where:{userId_roleId:{userId,roleId:role.id}}});
+   const existing=await tx.userRole.findUnique({where:{userId_roleId:{userId,roleId:role.id}}});
    if(existing)return "EXISTS";
-   await tx.staffRoleMembership.create({data:{userId,roleId:role.id,assignedBy:actorId}});
+   await tx.userRole.create({data:{userId,roleId:role.id,assignedBy:actorId}});
    await tx.staffAudit.create({data:{actorId,action:"role.assigned:"+roleKey,resource:"roles",targetId:userId}});
    return "CREATED";
   });

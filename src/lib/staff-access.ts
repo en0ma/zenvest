@@ -14,7 +14,7 @@ export async function requireStaffPermission(key:StaffPermissionKey,options?:{re
  }
  const [account,memberships,factor]=await Promise.all([
   prisma.user.findUnique({where:{id:userId},select:{isActive:true,emailVerifiedAt:true}}),
-  prisma.staffRoleMembership.findMany({where:{userId},select:{role:{select:{grants:{select:{permission:{select:{key:true}}}}}}}}),
+  prisma.userRole.findMany({where:{userId},select:{role:{select:{grants:{select:{permission:{select:{key:true}}}}}}}}),
   prisma.twoFactor.findUnique({where:{userId},select:{verifiedAt:true}})
  ]);
  if(!account?.isActive||!account.emailVerifiedAt||!factor?.verifiedAt)throw new Error("FORBIDDEN");

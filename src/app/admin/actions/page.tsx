@@ -16,7 +16,7 @@ const reviewPermissions:Record<string,StaffPermissionKey>={"users:write":"users:
 export default async function ActionQueue(){
  try{await requireStaffPermission("audit:read")}catch{return <main className="p-10">Access denied</main>}
  const session=await getServerSession(authOptions),actor=session?.user?.id;
- const memberships=actor?await prisma.staffRoleMembership.findMany({where:{userId:actor},include:{role:{include:{grants:{include:{permission:true}}}}}}):[];
+ const memberships=actor?await prisma.userRole.findMany({where:{userId:actor},include:{role:{include:{grants:{include:{permission:true}}}}}}):[];
  const grants=new Set(memberships.flatMap(m=>m.role.grants.map(g=>g.permission.key)));
  const items=await prisma.staffAction.findMany({take:50,orderBy:{createdAt:"desc"},select:{id:true,resource:true,operation:true,targetId:true,reason:true,payload:true,status:true,createdAt:true,requestedBy:true,decidedBy:true}});
  const existingPayouts=await prisma.platformWithdrawal.findMany({where:{staffActionId:{in:items.map(item=>item.id)}},select:{id:true,staffActionId:true,status:true}});
