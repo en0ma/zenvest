@@ -10,7 +10,7 @@ test("all admin financial execution paths remain disabled",()=>{
 });
 test("explicit withdrawal dispatch requires separate opt-in and independent approved action",()=>{
  assert.deepEqual(guardFinancialExecution({...base,operation:"withdrawals:approve"},true),{allowed:true,reason:"WITHDRAWAL_DISPATCH_ALLOWED"});
- assert.equal(guardFinancialExecution({...base,operation:"balances:adjust"},true).allowed,false);
+ assert.equal(guardFinancialExecution({...base,operation:"wallets:operate"},true).allowed,false);
  assert.equal(guardFinancialExecution({...base,operation:"withdrawals:approve",approvedBy:"maker"},true).allowed,false);
  assert.equal(guardFinancialExecution({...base,operation:"withdrawals:approve",actionStatus:"PENDING"},true).allowed,false);
 });

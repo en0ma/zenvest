@@ -195,3 +195,5 @@ Every future commit must update this document. Do not merge or touch main withou
 2026-11-04: Fixed role test teardown to restrict temporary keys rather than reference a try-block local from finally.
 
 2026-11-04: Investor access now also checks effective role-based permissions (not just presence of baseline role): the permission union across memberships is evaluated server-side, and key own-account routes require allocations:create:own, withdrawals:create:own, deposits:create:own, portfolio:read:own. Existing owner-specific query filters remain unchanged.
+
+2026-11-04: Fixed remaining TS test reference to removed balances:adjust FinancialOperation. All policy tests and builds must pass before merge.
