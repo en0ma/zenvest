@@ -1,7 +1,7 @@
 import {isValidSolanaAddress} from "@/lib/solana-address";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { requireUser } from "@/lib/access";
+import { requireUser, requireInvestorPermission } from "@/lib/access";
 import { prisma } from "@/lib/db";
 
 import { WITHDRAWAL_FEE_USDC_MICROS } from "@/lib/withdrawal-fee";
@@ -19,7 +19,8 @@ function parseMicros(value: unknown): bigint | null {
 }
 
 export async function POST(request: Request) {
-  const user = await requireUser("withdrawals:create:own");
+  const user = await requireUser();
+  await requireInvestorPermission(user.id,"withdrawals:create:own");
   if (process.env.BLOCKRADAR_WITHDRAWALS_ENABLED !== "true") return NextResponse.json({error:"Withdrawals are not yet enabled"},{status:503});
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({error:"Invalid JSON"},{status:400}); }

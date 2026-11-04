@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { journeyLog } from "@/lib/journey-log";
-import { requireUser } from "@/lib/access";
+import { requireUser, requireInvestorPermission } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { blockradarConfig, createSolanaDepositAddress } from "@/lib/blockradar";
 
@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 
 export async function POST() {
   const startedAt = Date.now();
-  const user = await requireUser("deposits:create:own");
+  const user = await requireUser();
+  await requireInvestorPermission(user.id,"deposits:create:own");
   const log = (outcome: string, status: number, details: {walletStatus?:string;providerAddressId?:string} = {}) =>
     journeyLog(status>=500?"error":status>=400?"warn":"info","wallet_activation",outcome,{userId:user.id,status,durationMs:Date.now()-startedAt,...details});
   if (process.env.BLOCKRADAR_DEPOSITS_ENABLED !== "true") {

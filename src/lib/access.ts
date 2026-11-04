@@ -15,6 +15,11 @@ export async function requireUser(permission:InvestorPermission="account:access"
   return session.user;
 }
 
+export async function requireInvestorPermission(userId:string,permission:InvestorPermission){
+ const grant=await prisma.userRole.findFirst({where:{userId,role:{grants:{some:{permission:{key:permission}}}}},select:{userId:true}});
+ if(!grant)redirect("/login");
+}
+
 export async function requireAdmin() {
   try { await requireStaffPermission("roles:manage"); }
   catch { redirect("/dashboard"); }
