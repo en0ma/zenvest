@@ -10,7 +10,7 @@ try{
  if(mode==="seed"){
   const oldRole=await db.$queryRawUnsafe(`SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='users' AND column_name='role'`);
   assert.equal(oldRole.length,1,"pre-upgrade users.role must still exist");
-  await db.$executeRawUnsafe(`INSERT INTO "users" ("id","email","name","password_hash") VALUES ($1,$2,$3,$4)`,userId,"ci-rbac-preupgrade@example.invalid","Legacy RBAC user","disabled");
+  await db.$executeRawUnsafe(`INSERT INTO "users" ("id","email","name","password_hash","updated_at") VALUES ($1,$2,$3,$4,CURRENT_TIMESTAMP)`,userId,"ci-rbac-preupgrade@example.invalid","Legacy RBAC user","disabled");
   await db.$executeRawUnsafe(`INSERT INTO "StaffRole" ("id","key") VALUES ($1,$2)`,roleId,"ci-preupgrade-operations");
   await db.$executeRawUnsafe(`INSERT INTO "StaffPermission" ("id","key") VALUES ($1,$2)`,permissionId,"ci-preupgrade:read");
   await db.$executeRawUnsafe(`INSERT INTO "StaffRolePermission" ("roleId","permissionId") VALUES ($1,$2)`,roleId,permissionId);
