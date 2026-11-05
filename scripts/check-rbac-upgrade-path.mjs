@@ -22,6 +22,15 @@ try{
   throw Error("Expected unified RBAC migration stages were not found");
  run("npx",["prisma","migrate","deploy"]);
  run("node",["scripts/check-rbac-upgrade-fixture.mjs","seed"]);
+ // The preflight must accept intact legacy grants and fail closed when a
+ // preexisting baseline user role carries a privileged grant.
+ run("node",["scripts/check-rbac-preflight.mjs"]);
+ run("node",["scripts/check-rbac-upgrade-fixture.mjs","unsafe-seed"]);
+ const denied=spawnSync("node",["scripts/check-rbac-preflight.mjs"],{stdio:"inherit",env:process.env});
+ if(denied.error)throw denied.error;
+ if(denied.status===0)throw Error("Preflight accepted an unauthorized baseline staff grant");
+ run("node",["scripts/check-rbac-upgrade-fixture.mjs","unsafe-clear"]);
+ run("node",["scripts/check-rbac-preflight.mjs"]);
 }finally{
  for(const dir of moved)renameSync(join(held,dir),join(root,dir));
  rmdirSync(held);

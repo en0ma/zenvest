@@ -18,6 +18,15 @@ try{
   await db.$executeRawUnsafe(`INSERT INTO "StaffRolePermission" ("roleId","permissionId") VALUES ($1,$2)`,roleId,permissionId);
   await db.$executeRawUnsafe(`INSERT INTO "StaffRoleMembership" ("userId","roleId","assignedBy") VALUES ($1,$2,$3)`,userId,roleId,"ci-legacy-actor");
   console.log("Pre-cutover investor and ADMIN users, staff role, permission, grant and membership inserted");
+ }else if(mode==="unsafe-seed"){
+  // Deliberate invalid pre-cutover state; must never reach the migration.
+  await db.$executeRawUnsafe(`INSERT INTO "StaffRole" ("id","key") VALUES ('ci_unsafe_user_role','user')`);
+  await db.$executeRawUnsafe(`INSERT INTO "StaffPermission" ("id","key") VALUES ('ci_unsafe_privilege','roles:manage')`);
+  await db.$executeRawUnsafe(`INSERT INTO "StaffRolePermission" ("roleId","permissionId") VALUES ('ci_unsafe_user_role','ci_unsafe_privilege')`);
+ }else if(mode==="unsafe-clear"){
+  await db.$executeRawUnsafe(`DELETE FROM "StaffRolePermission" WHERE "roleId"='ci_unsafe_user_role'`);
+  await db.$executeRawUnsafe(`DELETE FROM "StaffRole" WHERE id='ci_unsafe_user_role'`);
+  await db.$executeRawUnsafe(`DELETE FROM "StaffPermission" WHERE id='ci_unsafe_privilege'`);
  }else if(mode==="verify"){
   const membership=await db.userRole.findUniqueOrThrow({where:{userId_roleId:{userId,roleId}},include:{role:{include:{grants:{include:{permission:true}}}}}});
   assert.equal(membership.assignedBy,"ci-legacy-actor","original assignment provenance survives");
