@@ -4,6 +4,8 @@ if(!process.env.DATABASE_URL?.includes("zenvest_ci"))throw Error("Refusing to ru
 const db=new PrismaClient();
 const prefix="ci_staff_approvals_";
 try{
+ const policy=await db.staffApprovalPolicy.findUniqueOrThrow({where:{id:"admin-actions"}});
+ assert.deepEqual(policy.additionalRoleKeys,[],"new databases must default to Super Admin-only approval");
  const [requester,checker]=await Promise.all(["maker","checker"].map((suffix)=>db.user.create({data:{id:prefix+suffix,email:prefix+suffix+"@example.invalid",name:"CI staff",passwordHash:"not-a-login"}})));
  const role=await db.role.create({data:{key:prefix+"finance"}});
  const perm=await db.permission.create({data:{key:prefix+"wallets:operate"}});

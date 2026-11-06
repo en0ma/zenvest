@@ -6,6 +6,7 @@ import {validateActionTarget} from "@/lib/staff-review-policy";
 import {validateProposalPayload} from "@/lib/staff-financial-limits";
 import {requireStaffPermission} from "@/lib/staff-access";
 import type {StaffPermissionKey} from "@/lib/staff-permissions";
+import {APPROVAL_POLICY_ID,canReviewAsRole} from "@/lib/staff-approval-policy";
 const supported:Record<string,StaffPermissionKey>={"users:write":"users:write","wallets:operate":"wallets:operate"};
 const proposal=z.object({resource:z.string(),operation:z.string(),targetId:z.string().min(1).max(128),reason:z.string().min(12).max(500),idempotencyKey:z.string().min(12).max(100),payload:z.unknown().optional()}).strict();
 export async function POST(request:NextRequest){
@@ -46,7 +47,14 @@ export async function POST(request:NextRequest){
 
 export async function GET(){
  try{
-  await requireStaffPermission("audit:read");
+  const actor=await requireStaffPermission("account:access");
+  const [memberships,policy]=await Promise.all([
+   prisma.userRole.findMany({where:{userId:actor},select:{role:{select:{key:true,grants:{select:{permission:{select:{key:true}}}}}}}}),
+   prisma.staffApprovalPolicy.findUnique({where:{id:APPROVAL_POLICY_ID},select:{additionalRoleKeys:true}})
+  ]);
+  const audit=memberships.some(m=>m.role.grants.some(g=>g.permission.key==="audit:read"));
+  if(!audit&&!canReviewAsRole(memberships.map(m=>m.role.key),policy?.additionalRoleKeys??[]))
+   return Response.json({error:"Access denied"},{status:403});
   const data=await prisma.staffAction.findMany({take:50,orderBy:{createdAt:"desc"},select:{id:true,resource:true,operation:true,targetId:true,reason:true,requestedBy:true,decidedBy:true,status:true,createdAt:true,decidedAt:true}});
   return Response.json({data},{headers:{"Cache-Control":"no-store"}});
  }catch{

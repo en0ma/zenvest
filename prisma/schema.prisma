@@ -617,6 +617,13 @@ model StaffAction {
   decidedAt DateTime?
   @@index([status,createdAt])
 }
+/** Singleton policy for approving sensitive staff actions; Super Admin is always eligible. */
+model StaffApprovalPolicy {
+  id String @id
+  additionalRoleKeys String[] @default([])
+  updatedAt DateTime @updatedAt
+}
+
 model StaffAudit {
   id String @id @default(cuid())
   actorId String

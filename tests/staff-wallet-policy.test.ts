@@ -26,10 +26,13 @@ test("invalid treasury state is always denied",()=>{
  assert.equal(planAdminWalletFunding("MASTER_TO_WALLET",1n,{...balances,DEPOSIT_FEE:-1n}).ok,false);
  assert.equal(planAdminWalletFunding("KALSHI_TO_MASTER",0n,balances).ok,false);
 });
-test("wallet payload is exact with strict USDC micro maximum",()=>{
+test("wallet payload is exact with optional USDC micro maximum",()=>{
  const valid={kind:"MASTER_TO_WALLET",amountUsdcMicros:"1000000",destinationAddress:wallet};
  assert.equal(validateAdminWalletTransfer(valid,"1000000").ok,true);
- assert.equal(validateAdminWalletTransfer(valid,undefined).ok,false);
+ assert.equal(validateAdminWalletTransfer(valid,undefined).ok,true);
+ assert.equal(validateAdminWalletTransfer(valid,"").ok,true);
+ assert.equal(validateAdminWalletTransfer(valid,"invalid").ok,false);
+ assert.equal(validateAdminWalletTransfer(valid,"0").ok,false);
  assert.equal(validateAdminWalletTransfer({...valid,amountUsdcMicros:"1000001"},"1000000").ok,false);
  assert.equal(validateAdminWalletTransfer({...valid,amountUsdcMicros:"1.5"},"1000000").ok,false);
  assert.equal(validateAdminWalletTransfer({...valid,source:"DEPOSIT"},"1000000").ok,false);
