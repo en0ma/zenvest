@@ -73,6 +73,7 @@ try{
  assert.equal((await signed("withdraw.success",success,process.env.BLOCK_RADAR_API_KEY)).status,200);
  assert.equal((await prisma.platformWithdrawal.findUniqueOrThrow({where:{id:firstId}})).status,"COMPLETED");
  assert.equal(await prisma.treasuryTransfer.count({where:{reference:platformWithdrawalReference(firstId)}}),1);
+ assert.equal((await prisma.treasuryTransfer.findUniqueOrThrow({where:{reference:platformWithdrawalReference(firstId)}})).direction,"M_BANK_WITHDRAWAL");
  assert.equal((await signed("withdraw.success",success,process.env.BLOCK_RADAR_API_KEY)).status,200);
  assert.equal(await prisma.treasuryTransfer.count({where:{reference:platformWithdrawalReference(firstId)}}),1,"callback replay cannot create duplicate ledger entry");
  assert.equal((await prisma.treasury.findUniqueOrThrow({where:{kind:"M_BANK"}})).amount,9999999n,"success does not double-debit reserved source");

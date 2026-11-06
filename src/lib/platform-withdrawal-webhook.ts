@@ -42,7 +42,7 @@ export async function handlePlatformWithdrawalWebhook(event:string,data:Record<s
   }
   if(target==="COMPLETED"){
    await tx.treasuryTransfer.create({data:{
-    direction:"PLATFORM_M_BANK",status:"COMPLETE",assetId:process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID,
+    direction:"M_BANK_WITHDRAWAL",status:"COMPLETE",assetId:process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID,
     asset:"USDC",amountUsdcMicros:record.amountUsdcMicros,feeUsdcMicros:0n,
     destinationWalletAddress:record.destinationAddress,network:"solana",
     masterWalletAddress:master.walletAddress,masterWalletId,

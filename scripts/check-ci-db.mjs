@@ -14,6 +14,10 @@ try {
  const buckets=await prisma.treasury.findMany({orderBy:{kind:"asc"}});
  assert.equal(buckets.length,6);
  assert.deepEqual(buckets.map(x=>x.kind).sort(),["ALLOCATE","DEPOSIT","DEPOSIT_FEE","K_BANK","M_BANK","WITHDRAWAL_FEE"].sort());
+ // Staff ledger directions must exist in the real database enum after migration.
+ const treasuryDirections=await prisma.$queryRawUnsafe('SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid WHERE t.typname=$1','TreasuryDirection');
+ for(const kind of ["K_BANK_DEPOSIT","K_BANK_WITHDRAWAL","M_BANK_DEPOSIT","M_BANK_WITHDRAWAL"])
+  assert.ok(treasuryDirections.some(row=>row.enumlabel===kind),"Missing staff treasury direction: "+kind);
  // Verify the real PostgreSQL enum values after migration.
  for(const name of ['WithdrawalStatus','PositionTransferStatus']){
   const rows=await prisma.$queryRawUnsafe('SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid WHERE t.typname=$1',name);

@@ -49,8 +49,19 @@ export async function settleVerifiedStaffKalshiReturn(input:{
   const credit=await tx.treasury.updateMany({where:{kind:"M_BANK",source:"MASTER_WALLET",
    walletId:master.walletId},data:{amount:{increment:input.amountUsdcMicros}}});
   if(credit.count!==1)throw Error("Master bank unavailable");
+  // One verified cross-custody movement produces TWO matched audit entries:
+  // K_BANK withdrawal + M_BANK deposit. No ledger entry is posted on a mock
+  // provider response; both are committed atomically with the custody balances.
+  await tx.treasuryTransfer.create({data:{
+   direction:"K_BANK_WITHDRAWAL",status:"COMPLETE",asset:"USDC",
+   amountUsdcMicros:input.amountUsdcMicros,feeUsdcMicros:0n,
+   network:"solana",masterWalletId:master.walletId,masterWalletAddress:master.walletAddress,
+   destinationWalletAddress:master.walletAddress,originExternalId:input.providerWithdrawalId,
+   destinationExternalId:input.masterReceiptId,
+   reference:`platform_kalshi_return:${item.id}:k_bank_withdrawal`,completedAt:new Date(),
+  }});
   const transfer=await tx.treasuryTransfer.create({data:{
-   direction:"PLATFORM_K_BANK",status:"COMPLETE",asset:"USDC",
+   direction:"M_BANK_DEPOSIT",status:"COMPLETE",asset:"USDC",
    amountUsdcMicros:input.amountUsdcMicros,feeUsdcMicros:0n,
    network:"solana",masterWalletId:master.walletId,masterWalletAddress:master.walletAddress,
    destinationWalletAddress:master.walletAddress,originExternalId:input.providerWithdrawalId,
