@@ -9,6 +9,10 @@ BEGIN
  END IF;
 END $$;
 
+-- Preserve the allocation-receipt uniqueness invariant: its partial-index
+-- predicate compares the old enum and must be rebuilt after type replacement.
+DROP INDEX "treasury_transactions_allocate_destination_receipt_unique";
+
 CREATE TYPE "TreasuryDirection_clean" AS ENUM (
  'DEPOSIT','ALLOCATE','DEALLOCATE','WITHDRAWAL',
  'K_BANK_DEPOSIT','K_BANK_WITHDRAWAL','M_BANK_DEPOSIT','M_BANK_WITHDRAWAL'
@@ -17,3 +21,8 @@ ALTER TABLE "treasury_transactions" ALTER COLUMN "direction"
  TYPE "TreasuryDirection_clean" USING ("direction"::text::"TreasuryDirection_clean");
 DROP TYPE "TreasuryDirection";
 ALTER TYPE "TreasuryDirection_clean" RENAME TO "TreasuryDirection";
+
+-- Restore the same unique constraint after enum recreation.
+CREATE UNIQUE INDEX "treasury_transactions_allocate_destination_receipt_unique"
+ON "treasury_transactions" ("destination_external_id")
+WHERE "direction" = 'ALLOCATE' AND "destination_external_id" IS NOT NULL;
