@@ -16,7 +16,7 @@ export async function POST(request:NextRequest){
  const input=parsed.data;const permission=supported[input.resource+":"+input.operation];
  if(!permission||!validateActionTarget(input.resource,input.operation))return Response.json({error:"Unsupported operation"},{status:400});
  const actor=await requireStaffPermission(permission,{requireFreshLogin:true});
- const validated=validateProposalPayload(input.resource,input.operation,input.payload,process.env.STAFF_BALANCE_ADJUSTMENT_LIMIT_MICROS,process.env.STAFF_WALLET_TRANSFER_LIMIT_MICROS);
+ const validated=validateProposalPayload(input.resource,input.operation,input.payload,process.env.STAFF_BALANCE_ADJUSTMENT_LIMIT_MICROS);
  if(!validated.ok)return Response.json({error:validated.reason},{status:422});
  const exists=await (async()=>{
   if(input.resource==="users")return Boolean(await prisma.user.findUnique({where:{id:input.targetId},select:{id:true}}));

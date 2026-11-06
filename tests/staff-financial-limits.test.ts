@@ -6,6 +6,6 @@ test("manual balance changes are categorically rejected",()=>{
   assert.deepEqual(validateProposalPayload("balances","adjust",payload,"100000000"),{ok:false,reason:"BALANCE_ADJUSTMENTS_NOT_ALLOWED"});
 });
 test("existing wallet transfer validation remains strict",()=>{
- assert.equal(validateProposalPayload("wallets","operate",{destination:"attacker"},"999","999").ok,false);
+ assert.equal(validateProposalPayload("wallets","operate",{destination:"attacker"},"999").ok,false);
  assert.equal(validateProposalPayload("users","write",{},"999").ok,true);
 });

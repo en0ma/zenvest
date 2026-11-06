@@ -26,17 +26,15 @@ test("invalid treasury state is always denied",()=>{
  assert.equal(planAdminWalletFunding("MASTER_TO_WALLET",1n,{...balances,DEPOSIT_FEE:-1n}).ok,false);
  assert.equal(planAdminWalletFunding("KALSHI_TO_MASTER",0n,balances).ok,false);
 });
-test("wallet payload is exact with optional USDC micro maximum",()=>{
+test("wallet transfer accepts positive integer micros without a configurable cap",()=>{
  const valid={kind:"MASTER_TO_WALLET",amountUsdcMicros:"1000000",destinationAddress:wallet};
- assert.equal(validateAdminWalletTransfer(valid,"1000000").ok,true);
- assert.equal(validateAdminWalletTransfer(valid,undefined).ok,true);
- assert.equal(validateAdminWalletTransfer(valid,"").ok,true);
- assert.equal(validateAdminWalletTransfer(valid,"invalid").ok,false);
- assert.equal(validateAdminWalletTransfer(valid,"0").ok,false);
- assert.equal(validateAdminWalletTransfer({...valid,amountUsdcMicros:"1000001"},"1000000").ok,false);
- assert.equal(validateAdminWalletTransfer({...valid,amountUsdcMicros:"1.5"},"1000000").ok,false);
- assert.equal(validateAdminWalletTransfer({...valid,source:"DEPOSIT"},"1000000").ok,false);
- assert.equal(validateAdminWalletTransfer({...valid,destinationAddress:"invalid"},"1000000").ok,false);
- assert.equal(validateAdminWalletTransfer({kind:"KALSHI_TO_MASTER",amountUsdcMicros:"1"},"1000000").ok,true);
- assert.equal(validateAdminWalletTransfer({kind:"KALSHI_TO_MASTER",amountUsdcMicros:"1",destinationAddress:wallet},"1000000").ok,false);
+ assert.equal(validateAdminWalletTransfer(valid).ok,true);
+ assert.equal(validateAdminWalletTransfer({...valid,amountUsdcMicros:"100000000000000000"}).ok,true);
+ assert.equal(validateAdminWalletTransfer({...valid,amountUsdcMicros:"1000000000000000000"}).ok,false);
+ assert.equal(validateAdminWalletTransfer({...valid,amountUsdcMicros:"0"}).ok,false);
+ assert.equal(validateAdminWalletTransfer({...valid,amountUsdcMicros:"1.5"}).ok,false);
+ assert.equal(validateAdminWalletTransfer({...valid,source:"DEPOSIT"}).ok,false);
+ assert.equal(validateAdminWalletTransfer({...valid,destinationAddress:"invalid"}).ok,false);
+ assert.equal(validateAdminWalletTransfer({kind:"KALSHI_TO_MASTER",amountUsdcMicros:"1"}).ok,true);
+ assert.equal(validateAdminWalletTransfer({kind:"KALSHI_TO_MASTER",amountUsdcMicros:"1",destinationAddress:wallet}).ok,false);
 });

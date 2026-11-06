@@ -19,7 +19,7 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{id:stri
  // Baseline access authenticates and verifies 2FA; reviewer eligibility is
  // independent of the permission needed to propose/execute the operation.
  const actor=await requireStaffPermission("account:access",{requireFreshLogin:true});
- const payloadCheck=validateProposalPayload(action.resource,action.operation,action.payload,process.env.STAFF_BALANCE_ADJUSTMENT_LIMIT_MICROS,process.env.STAFF_WALLET_TRANSFER_LIMIT_MICROS);
+ const payloadCheck=validateProposalPayload(action.resource,action.operation,action.payload,process.env.STAFF_BALANCE_ADJUSTMENT_LIMIT_MICROS);
  if(!payloadCheck.ok)return Response.json({error:"Action parameters violate current financial policy",code:payloadCheck.reason},{status:422});
  if(!canReviewAction({status:action.status,requestedBy:action.requestedBy,actorId:actor,hasPermission:true,isTwoFactorVerified:true,createdAt:action.createdAt}))return Response.json({error:"Approval policy denied"},{status:403});
  const state=parsed.data.approve?"APPROVED":"REJECTED";

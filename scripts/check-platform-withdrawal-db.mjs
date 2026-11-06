@@ -37,7 +37,6 @@ try{
  process.env.BLOCK_RADAR_MASTER_WALLET_ID=master.walletId;
  process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID="ci-usdc";
  process.env.BLOCKRADAR_SOLANA_USDC_MINT="ci-mint";
- process.env.STAFF_WALLET_TRANSFER_LIMIT_MICROS="50000000";
  process.env.STAFF_PLATFORM_WITHDRAWALS_ENABLED="false";
  for(const id of ids)await prisma.staffAction.create({data:{id,resource:"wallets",operation:"operate",targetId:master.id,reason:"CI independently approved platform withdrawal",idempotencyKey:id+"-key",requestedBy:"ci-maker",decidedBy:"ci-checker",status:"APPROVED",payload:{kind:"MASTER_TO_WALLET",amountUsdcMicros:"5000001",destinationAddress:addr}}});
  assert.equal((await call(ids[0])).status,503);
@@ -103,7 +102,7 @@ try{
  await prisma.staffAction.deleteMany({where:{id:{in:ids}}});
  for(const row of initialBuckets)await prisma.treasury.update({where:{kind:row.kind},data:{amount:row.amount}});
  await prisma.$disconnect();
- for(const key of ["BLOCK_RADAR_API_KEY","BLOCK_RADAR_MASTER_WALLET_ID","BLOCKRADAR_SOLANA_USDC_ASSET_ID","BLOCKRADAR_SOLANA_USDC_MINT","STAFF_PLATFORM_WITHDRAWALS_ENABLED","STAFF_WALLET_TRANSFER_LIMIT_MICROS"]){
+ for(const key of ["BLOCK_RADAR_API_KEY","BLOCK_RADAR_MASTER_WALLET_ID","BLOCKRADAR_SOLANA_USDC_ASSET_ID","BLOCKRADAR_SOLANA_USDC_MINT","STAFF_PLATFORM_WITHDRAWALS_ENABLED"]){
   if(saved[key]===undefined)delete process.env[key];else process.env[key]=saved[key];
  }
 }

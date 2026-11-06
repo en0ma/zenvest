@@ -11,7 +11,7 @@ export type AdminWalletTransferPayload={
 const positive=/^[1-9][0-9]{0,17}$/;
 const address=/^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 /** No arbitrary source, destination, asset or fee override accepted from browser. */
-export function validateAdminWalletTransfer(value:unknown,limit:unknown):
+export function validateAdminWalletTransfer(value:unknown):
  {ok:true;payload:AdminWalletTransferPayload}|{ok:false;reason:string}{
  if(!value||typeof value!=="object"||Array.isArray(value))return {ok:false,reason:"INVALID_WALLET_TRANSFER"};
  const data=value as Record<string,unknown>;
@@ -20,11 +20,6 @@ export function validateAdminWalletTransfer(value:unknown,limit:unknown):
  if(keys!==(data.kind==="MASTER_TO_WALLET"?"amountUsdcMicros,destinationAddress,kind":"amountUsdcMicros,kind"))
   return {ok:false,reason:"INVALID_WALLET_FIELDS"};
  if(typeof data.amountUsdcMicros!=="string"||!positive.test(data.amountUsdcMicros))return {ok:false,reason:"INVALID_WALLET_AMOUNT"};
- // A cap is optional. When supplied, an invalid cap fails closed.
- if(limit!==undefined&&limit!==null&&limit!==""){
-  if(typeof limit!=="string"||!positive.test(limit))return {ok:false,reason:"INVALID_WALLET_TRANSFER_LIMIT"};
-  if(BigInt(data.amountUsdcMicros)>BigInt(limit))return {ok:false,reason:"WALLET_TRANSFER_LIMIT_EXCEEDED"};
- }
  if(data.kind==="MASTER_TO_WALLET"&&(typeof data.destinationAddress!=="string"||!address.test(data.destinationAddress)))
   return {ok:false,reason:"INVALID_DESTINATION"};
  return {ok:true,payload:data.kind==="MASTER_TO_WALLET"?

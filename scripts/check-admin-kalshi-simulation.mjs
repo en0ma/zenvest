@@ -17,7 +17,7 @@ const {confirmVerifiedStaffKalshiWithdrawal}=await import("../src/lib/staff-kals
 const {processVerifiedBlockradarQueueItem}=await import("../src/lib/blockradar-webhook-processing.ts");
 const ids=["ci-kalshi-sim-valid","ci-kalshi-sim-unapproved","ci-kalshi-sim-excess","ci-kalshi-sim-injected"];
 const strategyId="ci_staff_kalshi_sim_strategy";
-const saved=Object.fromEntries(["STAFF_KALSHI_WITHDRAWALS_ENABLED","STAFF_WALLET_TRANSFER_LIMIT_MICROS","BLOCK_RADAR_API_KEY","BLOCK_RADAR_MASTER_WALLET_ID","BLOCKRADAR_SOLANA_USDC_MINT","BLOCKRADAR_DEPOSITS_ENABLED"].map(key=>[key,process.env[key]]));
+const saved=Object.fromEntries(["STAFF_KALSHI_WITHDRAWALS_ENABLED","BLOCK_RADAR_API_KEY","BLOCK_RADAR_MASTER_WALLET_ID","BLOCKRADAR_SOLANA_USDC_MINT","BLOCKRADAR_DEPOSITS_ENABLED"].map(key=>[key,process.env[key]]));
 const call=id=>POST(new Request("https://ci.invalid/api/admin/actions/"+id+"/kalshi-withdrawal",{method:"POST"}),{params:Promise.resolve({id})});
 let initialBank,initialMaster,initialMBank,initialMBankAddress,createdStrategy=false;
 try{
@@ -38,7 +38,6 @@ try{
  createdStrategy=true;
  process.env.BLOCK_RADAR_API_KEY="ci-kalshi-mock-only";
  process.env.BLOCK_RADAR_MASTER_WALLET_ID=master.walletId;
- process.env.STAFF_WALLET_TRANSFER_LIMIT_MICROS="30000000";
  process.env.BLOCKRADAR_SOLANA_USDC_MINT="ci-mint";
  process.env.BLOCKRADAR_DEPOSITS_ENABLED="false";
  process.env.STAFF_KALSHI_WITHDRAWALS_ENABLED="false";

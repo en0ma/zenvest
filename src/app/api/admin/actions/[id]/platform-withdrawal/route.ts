@@ -22,7 +22,7 @@ export async function POST(_request:Request,{params}:{params:Promise<{id:string}
    return Response.json({error:"Wallet action not found"},{status:404});
   if(action.status!=="APPROVED"||!action.decidedBy||action.decidedBy===action.requestedBy)
    return Response.json({error:"Independent approval required"},{status:409});
-  const validated=validateAdminWalletTransfer(action.payload,process.env.STAFF_WALLET_TRANSFER_LIMIT_MICROS);
+  const validated=validateAdminWalletTransfer(action.payload);
   if(!validated.ok||validated.payload.kind!=="MASTER_TO_WALLET"||!validated.payload.destinationAddress)
    return Response.json({error:"Unsupported platform wallet transfer"},{status:422});
   const amount=BigInt(validated.payload.amountUsdcMicros);
