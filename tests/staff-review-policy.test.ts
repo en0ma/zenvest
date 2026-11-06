@@ -4,6 +4,8 @@ import {canReviewAction,validateActionTarget} from "../src/lib/staff-review-poli
 const base={status:"PENDING" as const,requestedBy:"maker",actorId:"checker",hasPermission:true,isTwoFactorVerified:true,createdAt:new Date()};
 test("independent authorized approver may decide pending actions",()=>assert.equal(canReviewAction(base),true));
 test("same actor may not approve their own action",()=>assert.equal(canReviewAction({...base,actorId:"maker"}),false));
+test("verified Super Admin may authorize own action",()=>assert.equal(canReviewAction({...base,actorId:"maker",isSuperAdmin:true}),true));
+test("Super Admin still cannot approve expired actions",()=>assert.equal(canReviewAction({...base,actorId:"maker",isSuperAdmin:true,createdAt:new Date(Date.now()-REVIEW_WINDOW_MS-1000)}),false));
 test("missing permission prevents approval",()=>assert.equal(canReviewAction({...base,hasPermission:false}),false));
 test("missing second factor prevents approval",()=>assert.equal(canReviewAction({...base,isTwoFactorVerified:false}),false));
 test("decided or executed actions cannot be reviewed again",()=>{

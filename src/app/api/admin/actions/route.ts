@@ -33,11 +33,15 @@ export async function POST(request:NextRequest){
  })();
  if(!exists)return Response.json({error:"Target not found"},{status:404});
  const record=await prisma.$transaction(async tx=>{
- const action=await tx.staffAction.create({data:{resource:input.resource,operation:input.operation,targetId:input.targetId,reason:input.reason,idempotencyKey:input.idempotencyKey,requestedBy:actor,payload:validated.payload}});
- await tx.staffAudit.create({data:{actorId:actor,action:"proposed",resource:input.resource,targetId:input.targetId}});
+ // A canonical Super Admin membership permits direct authorization without
+ // seeking approval from a second account; execution is always a separate step.
+ const superAdmin=await tx.userRole.findFirst({where:{userId:actor,role:{key:"super-admin"}},select:{userId:true}});
+ const action=await tx.staffAction.create({data:{resource:input.resource,operation:input.operation,targetId:input.targetId,reason:input.reason,idempotencyKey:input.idempotencyKey,requestedBy:actor,payload:validated.payload,
+  ...(superAdmin?{status:"APPROVED" as const,decidedBy:actor,decidedAt:new Date()}:{})}});
+ await tx.staffAudit.create({data:{actorId:actor,action:superAdmin?"super-admin.self-approved":"proposed",resource:input.resource,targetId:input.targetId}});
  return action;
  });
- return Response.json({id:record.id,status:record.status,execution:"NOT_EXECUTED"},{status:201});
+ return Response.json({id:record.id,status:record.status,execution:"NOT_EXECUTED",approvalMode:record.decidedBy===actor?"SUPER_ADMIN_SELF_APPROVED":"REVIEW_REQUIRED"},{status:201});
  }catch(error){
  if(error&&typeof error==="object"&&"code" in error&&error.code==="P2002")return Response.json({error:"Duplicate idempotency key"},{status:409});
  return staffWriteError(error);

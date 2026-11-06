@@ -4,6 +4,7 @@ import {blockradarConfig} from "@/lib/blockradar";
 import {validateAdminWalletTransfer,planAdminWalletFunding,MASTER_WALLET_SPEND_KINDS} from "@/lib/staff-wallet-policy";
 import {requireStaffPermission} from "@/lib/staff-access";
 import {staffWriteError} from "@/lib/staff-write-error";
+import {isApprovedActionAuthorized} from "@/lib/staff-approval-policy";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 /** Reserve platform-only treasury and persist a payout without contacting custody.
@@ -20,13 +21,18 @@ export async function POST(_request:Request,{params}:{params:Promise<{id:string}
   const action=await prisma.staffAction.findUnique({where:{id}});
   if(!action||action.resource!=="wallets"||action.operation!=="operate")
    return Response.json({error:"Wallet action not found"},{status:404});
-  if(action.status!=="APPROVED"||!action.decidedBy||action.decidedBy===action.requestedBy)
-   return Response.json({error:"Independent approval required"},{status:409});
+  if(action.status!=="APPROVED"||!action.decidedBy)
+   return Response.json({error:"Action authorization required"},{status:409});
   const validated=validateAdminWalletTransfer(action.payload);
   if(!validated.ok||validated.payload.kind!=="MASTER_TO_WALLET"||!validated.payload.destinationAddress)
    return Response.json({error:"Unsupported platform wallet transfer"},{status:422});
   const amount=BigInt(validated.payload.amountUsdcMicros);
   const reserved=await prisma.$transaction(async tx=>{
+   // Self-approval is exceptional and remains valid only while the maker
+   // still holds the canonical Super Admin role at execution time.
+   const superAdmin=action.requestedBy===action.decidedBy?
+    await tx.userRole.findFirst({where:{userId:action.requestedBy,role:{key:"super-admin"}},select:{userId:true}}):null;
+   if(!isApprovedActionAuthorized(action,Boolean(superAdmin)))return null;
    const master=await tx.treasury.findUnique({where:{kind:"DEPOSIT"}});
    if(!master||master.id!==action.targetId||master.walletId!==walletId||master.source!=="MASTER_WALLET"||master.asset!=="USDC"||master.network!=="solana")return null;
    const rows=await tx.treasury.findMany({where:{kind:{in:[...MASTER_WALLET_SPEND_KINDS,"K_BANK"]}}});
@@ -48,7 +54,7 @@ export async function POST(_request:Request,{params}:{params:Promise<{id:string}
     const updated=await tx.treasury.updateMany({where:{kind,source:"MASTER_WALLET",walletId,amount:{gte:value}},data:{amount:{decrement:value}}});
     if(updated.count!==1)throw Error("Platform treasury changed during reservation");
    }
-   const claimed=await tx.staffAction.updateMany({where:{id,status:"APPROVED",decidedBy:{not:null},requestedBy:{not:action.decidedBy!},resource:"wallets",operation:"operate"},data:{status:"EXECUTED"}});
+   const claimed=await tx.staffAction.updateMany({where:{id,status:"APPROVED",decidedBy:action.decidedBy,requestedBy:action.requestedBy,resource:"wallets",operation:"operate"},data:{status:"EXECUTED"}});
    if(claimed.count!==1)throw Error("Approval already consumed");
    const item=await tx.platformWithdrawal.create({data:{
     staffActionId:id,destinationAddress:validated.payload.destinationAddress!,amountUsdcMicros:amount,

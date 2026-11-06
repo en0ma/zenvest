@@ -32,7 +32,7 @@ export default function ActionProposalForm({allowed}:{allowed:string[]}){
    const response=await fetch("/api/admin/actions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({resource,operation,targetId:targetId.trim(),reason:reason.trim(),payload,idempotencyKey:crypto.randomUUID()})});
    const body=await response.json().catch(()=>({}));
    if(!response.ok){if(response.status===401&&body.code==="STAFF_REAUTH_REQUIRED")setReauth(true);throw new Error(typeof body.error==="string"?body.error:"Unable to submit request");}
-   setSuccess("Request queued for independent review. No financial operation was executed.");
+   setSuccess(body.approvalMode==="SUPER_ADMIN_SELF_APPROVED"?"Super Admin action authorized. No transfer was executed; use its execution control.":"Request queued for independent review. No financial operation was executed.");
    setReason("");router.refresh();
   }catch(e){setError(e instanceof Error?e.message:"Request failed")}finally{setBusy(false)}
  }
@@ -42,7 +42,7 @@ export default function ActionProposalForm({allowed}:{allowed:string[]}){
   <label className="block text-sm font-medium">Operation<select className="mt-1 w-full rounded border p-2" value={choices.some(c=>c.value===selected)?selected:choices[0].value} onChange={e=>setSelected(e.target.value)}>{choices.map(c=><option key={c.value} value={c.value}>{c.label}</option>)}</select></label>
   <label className="block text-sm font-medium">Exact target ID<input required maxLength={128} className="mt-1 w-full rounded border p-2" value={targetId} onChange={e=>setTargetId(e.target.value)}/></label>
   {selected==="wallets:operate"&&<div className="space-y-3 rounded-lg border p-4">
-   <p className="text-sm text-slate-600">All amounts are integer USDC micros. Both operations require independent approval. Kalshi uses the currently mocked investor withdrawal adapter; acceptance means Processing, not settlement.</p>
+   <p className="text-sm text-slate-600">All amounts are integer USDC micros. Other staff require independent approval; Super Admin actions are self-authorized. Kalshi uses the currently mocked investor withdrawal adapter; acceptance means Processing, not settlement.</p>
    <label className="block text-sm font-medium">Wallet transfer<select className="mt-1 w-full rounded border p-2" value={walletKind} onChange={e=>{setWalletKind(e.target.value as "MASTER_TO_WALLET"|"KALSHI_TO_MASTER");setTargetId("");}}><option value="MASTER_TO_WALLET">Master → external Solana wallet (platform funds only)</option><option value="KALSHI_TO_MASTER">Kalshi strategy → master (K_BANK → M_BANK)</option></select></label>
    <p className="text-xs text-slate-600">{walletKind==="MASTER_TO_WALLET"?"Target ID above: DEPOSIT treasury row ID of the configured master wallet. Allowed funds: M_BANK + DEPOSIT_FEE + WITHDRAWAL_FEE only.":"Target ID above: Kalshi strategy ID. Allowed source: K_BANK only. Destination is fixed to the configured master wallet."}</p>
    {walletKind==="MASTER_TO_WALLET"&&<label className="block text-sm font-medium">Destination Solana wallet<input required maxLength={44} className="mt-1 w-full rounded border p-2" value={destinationAddress} onChange={e=>setDestinationAddress(e.target.value)} placeholder="Solana wallet address"/></label>}

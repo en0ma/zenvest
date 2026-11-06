@@ -18,7 +18,9 @@ export default async function ActionQueue(){
  const memberships=actor?await prisma.userRole.findMany({where:{userId:actor},include:{role:{include:{grants:{include:{permission:true}}}}}}):[];
  const grants=new Set(memberships.flatMap(m=>m.role.grants.map(g=>g.permission.key)));
  const policy=await prisma.staffApprovalPolicy.findUnique({where:{id:APPROVAL_POLICY_ID},select:{additionalRoleKeys:true}});
- const reviewer=canReviewAsRole(memberships.map(m=>m.role.key),policy?.additionalRoleKeys??[]);
+ const keys=memberships.map(m=>m.role.key);
+ const reviewer=canReviewAsRole(keys,policy?.additionalRoleKeys??[]);
+ const isSuperAdmin=keys.includes("super-admin");
  if(!reviewer&&!grants.has("audit:read"))return <main className="p-10">Access denied</main>;
  const items=await prisma.staffAction.findMany({take:50,orderBy:{createdAt:"desc"},select:{id:true,resource:true,operation:true,targetId:true,reason:true,payload:true,status:true,createdAt:true,requestedBy:true,decidedBy:true}});
  const existingPayouts=await prisma.platformWithdrawal.findMany({where:{staffActionId:{in:items.map(item=>item.id)}},select:{id:true,staffActionId:true,status:true}});
@@ -28,13 +30,13 @@ export default async function ActionQueue(){
  return <main className="min-h-screen bg-slate-50 p-8 text-[#14253D]"><div className="mx-auto max-w-6xl">
   <Link href="/admin" className="text-violet-700">← Operations</Link>
   <h1 className="mt-6 text-3xl font-bold">Financial action review queue</h1>
-  <p className="mt-3 text-slate-600">Two-person approval. Super Admin reviews by default; other eligible reviewer roles are configured by Super Admin. Transfers require explicit execution. Kalshi withdrawals enter Processing on provider acceptance; treasury moves only after verified settlement.</p>
+  <p className="mt-3 text-slate-600">Super Admin proposals are self-authorized; other admins require independent approval by an eligible reviewer. Transfers still require explicit execution. Kalshi withdrawals enter Processing on provider acceptance; treasury moves only after verified settlement.</p>
   <ActionProposalForm allowed={Object.values(reviewPermissions).filter(key=>grants.has(key))}/>
   <div className="mt-8 overflow-x-auto rounded-xl border bg-white"><table className="w-full text-left text-sm">
   <thead className="bg-slate-100"><tr>{["Operation","Target","Parameters","Reason","Status","Review"].map(x=><th key={x} className="p-3">{x}</th>)}</tr></thead>
   <tbody>{items.map(item=>{
    const permission=reviewPermissions[item.resource+":"+item.operation];
-   const canDecide=Boolean(permission&&reviewer&&actor&&actor!==item.requestedBy&&item.status==="PENDING"&&isWithinReviewWindow(item.createdAt));
+   const canDecide=Boolean(permission&&reviewer&&actor&&(isSuperAdmin||actor!==item.requestedBy)&&item.status==="PENDING"&&isWithinReviewWindow(item.createdAt));
    return <tr key={item.id} className="border-t align-top"><td className="p-3">{item.resource} / {item.operation}</td><td className="p-3">{item.targetId}</td><td className="max-w-xs p-3"><pre className="whitespace-pre-wrap break-all text-xs">{JSON.stringify(item.payload)}</pre></td><td className="max-w-xs p-3">{item.reason}</td><td className="p-3">{item.status}</td><td className="p-3">{item.status==="PENDING"?<ReviewControls id={item.id} canDecide={canDecide}/>:item.resource==="wallets"&&item.operation==="operate"&&grants.has("wallets:operate")&&typeof item.payload==="object"&&item.payload!==null&&!Array.isArray(item.payload)&&"kind" in item.payload&&item.payload.kind==="MASTER_TO_WALLET"&&(item.status==="APPROVED"||item.status==="EXECUTED"&&payoutByAction.has(item.id))?<PlatformWithdrawalControls actionId={item.id} withdrawalId={payoutByAction.get(item.id)?.id} status={payoutByAction.get(item.id)?.status}/>:item.resource==="wallets"&&item.operation==="operate"&&(item.status==="APPROVED"||item.status==="EXECUTED"&&kalshiByAction.has(item.id))&&grants.has("wallets:operate")&&typeof item.payload==="object"&&item.payload!==null&&!Array.isArray(item.payload)&&"kind" in item.payload&&item.payload.kind==="KALSHI_TO_MASTER"?kalshiByAction.has(item.id)?<span className="text-xs text-slate-700">Kalshi withdrawal: {kalshiByAction.get(item.id)?.status}</span>:<KalshiWithdrawalControl id={item.id}/>:<span>Reviewed</span>}</td></tr>
   })}</tbody></table>
   {items.length===0&&<p className="p-6 text-slate-500">No review requests.</p>}

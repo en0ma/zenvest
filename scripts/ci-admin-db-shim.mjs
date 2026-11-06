@@ -1,4 +1,4 @@
-export const state={deny:false,actor:"ci-maker",existing:true,decision:"PENDING",logs:[],actions:[],granted:[],freshRequired:false,revocations:0,sessionBumps:0,reviewerRoles:[],policyChanges:0,reviewerRoleByActor:{"ci-maker":"super-admin","ci-checker":"super-admin","ci-admin":"super-admin"}};
+export const state={deny:false,actor:"ci-maker",existing:true,decision:"PENDING",logs:[],actions:[],granted:[],freshRequired:false,revocations:0,sessionBumps:0,reviewerRoles:[],policyChanges:0,reviewerRoleByActor:{"ci-maker":"operations","ci-checker":"super-admin","ci-admin":"super-admin"}};
 const list=()=>[{id:"ci-id",userId:"ci-user",walletId:"ci-wallet",handle:"ci",unallocated:1000000n,amountUsdcMicros:1000000n,status:"PENDING",key:"support"}];
 const lookup={findMany:async()=>list(),findUnique:async()=>state.existing?{id:"ci-id",isActive:true,emailVerifiedAt:new Date(),status:state.decision,createdAt:new Date(),requestedBy:"ci-maker",resource:"users",operation:"write",targetId:"ci-user"}:null};
 export const prisma={

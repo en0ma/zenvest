@@ -10,7 +10,7 @@ test("Kalshi returns can only resolve the registered master wallet destination",
 });
 test("Kalshi proposal cannot include a destination, treasury source, or bucket override",()=>{
  const input={kind:"KALSHI_TO_MASTER",amountUsdcMicros:"1000000"};
- assert.equal(validateAdminWalletTransfer(input,"5000000").ok,true);
+ assert.equal(validateAdminWalletTransfer(input).ok,true);
  for(const mutation of [{destinationAddress:master.walletAddress},{source:"DEPOSIT"},{sourceBucket:"M_BANK"},{destinationBucket:"DEPOSIT"},{walletId:"another"}])
-  assert.equal(validateAdminWalletTransfer({...input,...mutation},"5000000").ok,false);
+  assert.equal(validateAdminWalletTransfer({...input,...mutation}).ok,false);
 });

@@ -21,17 +21,22 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{id:stri
  const actor=await requireStaffPermission("account:access",{requireFreshLogin:true});
  const payloadCheck=validateProposalPayload(action.resource,action.operation,action.payload,process.env.STAFF_BALANCE_ADJUSTMENT_LIMIT_MICROS);
  if(!payloadCheck.ok)return Response.json({error:"Action parameters violate current financial policy",code:payloadCheck.reason},{status:422});
- if(!canReviewAction({status:action.status,requestedBy:action.requestedBy,actorId:actor,hasPermission:true,isTwoFactorVerified:true,createdAt:action.createdAt}))return Response.json({error:"Approval policy denied"},{status:403});
+ // Restrict status and age early; role-dependent self-approval is checked
+ // again against live database roles inside the transaction.
+ if(action.status!=="PENDING"||!canReviewAction({status:action.status,requestedBy:action.requestedBy,actorId:actor,hasPermission:true,isTwoFactorVerified:true,isSuperAdmin:true,createdAt:action.createdAt}))return Response.json({error:"Approval policy denied"},{status:403});
  const state=parsed.data.approve?"APPROVED":"REJECTED";
  const cutoff=new Date(Date.now()-24*60*60*1000);
  const outcome=await prisma.$transaction(async tx=>{
  const policy=await tx.staffApprovalPolicy.findUnique({where:{id:APPROVAL_POLICY_ID},select:{additionalRoleKeys:true}});
  // If configuration is absent or corrupted, fall back to Super Admin only.
  const roles=await tx.userRole.findMany({where:{userId:actor},select:{role:{select:{key:true}}}});
- if(!canReviewAsRole(roles.map(item=>item.role.key),policy?.additionalRoleKeys??[]))return "FORBIDDEN";
- const result=await tx.staffAction.updateMany({where:{id,status:"PENDING",createdAt:{gte:cutoff,lte:new Date()},requestedBy:{not:actor}},data:{status:state,decidedBy:actor,decidedAt:new Date()}});
+ const roleKeys=roles.map(item=>item.role.key);
+ if(!canReviewAsRole(roleKeys,policy?.additionalRoleKeys??[]))return "FORBIDDEN";
+ const isSuperAdmin=roleKeys.includes("super-admin");
+ if(!canReviewAction({status:action.status,requestedBy:action.requestedBy,actorId:actor,hasPermission:true,isTwoFactorVerified:true,isSuperAdmin,createdAt:action.createdAt}))return "FORBIDDEN";
+ const result=await tx.staffAction.updateMany({where:{id,status:"PENDING",createdAt:{gte:cutoff,lte:new Date()},...(isSuperAdmin?{}:{requestedBy:{not:actor}})},data:{status:state,decidedBy:actor,decidedAt:new Date()}});
  if(result.count!==1)return "CONFLICT";
- await tx.staffAudit.create({data:{actorId:actor,action:state,resource:action.resource,targetId:action.targetId}});
+ await tx.staffAudit.create({data:{actorId:actor,action:isSuperAdmin&&action.requestedBy===actor?"super-admin.self-"+state.toLowerCase():state,resource:action.resource,targetId:action.targetId}});
  return "DECIDED";
  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
  if(outcome==="FORBIDDEN")return Response.json({error:"Super Admin or an authorized reviewer role is required"},{status:403});

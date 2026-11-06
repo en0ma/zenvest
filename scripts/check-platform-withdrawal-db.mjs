@@ -20,7 +20,8 @@ const {platformWithdrawalReference}=await import("../src/lib/blockradar-payout.t
 const saved={...process.env},realFetch=globalThis.fetch;
 const ids=["ci-platform-action-success","ci-platform-action-failed","ci-platform-action-unknown"];
 const addr="11111111111111111111111111111111";
-let initialBuckets=[],created=[];
+let initialBuckets=[],created=[],superAdminRoleId=null,createdSuperAdminRole=false,superAdminMembership=false;
+const privilegedIds=["ci-platform-self-authorized","ci-platform-self-revoked"];
 const call=(id)=>reserve(new Request("https://ci.invalid/api/admin/actions/"+id+"/platform-withdrawal",{method:"POST"}),{params:Promise.resolve({id})});
 const signed=async(event,data,key)=>{
  const raw=JSON.stringify({event,data});
@@ -93,13 +94,35 @@ try{
  assert.equal((await prisma.platformWithdrawal.findUniqueOrThrow({where:{id:unknownId}})).status,"REVIEW");
  assert.equal(await processPendingPlatformWithdrawal(unknownId),"already_claimed","unknown payout must never be resubmitted");
  assert.equal(submissions,3,"exactly one request per durable platform withdrawal");
+ // A Super Admin may authorize their own treasury proposal, but loses that
+ // authority immediately when their Super Admin membership is revoked.
+ const foundRole=await prisma.role.findUnique({where:{key:"super-admin"}});
+ if(foundRole)superAdminRoleId=foundRole.id;
+ else{superAdminRoleId=(await prisma.role.create({data:{key:"super-admin"}})).id;createdSuperAdminRole=true;}
+ await prisma.userRole.create({data:{userId:"ci_test_user",roleId:superAdminRoleId,assignedBy:"ci-test"}});
+ superAdminMembership=true;
+ for(const id of privilegedIds)await prisma.staffAction.create({data:{
+  id,resource:"wallets",operation:"operate",targetId:master.id,
+  reason:"CI super admin self-authorized platform payout",idempotencyKey:id+"-key",
+  requestedBy:"ci_test_user",decidedBy:"ci_test_user",status:"APPROVED",
+  payload:{kind:"MASTER_TO_WALLET",amountUsdcMicros:"1000000",destinationAddress:addr}
+ }});
+ const selfResponse=await call(privilegedIds[0]);
+ assert.equal(selfResponse.status,201,"current Super Admin self-approval permits platform reservation");
+ created.push((await selfResponse.json()).id);
+ await prisma.userRole.delete({where:{userId_roleId:{userId:"ci_test_user",roleId:superAdminRoleId}}});
+ superAdminMembership=false;
+ assert.equal((await call(privilegedIds[1])).status,409,"revoked Super Admin cannot execute prior self-approval");
+
  console.log("Platform treasury reservations, Blockradar dispatch and HMAC-verified replay-safe settlement passed");
 }finally{
  globalThis.fetch=realFetch;
  await prisma.treasuryTransfer.deleteMany({where:{reference:{startsWith:"platform_withdrawal:"}}});
  await prisma.staffAudit.deleteMany({where:{targetId:{in:created}}});
- await prisma.platformWithdrawal.deleteMany({where:{staffActionId:{in:ids}}});
- await prisma.staffAction.deleteMany({where:{id:{in:ids}}});
+ await prisma.platformWithdrawal.deleteMany({where:{staffActionId:{in:[...ids,...privilegedIds]}}});
+ await prisma.staffAction.deleteMany({where:{id:{in:[...ids,...privilegedIds]}}});
+ if(superAdminMembership)await prisma.userRole.deleteMany({where:{userId:"ci_test_user",roleId:superAdminRoleId}});
+ if(createdSuperAdminRole&&superAdminRoleId)await prisma.role.deleteMany({where:{id:superAdminRoleId}});
  for(const row of initialBuckets)await prisma.treasury.update({where:{kind:row.kind},data:{amount:row.amount}});
  await prisma.$disconnect();
  for(const key of ["BLOCK_RADAR_API_KEY","BLOCK_RADAR_MASTER_WALLET_ID","BLOCKRADAR_SOLANA_USDC_ASSET_ID","BLOCKRADAR_SOLANA_USDC_MINT","STAFF_PLATFORM_WITHDRAWALS_ENABLED"]){

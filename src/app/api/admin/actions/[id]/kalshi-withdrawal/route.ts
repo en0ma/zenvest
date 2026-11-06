@@ -3,6 +3,7 @@ import {prisma} from "@/lib/db";
 import {blockradarConfig} from "@/lib/blockradar";
 import {requireStaffPermission} from "@/lib/staff-access";
 import {staffWriteError} from "@/lib/staff-write-error";
+import {isApprovedActionAuthorized} from "@/lib/staff-approval-policy";
 import {validateAdminWalletTransfer,resolveKalshiReturnDestination} from "@/lib/staff-wallet-policy";
 import {submitMockKalshiWithdrawal} from "@/lib/kalshi-withdrawal-mock";
 export const runtime="nodejs";
@@ -20,14 +21,17 @@ export async function POST(_request:Request,{params}:{params:Promise<{id:string}
   const action=await prisma.staffAction.findUnique({where:{id}});
   if(!action||action.resource!=="wallets"||action.operation!=="operate")
    return Response.json({error:"Wallet action not found"},{status:404});
-  if(action.status!=="APPROVED"||!action.decidedBy||action.decidedBy===action.requestedBy)
-   return Response.json({error:"Independent approval required"},{status:409});
+  if(action.status!=="APPROVED"||!action.decidedBy)
+   return Response.json({error:"Action authorization required"},{status:409});
   const check=validateAdminWalletTransfer(action.payload);
   if(!check.ok||check.payload.kind!=="KALSHI_TO_MASTER")
    return Response.json({error:"Invalid Kalshi withdrawal"},{status:422});
   const {walletId}=blockradarConfig();
   const amount=BigInt(check.payload.amountUsdcMicros);
   const claimed=await prisma.$transaction(async tx=>{
+   const superAdmin=action.requestedBy===action.decidedBy?
+    await tx.userRole.findFirst({where:{userId:action.requestedBy,role:{key:"super-admin"}},select:{userId:true}}):null;
+   if(!isApprovedActionAuthorized(action,Boolean(superAdmin)))return null;
    const [master,strategy,bank,outstanding]=await Promise.all([
     tx.treasury.findUnique({where:{kind:"DEPOSIT"}}),
     tx.strategy.findUnique({where:{id:action.targetId}}),
@@ -40,7 +44,7 @@ export async function POST(_request:Request,{params}:{params:Promise<{id:string}
    if(!destination)return null;
    const changed=await tx.staffAction.updateMany({where:{
     id,status:"APPROVED",resource:"wallets",operation:"operate",
-    requestedBy:{not:action.decidedBy!},decidedBy:action.decidedBy!
+    requestedBy:action.requestedBy,decidedBy:action.decidedBy
    },data:{status:"EXECUTED"}});
    if(changed.count!==1)return null;
    const row=await tx.staffKalshiWithdrawal.create({data:{

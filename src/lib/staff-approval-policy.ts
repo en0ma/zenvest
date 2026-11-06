@@ -8,3 +8,9 @@ export function canReviewAsRole(roleKeys:readonly string[],additionalRoles:reado
  return roleKeys.includes("super-admin")||roleKeys.some(key=>
   CONFIGURABLE_APPROVER_ROLES.some(allowed=>allowed===key)&&additionalRoles.includes(key));
 }
+
+/** Self-approval never qualifies without a current, canonical Super Admin role. */
+export function isApprovedActionAuthorized(action:{status:string;requestedBy:string;decidedBy:string|null},requesterIsSuperAdmin:boolean):boolean{
+ return action.status==="APPROVED"&&Boolean(action.decidedBy)&&
+  (action.decidedBy!==action.requestedBy||requesterIsSuperAdmin);
+}

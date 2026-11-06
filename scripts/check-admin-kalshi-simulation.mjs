@@ -19,7 +19,8 @@ const ids=["ci-kalshi-sim-valid","ci-kalshi-sim-unapproved","ci-kalshi-sim-exces
 const strategyId="ci_staff_kalshi_sim_strategy";
 const saved=Object.fromEntries(["STAFF_KALSHI_WITHDRAWALS_ENABLED","BLOCK_RADAR_API_KEY","BLOCK_RADAR_MASTER_WALLET_ID","BLOCKRADAR_SOLANA_USDC_MINT","BLOCKRADAR_DEPOSITS_ENABLED"].map(key=>[key,process.env[key]]));
 const call=id=>POST(new Request("https://ci.invalid/api/admin/actions/"+id+"/kalshi-withdrawal",{method:"POST"}),{params:Promise.resolve({id})});
-let initialBank,initialMaster,initialMBank,initialMBankAddress,createdStrategy=false;
+let initialBank,initialMaster,initialMBank,initialMBankAddress,createdStrategy=false,superAdminRoleId=null,createdSuperAdminRole=false,superAdminMembership=false;
+const privilegedIds=["ci-kalshi-self-authorized","ci-kalshi-self-revoked"];
 try{
  const master=await db.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}});
  initialMaster={walletAddress:master.walletAddress};
@@ -128,14 +129,36 @@ try{
  assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"M_BANK"}})).amount,initialMBank+5000000n);
  assert.equal((await db.user.findUniqueOrThrow({where:{id:"ci_test_user"}})).unallocated,investorBefore);
 
+
+ // Verify that a Super Admin may self-authorize the mocked Kalshi return,
+ // but a revoked Super Admin cannot execute an outstanding self-approval.
+ const role=await db.role.findUnique({where:{key:"super-admin"}});
+ if(role)superAdminRoleId=role.id;
+ else{superAdminRoleId=(await db.role.create({data:{key:"super-admin"}})).id;createdSuperAdminRole=true;}
+ await db.userRole.create({data:{userId:"ci_test_user",roleId:superAdminRoleId,assignedBy:"ci-test"}});
+ superAdminMembership=true;
+ for(const id of privilegedIds)await db.staffAction.create({data:{
+  id,resource:"wallets",operation:"operate",targetId:strategyId,
+  reason:"CI super admin self-authorized mocked Kalshi return",idempotencyKey:id+"-key",
+  requestedBy:"ci_test_user",decidedBy:"ci_test_user",status:"APPROVED",
+  payload:{kind:"KALSHI_TO_MASTER",amountUsdcMicros:"1000000"}
+ }});
+ const approvedSelf=await call(privilegedIds[0]);
+ assert.equal(approvedSelf.status,200,"Super Admin self-approval permits mocked Kalshi operation");
+ assert.equal((await approvedSelf.json()).settled,false);
+ await db.userRole.delete({where:{userId_roleId:{userId:"ci_test_user",roleId:superAdminRoleId}}});
+ superAdminMembership=false;
+ assert.equal((await call(privilegedIds[1])).status,409,"revoked Super Admin cannot execute own prior approval");
  console.log("Admin Kalshi withdrawal passed: mocked HTTP acceptance never settles; verified source + HMAC-signed Blockradar sweep moves only K_BANK to M_BANK and creates exactly one PLATFORM_K_BANK ledger entry");
 }finally{
  await db.treasuryTransfer.deleteMany({where:{reference:{startsWith:"platform_kalshi_return:"}}});
  await db.staffAudit.deleteMany({where:{targetId:{in:ids}}});
- const sims=await db.staffKalshiWithdrawal.findMany({where:{staffActionId:{in:ids}},select:{id:true}});
+ const sims=await db.staffKalshiWithdrawal.findMany({where:{staffActionId:{in:[...ids,...privilegedIds]}},select:{id:true}});
  await db.staffAudit.deleteMany({where:{targetId:{in:sims.map(s=>s.id)}}});
- await db.staffKalshiWithdrawal.deleteMany({where:{staffActionId:{in:ids}}});
- await db.staffAction.deleteMany({where:{id:{in:ids}}});
+ await db.staffKalshiWithdrawal.deleteMany({where:{staffActionId:{in:[...ids,...privilegedIds]}}});
+ await db.staffAction.deleteMany({where:{id:{in:[...ids,...privilegedIds]}}});
+ if(superAdminMembership)await db.userRole.deleteMany({where:{userId:"ci_test_user",roleId:superAdminRoleId}});
+ if(createdSuperAdminRole&&superAdminRoleId)await db.role.deleteMany({where:{id:superAdminRoleId}});
  if(createdStrategy)await db.strategy.deleteMany({where:{id:strategyId}});
  if(initialBank!==undefined)await db.treasury.update({where:{kind:"K_BANK"},data:{amount:initialBank}});
  if(initialMBank!==undefined)await db.treasury.update({where:{kind:"M_BANK"},data:{amount:initialMBank,walletAddress:initialMBankAddress}});
