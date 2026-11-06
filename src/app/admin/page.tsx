@@ -4,6 +4,7 @@ import {getServerSession} from "next-auth";
 import {authOptions} from "@/lib/auth";
 import {prisma} from "@/lib/db";
 import type {StaffPermissionKey} from "@/lib/staff-permissions";
+import {APPROVAL_POLICY_ID,canReviewAsRole} from "@/lib/staff-approval-policy";
 
 export const dynamic = "force-dynamic";
 const sections: Array<{ name: string; permission: StaffPermissionKey }> = [
@@ -31,7 +32,9 @@ export default async function AdminPage(){
   include:{role:{include:{grants:{include:{permission:true}}}}}
  });
  const grants=new Set(memberships.flatMap(m=>m.role.grants.map(g=>g.permission.key)));
- const visibleSections=sections.filter(section=>grants.has(section.permission));
+ const policy=await prisma.staffApprovalPolicy.findUnique({where:{id:APPROVAL_POLICY_ID},select:{additionalRoleKeys:true}});
+ const reviewer=canReviewAsRole(memberships.map(m=>m.role.key),policy?.additionalRoleKeys??[]);
+ const visibleSections=sections.filter(section=>grants.has(section.permission)||(section.name==="actions"&&reviewer));
  if(visibleSections.length===0)redirect("/dashboard");
  return <main className="min-h-screen bg-slate-50 p-8 text-[#14253D]">
   <div className="mx-auto max-w-5xl">
