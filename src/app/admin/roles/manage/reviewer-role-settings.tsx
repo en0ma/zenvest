@@ -1,8 +1,7 @@
 "use client";
 import {useState} from "react";
 import Link from "next/link";
-import {CONFIGURABLE_APPROVER_ROLES} from "@/lib/staff-approval-policy";
-export default function ReviewerRoleSettings({initialRoles}:{initialRoles:string[]}){
+export default function ReviewerRoleSettings({initialRoles,roles}:{initialRoles:string[];roles:string[]}){
  const [enabled,setEnabled]=useState<string[]>(initialRoles);
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(""),[error,setError]=useState(""),[reauth,setReauth]=useState(false);
  function toggle(key:string,checked:boolean){setEnabled(current=>checked?[...current.filter(x=>x!==key),key]:current.filter(x=>x!==key))}
@@ -20,7 +19,7 @@ export default function ReviewerRoleSettings({initialRoles}:{initialRoles:string
  return <section className="mt-8 max-w-xl space-y-4 rounded-xl border bg-white p-6">
   <h2 className="text-xl font-semibold">Approval reviewer roles</h2>
   <p className="text-sm text-slate-600">Super Admin can always approve or reject another administrator's pending action. By default no other role can review. Select additional reviewer roles below; granting reviewer access does not grant permission to propose or execute transfers. Non-Super Admins cannot approve their own requests. Super Admin actions are self-authorized.</p>
-  {CONFIGURABLE_APPROVER_ROLES.map(key=><label key={key} className="flex items-center gap-3 text-sm capitalize"><input type="checkbox" checked={enabled.includes(key)} onChange={e=>toggle(key,e.target.checked)}/>{key}</label>)}
+  {roles.map(key=><label key={key} className="flex items-center gap-3 text-sm capitalize"><input type="checkbox" checked={enabled.includes(key)} onChange={e=>toggle(key,e.target.checked)}/>{key}</label>)}
   <button type="button" onClick={save} disabled={busy} className="rounded bg-[#14253D] px-4 py-2 text-white disabled:opacity-50">{busy?"Saving…":"Save reviewer policy"}</button>
   {message&&<p role="status" className="text-sm text-emerald-800">{message}</p>}
   {error&&<p role="alert" className="text-sm text-red-700">{error}</p>}

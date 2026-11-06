@@ -18,7 +18,11 @@ try{
  if(obsolete){await tx.rolePermission.deleteMany({where:{permissionId:obsolete.id}});await tx.permission.delete({where:{id:obsolete.id}});}
  for(const key of permissions)await tx.permission.upsert({where:{key},create:{key},update:{}});
  for(const [key,grants] of Object.entries(roleGrants)){
- const role=await tx.role.upsert({where:{key},create:{key},update:{}});
+ const existing=await tx.role.findUnique({where:{key}});
+ const role=existing??await tx.role.create({data:{key}});
+ // Existing role edits belong to the Super Admin UI. Never re-add removed
+ // grants on an existing editable role when the seed command is rerun.
+ if(existing&&key!=="user"&&key!=="super-admin")continue;
  for(const permission of grants){
  const item=await tx.permission.findUniqueOrThrow({where:{key:permission}});
  await tx.rolePermission.upsert({where:{roleId_permissionId:{roleId:role.id,permissionId:item.id}},create:{roleId:role.id,permissionId:item.id},update:{}});
