@@ -61,8 +61,8 @@ try{
  assert.equal((await settings({action:"set-default",password,method:"APP"})).status,200);
  assert.equal((await prisma.twoFactor.findUniqueOrThrow({where:{userId}})).method,"APP");
  const alternate=(await (await login({email:"ci-security@example.invalid",password,method:"EMAIL"})).json());
- assert.equal(alternate.method,"EMAIL");
- assert.equal(await verifyChallenge(alternate.challengeId,userId,"LOGIN",emailCode()),true);
+ assert.equal(alternate.method,"APP","client-requested EMAIL cannot override APP as the saved login default");
+ assert.ok(alternate.challengeId,"login challenge still exists for the saved APP method");
  const removalRequest=(await (await settings({action:"remove-method-code",password,method:"EMAIL"})).json());
  assert.ok(removalRequest.challengeId);
  assert.equal((await settings({action:"remove-method",password,method:"EMAIL",challengeId:removalRequest.challengeId,code:emailCode()})).status,200);
