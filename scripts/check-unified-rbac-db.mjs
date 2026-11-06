@@ -9,6 +9,9 @@ try{
  assert.equal(oldRoleColumn.length,0,"legacy USER ADMIN discriminator must not exist");
  const tables=await db.$queryRawUnsafe("SELECT tablename FROM pg_tables WHERE schemaname='public'");
  for(const name of ["Role","Permission","RolePermission","UserRole"])assert.ok(tables.some(row=>row.tablename===name),name+" must be a real RBAC table");
+ const descriptions=await db.permission.findMany({where:{key:{in:["account:access","users:read","wallets:operate","audit:read"]}},select:{key:true,description:true}});
+ assert.equal(descriptions.length,4,"migration must retain known permission rows");
+ for(const item of descriptions)assert.ok(item.description.length>=20,"migration must fill description for "+item.key);
  const created=await db.user.create({data:{id:userId,name:"Unified RBAC CI",email:"ci-unified-rbac@example.invalid",passwordHash:"disabled"}});
  assert.equal(created.id,userId);
  const initial=await db.userRole.findMany({where:{userId},include:{role:{include:{grants:{include:{permission:true}}}}}});
@@ -22,7 +25,9 @@ try{
   await assert.rejects(db.staffAction.create({data:{resource,operation,targetId:userId,reason:"Retired admin operation blocked",requestedBy:userId,idempotencyKey:"ci_denied_"+resource,payload:{}}}),"database must forbid retired staff action "+resource);
  }
  roleId=(await db.role.create({data:{key:roleKey}})).id;
- permissionId=(await db.permission.create({data:{key:permissionKey}})).id;
+ const custom=await db.permission.create({data:{key:permissionKey}});
+ assert.equal(custom.description,"","new unknown permission uses an empty description until documented");
+ permissionId=custom.id;
  await db.rolePermission.create({data:{roleId,permissionId}});
  await db.userRole.create({data:{userId,roleId,assignedBy:"ci-test-admin"}});
  const combined=await db.userRole.findMany({where:{userId},include:{role:{include:{grants:{include:{permission:true}}}}}});

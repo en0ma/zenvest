@@ -576,6 +576,7 @@ model Role {
 model Permission {
   id String @id @default(cuid())
   key String @unique
+  description String @default("") @db.Text
   roles RolePermission[]
 
 }
