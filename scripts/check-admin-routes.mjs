@@ -13,6 +13,7 @@ const {GET:read}=await import("../src/app/api/admin/resources/[resource]/route.t
 const {GET:users}=await import("../src/app/api/admin/users/route.ts");
 const {POST:propose,GET:actions}=await import("../src/app/api/admin/actions/route.ts");
 const {POST:decide}=await import("../src/app/api/admin/actions/[id]/decision/route.ts");
+const {GET:getReviewPolicy,PUT:putReviewPolicy}=await import("../src/app/api/admin/approval-policy/route.ts");
 const {POST:assign}=await import("../src/app/api/admin/roles/assign/route.ts");
 const {POST:revoke}=await import("../src/app/api/admin/roles/revoke/route.ts");
 function request(payload){return new Request("https://ci.invalid/api/admin/actions",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)})}
