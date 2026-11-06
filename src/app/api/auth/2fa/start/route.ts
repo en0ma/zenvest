@@ -11,7 +11,7 @@ export async function POST(req:Request){
  if(typeof v?.email!=="string"||typeof v.password!=="string"||v.email.length>254||v.password.length>72)return NextResponse.json({error:"Invalid credentials"},{status:400});
  const user=await prisma.user.findUnique({where:{email:v.email.trim().toLowerCase()}});
  if(!user?.isActive||!user.emailVerifiedAt||!await bcrypt.compare(v.password,user.passwordHash))return NextResponse.json({error:"Incorrect email or password"},{status:401});
- const [t,staffRoles]=await Promise.all([prisma.twoFactor.findUnique({where:{userId:user.id}}),prisma.userRole.findMany({where:{userId:user.id},select:{role:{select:{key:true}}}}})]);
+ const [t,staffRoles]=await Promise.all([prisma.twoFactor.findUnique({where:{userId:user.id}}),prisma.userRole.findMany({where:{userId:user.id},include:{role:true}})]);
  if(needsStaffTwoFactor(staffRoles.map(m=>m.role.key),!!t))return NextResponse.json({requiresEnrollment:true});
  if(!t){console.info(JSON.stringify({component:"auth-2fa",event:"login_challenge",outcome:"not_required"}));return NextResponse.json({requires2fa:false});}
  const recent=await prisma.twoFactorChallenge.count({where:{userId:user.id,purpose:"LOGIN",createdAt:{gt:new Date(Date.now()-60000)}}});

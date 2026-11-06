@@ -28,7 +28,7 @@ export const authOptions: NextAuthOptions = {
         if (!user?.isActive || !user.emailVerifiedAt) return null;
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!valid) return null;
-        const [twoFactor,staffRoles]=await Promise.all([prisma.twoFactor.findUnique({where:{userId:user.id}}),prisma.userRole.findMany({where:{userId:user.id},select:{role:{select:{key:true}}}}})]);
+        const [twoFactor,staffRoles]=await Promise.all([prisma.twoFactor.findUnique({where:{userId:user.id}}),prisma.userRole.findMany({where:{userId:user.id},include:{role:true}})]);
         if(needsStaffTwoFactor(staffRoles.map(m=>m.role.key),!!twoFactor))return null;
         if(twoFactor){
           const recoveryProvided=typeof credentials.recoveryCode==="string"&&/^[A-Fa-f0-9]{6}-?[A-Fa-f0-9]{6}$/.test(credentials.recoveryCode);
