@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { requireUser } from "@/lib/access";
+import { requireUser, requireInvestorPermission } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {availableUnallocated,canRequestAllocation} from "@/lib/allocation-rules";
 export const runtime = "nodejs";
@@ -15,6 +15,7 @@ function micros(raw: unknown): bigint | null {
 
 export async function POST(request: Request) {
   const user = await requireUser();
+  await requireInvestorPermission(user.id,"allocations:create:own");
   let input: unknown;
   try { input = await request.json(); } catch { return NextResponse.json({error:"Invalid JSON"},{status:400}); }
   const body = input && typeof input === "object" ? input as Record<string,unknown> : {};

@@ -5,9 +5,14 @@ import {readdirSync} from "node:fs";
 // This captures PostgreSQL integration paths as well as native Node unit tests.
 for(const [command,args] of [
  ["node",["scripts/check-ci-db.mjs"]],
+ ["node",["scripts/check-staff-approval-db.mjs"]],
+ ["node",["scripts/check-staff-role-lifecycle-db.mjs"]],
+ ["node",["scripts/check-unified-rbac-db.mjs"]],
  ["node",["--conditions=react-server","scripts/check-financial-workers.mjs"]],
  ["node",["scripts/check-payout-workers.mjs"]],
  ["node",["scripts/check-withdrawal-worker.mjs"]],
+ ["node",["scripts/check-platform-withdrawal-db.mjs"]],
+ ["node",["scripts/check-admin-kalshi-simulation.mjs"]],
  ["node",["scripts/check-authenticated-routes.mjs"]],
  ["node",["scripts/check-withdrawal-request-route.mjs"]],
  ["node",["scripts/check-wallet-sends-route.mjs"]],
@@ -18,6 +23,7 @@ for(const [command,args] of [
  ["node",["scripts/check-verified-blockradar-processing.mjs"]],
  ["node",["scripts/check-wallet-activation-lifecycle.mjs"]],
  ["node",["scripts/check-account-route-validation.mjs"]],
+ ["node",["--experimental-strip-types","scripts/check-admin-routes.mjs"]],
  ["node",["scripts/check-transactional-email.mjs"]],
  ["node",["scripts/check-two-factor-security.mjs"]],
  ["node",["scripts/check-blockradar-address-validation.mjs"]],

@@ -194,6 +194,20 @@ try{
  assert.equal(transfers-beforeCompetingTransfers,1);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,beforeInterrupted-7000001n,
   "claiming or submitting must not debit investor capital before verified settlement");
+ // Staff-directed dispatch must never pay a different, older pending withdrawal.
+ const unrelatedId="cworkertargetother000007",directedId="cworkertargetchosen00008";
+ for(const [id,stamp] of [[unrelatedId,"2000-01-01T00:00:00Z"],[directedId,"2002-01-01T00:00:00Z"]]){
+  await prisma.withdrawal.create({data:{id,userId,amountUsdcMicros:5000001n,grossUsdcMicros:7000001n,feeUsdcMicros:2000000n,destinationAddress:"11111111111111111111111111111111",status:"PENDING",createdAt:new Date(stamp)}});
+ }
+ providerReceiptId="ci-provider-directed";
+ const beforeDirected=transfers;
+ assert.equal(await processPendingWithdrawal(directedId),"submitted","targeted dispatch uses the exact approved withdrawal");
+ assert.equal(transfers-beforeDirected,1);
+ assert.equal((await prisma.withdrawal.findUniqueOrThrow({where:{id:directedId}})).status,"PROCESSING");
+ assert.equal((await prisma.withdrawal.findUniqueOrThrow({where:{id:unrelatedId}})).status,"PENDING","unrelated older request must remain untouched");
+ assert.equal(await processPendingWithdrawal(directedId),"empty","already dispatched target cannot be sent twice");
+ assert.equal(transfers-beforeDirected,1);
+ await prisma.withdrawal.deleteMany({where:{id:{in:[unrelatedId,directedId]}}});
  // PostgreSQL itself rejects inconsistent net/gross/fee rows, even if an
  // upstream application validation regression were introduced.
  const invalidId="cworkerinvalidtotals00005";

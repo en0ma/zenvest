@@ -4,7 +4,7 @@ if(!process.env.DATABASE_URL?.includes("zenvest_ci"))throw new Error("Refusing t
 try {
  await prisma.user.upsert({where:{email:"ci-fixture@zenvest.invalid"},create:{
    id:"ci_test_user",email:"ci-fixture@zenvest.invalid",name:"CI User",
-   passwordHash:"ci-fixture-not-a-password",role:"USER",unallocated:123_000_000n,
+   passwordHash:"ci-fixture-not-a-password",unallocated:123_000_000n,
  },update:{}});
  await prisma.strategy.upsert({where:{id:"ci_test_strategy"},create:{
   id:"ci_test_strategy",name:"CI Test Strategy",description:"Synthetic CI-only market data",

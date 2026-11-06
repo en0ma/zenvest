@@ -5,10 +5,6 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-enum Role {
-  USER
-  ADMIN
-}
 enum TokenPurpose {
   VERIFY_EMAIL
   RESET_PASSWORD
@@ -19,7 +15,6 @@ model User {
   name         String   @db.VarChar(120) // Legacy account label while existing consumers migrate to handle.
   handle       String   @unique @default(dbgenerated("substr(md5(random()::text || clock_timestamp()::text), 1, 8)")) @db.VarChar(8)
   passwordHash String   @map("password_hash") @db.VarChar(255)
-  role         Role     @default(USER)
   isActive     Boolean  @default(true) @map("is_active")
   emailVerifiedAt DateTime? @map("email_verified_at")
   sessionVersion Int @default(0) @map("session_version")
@@ -37,6 +32,7 @@ model User {
   positionAllocations PositionAllocation[]
   tradePnls PositionTradePnl[]
   activity InvestorActivity[]
+  roles UserRole[]
   tokens       ActionToken[]
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -568,4 +564,120 @@ model TwoFactorRecoveryCode {
  usedAt DateTime? @map("used_at")
  createdAt DateTime @default(now()) @map("created_at")
  @@index([userId,usedAt])
+}
+
+model Role {
+  id String @id @default(cuid())
+  key String @unique
+  grants RolePermission[]
+  members UserRole[]
+
+}
+model Permission {
+  id String @id @default(cuid())
+  key String @unique
+  description String @default("") @db.Text
+  roles RolePermission[]
+
+}
+model RolePermission {
+  roleId String
+  permissionId String
+  role Role @relation(fields:[roleId],references:[id],onDelete:Cascade)
+  permission Permission @relation(fields:[permissionId],references:[id],onDelete:Cascade)
+  @@id([roleId,permissionId])
+
+}
+model UserRole {
+  userId String
+  roleId String
+  assignedBy String
+  role Role @relation(fields:[roleId],references:[id],onDelete:Cascade)
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@id([userId,roleId])
+
+}
+enum StaffActionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXECUTED
+}
+model StaffAction {
+  id String @id @default(cuid())
+  resource String
+  operation String
+  targetId String
+  payload Json
+  reason String
+  requestedBy String
+  decidedBy String?
+  status StaffActionStatus @default(PENDING)
+  idempotencyKey String @unique
+  createdAt DateTime @default(now())
+  decidedAt DateTime?
+  @@index([status,createdAt])
+}
+/** Singleton policy for approving sensitive staff actions; Super Admin is always eligible. */
+model StaffApprovalPolicy {
+  id String @id
+  additionalRoleKeys String[] @default([])
+  updatedAt DateTime @updatedAt
+}
+
+model StaffAudit {
+  id String @id @default(cuid())
+  actorId String
+  action String
+  resource String
+  targetId String
+  createdAt DateTime @default(now())
+  @@index([actorId,createdAt])
+}
+
+/** Platform-owned master wallet USDC payout. Not an investor Withdrawal. */
+enum PlatformWithdrawalStatus {
+  PENDING
+  SUBMITTING
+  PROCESSING
+  REVIEW
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+model PlatformWithdrawal {
+  id String @id @default(cuid())
+  staffActionId String @unique
+  destinationAddress String @db.VarChar(128)
+  amountUsdcMicros BigInt
+  reservedMBankMicros BigInt @default(0)
+  reservedDepositFeeMicros BigInt @default(0)
+  reservedWithdrawalFeeMicros BigInt @default(0)
+  status PlatformWithdrawalStatus @default(PENDING)
+  providerTransactionId String? @unique @db.VarChar(180)
+  transactionHash String? @db.VarChar(180)
+  failureCode String? @db.VarChar(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  completedAt DateTime?
+  @@index([status,createdAt])
+}
+
+/** Admin Kalshi withdrawal; adapter currently mocked, settlement awaits verified custody. */
+model StaffKalshiWithdrawal {
+  id String @id @default(cuid())
+  staffActionId String @unique
+  strategyId String
+  amountUsdcMicros BigInt
+  masterWalletAddress String @db.VarChar(180)
+  providerWithdrawalId String? @unique @map("mockWithdrawalId") @db.VarChar(200)
+  status String @default("SUBMITTING") @db.VarChar(32)
+  sourceConfirmed Boolean @default(false)
+  destinationConfirmed Boolean @default(false)
+  masterReceiptId String? @unique @db.VarChar(180)
+  treasuryTransactionId String? @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([strategyId,createdAt])
+  @@map("StaffKalshiReturnSimulation")
 }

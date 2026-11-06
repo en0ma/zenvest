@@ -51,17 +51,17 @@ export const authOptions: NextAuthOptions = {
       // Never trust a role supplied by the browser or an old JWT claim.
       if (!token.sub) return token;
       const [record, device] = await Promise.all([
-        prisma.user.findUnique({ where: { id: token.sub }, select: { isActive: true, role: true, emailVerifiedAt: true, sessionVersion: true } }),
+        prisma.user.findUnique({ where: { id: token.sub }, select: { isActive: true, emailVerifiedAt: true, sessionVersion: true, roles:{where:{role:{key:"user"}},select:{roleId:true}} } }),
         typeof token.sid==="string"?prisma.securitySession.findUnique({where:{id:token.sid}}):Promise.resolve(null)
       ]);
       if (token.sessionVersion === undefined && user && record) token.sessionVersion = record.sessionVersion;
-      token.active = Boolean(record?.isActive && record.emailVerifiedAt && token.sessionVersion === record.sessionVersion && device?.userId===token.sub && Date.now()-device.lastActivityAt.getTime()<IDLE_MS && Date.now()-device.createdAt.getTime()<12*60*60*1000);
-      token.role = record?.role ?? "USER";
+      token.active = Boolean(record?.isActive && record.emailVerifiedAt && token.sessionVersion === record.sessionVersion && record.roles.length===1 && device?.userId===token.sub && Date.now()-device.lastActivityAt.getTime()<IDLE_MS && Date.now()-device.createdAt.getTime()<12*60*60*1000);
+      token.staffLoginAt = token.active && device?.userId===token.sub ? device.createdAt.getTime() : undefined;
       return token;
     },
     async session({ session, token }) {
       if (!token.active || !token.sub) return { ...session, user: undefined };
-      return { ...session, user: { id: token.sub, role: token.role ?? "USER", name: session.user?.name, email: session.user?.email } };
+      return { ...session, staffLoginAt: typeof token.staffLoginAt==="number"?token.staffLoginAt:undefined, user: { id: token.sub, name: session.user?.name, email: session.user?.email } };
     },
   },
 };

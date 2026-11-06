@@ -14,3 +14,6 @@ export const NextResponse={json:(body,init={})=>{
  return response;
 }};
 export const requireUser=async()=>({id:"ci_route_investor",role:"USER"});
+
+// CI-only identity shim for the new separately scoped investor RBAC guard.
+export const requireInvestorPermission=async()=>{};

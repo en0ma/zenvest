@@ -1,15 +1,48 @@
-import { Shell } from "@/components/shell";
-import { requireAdmin } from "@/lib/access";
-const modules = [
- ["Deposits", "Review USDC deposits and on-chain reconciliation."],
- ["USDC reconciliation", "Verify supported network, on-chain confirmations, and custody records."],
- ["Trading funding", "Reconcile custodian and Kalshi account balances."],
- ["Allocations", "Queue allocation changes for the next eligible trade snapshot."],
- ["Earnings", "Reconcile settlements and allocate realized trade P&L."],
- ["Withdrawals", "Reserve, review and approve withdrawal requests."],
- ["Audit trail", "Record immutable operational approvals and changes."],
- ["Risk & reports", "Monitor exposure, exceptions and financial reports."],
+import Link from "next/link";
+import {redirect} from "next/navigation";
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/lib/auth";
+import {prisma} from "@/lib/db";
+import type {StaffPermissionKey} from "@/lib/staff-permissions";
+import {APPROVAL_POLICY_ID,canReviewAsRole} from "@/lib/staff-approval-policy";
+
+export const dynamic = "force-dynamic";
+const sections: Array<{ name: string; permission: StaffPermissionKey }> = [
+ {name:"users",permission:"users:read"},
+ {name:"deposits",permission:"deposits:read"},
+ {name:"withdrawals",permission:"withdrawals:read"},
+ {name:"balances",permission:"balances:read"},
+ {name:"wallets",permission:"wallets:read"},
+ {name:"roles",permission:"roles:read"},
+ {name:"audit",permission:"audit:read"},
+ {name:"actions",permission:"audit:read"},
+ {name:"roles/manage",permission:"roles:manage"},
 ];
-export default async function Admin(){await requireAdmin();return <Shell admin><header><p className="text-muted text-sm">Internal operations · Simulation</p><h1 className="text-3xl font-semibold mt-2">Admin overview</h1><p className="text-muted mt-2">Operations workbench design. No actions can move money or modify investor balances yet.</p></header>
-<section className="mt-9 rounded-2xl bg-[#eaf3ed] border border-[#d5e7db] p-6"><strong>Operations are locked in demo mode</strong><p className="text-sm text-[#4b6b59] mt-2">Identity verification, compliance, custody, ledger, on-chain reconciliation and role-based permissions must be implemented before live operations. This prototype has no KYC screen.</p></section>
-<div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-6">{modules.map(([title,description])=><article key={title} className="bg-white border border-[#e8eeea] shadow-soft rounded-2xl p-7"><h2 className="font-semibold text-lg">{title}</h2><p className="text-sm text-muted leading-6 mt-3">{description}</p><div className="mt-7 text-xs font-semibold text-forest">{"Planned module →"}</div></article>)}</div></Shell>;}
+export default async function AdminPage(){
+ const session=await getServerSession(authOptions);
+ if(!session?.user?.id) redirect("/login");
+ const userId=session.user.id;
+ const account=await prisma.user.findUnique({where:{id:userId},select:{isActive:true,emailVerifiedAt:true}});
+ const factor=await prisma.twoFactor.findUnique({where:{userId},select:{verifiedAt:true}});
+ if(!account?.isActive||!account.emailVerifiedAt||!factor?.verifiedAt){
+  return <main className="p-10">Staff access requires an active verified account and two-factor authentication.</main>;
+ }
+ const memberships=await prisma.userRole.findMany({
+  where:{userId},
+  include:{role:{include:{grants:{include:{permission:true}}}}}
+ });
+ const grants=new Set(memberships.flatMap(m=>m.role.grants.map(g=>g.permission.key)));
+ const policy=await prisma.staffApprovalPolicy.findUnique({where:{id:APPROVAL_POLICY_ID},select:{additionalRoleKeys:true}});
+ const reviewer=canReviewAsRole(memberships.map(m=>m.role.key),policy?.additionalRoleKeys??[]);
+ const visibleSections=sections.filter(section=>grants.has(section.permission)||(section.name==="actions"&&reviewer));
+ if(visibleSections.length===0)redirect("/dashboard");
+ return <main className="min-h-screen bg-slate-50 p-8 text-[#14253D]">
+  <div className="mx-auto max-w-5xl">
+   <h1 className="text-3xl font-bold">Zenvest operations</h1>
+   <p className="mt-3 text-slate-600">Sensitive actions require independent approval and do not move funds automatically.</p>
+   <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {visibleSections.map(s=><Link key={s.name} href={"/admin/"+s.name} className="rounded-xl border bg-white p-6 text-lg font-semibold capitalize shadow-sm hover:border-violet-500">{s.name==="roles/manage"?"Manage roles":s.name}</Link>)}
+   </div>
+  </div>
+ </main>;
+}
