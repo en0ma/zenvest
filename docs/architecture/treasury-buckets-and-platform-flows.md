@@ -5,12 +5,12 @@ The `treasury_transactions` direction enum defines four investor flows and four 
 - **WITHDRAWAL**: verified investor payout from DEPOSIT to an external wallet.
 - **ALLOCATE**: investor principal leaves master custody for Kalshi; final ALLOCATE balance awaits an independent destination receipt.
 - **DEALLOCATE**: verified investor capital return from Kalshi to DEPOSIT (a transaction history kind, **not** a treasury balance bucket).
-- **K_BANK_DEPOSIT**: platform earnings recognized in Kalshi after separately verified profitable trade settlement. The platform-profit treasury accrual is not yet integrated, so no automatic entry is created today.
+- **K_BANK_DEPOSIT**: platform earnings recognized in Kalshi after separately verified profitable trade settlement. The P&L worker now posts this entry automatically, together with all participants' net allocations, only after the independently finalized trade is SETTLED, the exposure snapshot is valid, and the full platform fee is positive.
 - **K_BANK_WITHDRAWAL**: verified outbound platform-profit transfer from Kalshi to the master wallet.
 - **M_BANK_DEPOSIT**: receipt of that same verified platform-profit transfer into master custody. The Kalshi withdrawal and master deposit ledger entries are created as an idempotent pair, with distinct references, in the same transaction as K_BANK debit and M_BANK credit.
 - **M_BANK_WITHDRAWAL**: confirmed staff payout of platform-owned funds from master custody. The payout may draw on M_BANK, DEPOSIT_FEE, and WITHDRAWAL_FEE, never investor DEPOSIT.
 
-`PLATFORM_PULL`, `PLATFORM_M_BANK`, and `PLATFORM_K_BANK` are legacy enum labels retained for compatibility, but active code must not write them. The new enum labels need an additive PostgreSQL enum migration; no existing balance-data conversion is required. A single Kalshi-to-master transfer has two equal and opposite custody-ledger entries, **not two balance credits**.
+The legacy `PLATFORM_PULL`, `PLATFORM_M_BANK`, and `PLATFORM_K_BANK` enum values have been **removed**, not merely deprecated. The new migration replaces the PostgreSQL direction enum and refuses to run if obsolete direction rows exist. No balance-data conversion is required for the reported empty database. A single Kalshi-to-master transfer has two equal and opposite custody-ledger entries, **not two balance credits**.
 
 The `treasuries` table uses exactly one balance row per active `kind`: WITHDRAWAL_FEE, DEPOSIT_FEE, DEPOSIT, ALLOCATE, M_BANK, K_BANK (six active kinds). `kind` is UNIQUE. The legacy `DEALLOCATE` enum member is retained for database compatibility but has no active balance row; never create or credit one. The `DEALLOCATE` *transfer direction and strategy event kind* remain for audit history. Amounts are USDC micros and settle transactionally.
 
@@ -36,7 +36,7 @@ Bucket meaning:
 - K_BANK: platform profits at Kalshi, not yet withdrawn.
 - M_BANK: platform profits confirmed at master wallet.
 
-**Integration status (2026-10-23):** Allocation batching and outbound Blockradar submission exist, with signed Blockradar callbacks advancing allocations to CONFIRMING. Independent Kalshi receipt finalization and deallocation transport are not implemented. Platform profit accrual and real Kalshi transfer submission remain incomplete; verified staff master payouts are separately feature-gated. The investor withdrawal worker exists; cross-worker custody reservation and reconciliation remain release blockers.
+**Integration status (2026-10-23):** Allocation batching and outbound Blockradar submission exist, with signed Blockradar callbacks advancing allocations to CONFIRMING. Independent Kalshi receipt finalization and deallocation transport are not implemented. Real Kalshi transfer submission remains incomplete; verified staff master payouts are separately feature-gated. The investor withdrawal worker exists; cross-worker custody reservation and reconciliation remain release blockers.
 
 **Critical implementation conditions:** use authenticated origin/destination webhooks, provider IDs, unique transaction references, strict matching on asset, amount, wallet, and direction. All final balance and request status changes must be a single idempotent database transaction. No synthetic Kalshi events or providers.
 

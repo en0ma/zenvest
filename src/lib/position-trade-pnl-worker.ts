@@ -49,6 +49,33 @@ async function settleTrade(id:string){
      amountKobo:0n,amountUsdcMicros:net,reference:`trade-pnl:${trade.id}:${row.positionId}`,
      description:"Settled investor net trading P&L"}});
    }
+   // All frozen participants have received their net trade P&L above. Post the
+   // platform's positive realized fee into Kalshi's platform-owned K_BANK
+   // exactly once in the SAME serializable transaction. Zero fees and losses
+   // never create positive profit or a phantom bank transaction.
+   if(fee>0n){
+    const [kBank,master]=await Promise.all([
+     tx.treasury.findUnique({where:{kind:"K_BANK"}}),
+     tx.treasury.findUnique({where:{kind:"DEPOSIT"}}),
+    ]);
+    if(!kBank||kBank.source!=="KALSHI"||kBank.asset!=="USDC"||kBank.network!=="solana"||
+       !kBank.walletAddress||!master||master.source!=="MASTER_WALLET"||
+       master.asset!=="USDC"||master.network!=="solana"||!master.walletAddress)
+     throw Error("Platform profit custody treasury is not configured");
+    await tx.treasuryTransfer.create({data:{
+     direction:"K_BANK_DEPOSIT",status:"COMPLETE",asset:"USDC",network:"solana",
+     amountUsdcMicros:fee,feeUsdcMicros:0n,
+     destinationWalletAddress:kBank.walletAddress,masterWalletAddress:master.walletAddress,
+     masterWalletId:master.walletId,originExternalId:trade.id,
+     destinationExternalId:kBank.walletAddress,
+     reference:`trade-platform-profit:${trade.id}`,completedAt:new Date(),
+    }});
+    const funded=await tx.treasury.updateMany({
+     where:{kind:"K_BANK",source:"KALSHI",asset:"USDC",network:"solana",walletId:kBank.walletId},
+     data:{amount:{increment:fee}},
+    });
+    if(funded.count!==1)throw Error("K_BANK platform profit posting unavailable");
+   }
    const claimed=await tx.strategyTrade.updateMany({where:{id,status:"SETTLED",isPnlCalculated:false},
     data:{isPnlCalculated:true}});
    if(claimed.count!==1)throw new Error("Trade P&L already applied");

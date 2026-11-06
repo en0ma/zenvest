@@ -374,10 +374,6 @@ enum TreasuryDirection {
   K_BANK_WITHDRAWAL
   M_BANK_DEPOSIT
   M_BANK_WITHDRAWAL
-  // Legacy enum labels retained for compatibility, no longer written.
-  PLATFORM_PULL
-  PLATFORM_M_BANK
-  PLATFORM_K_BANK
 }
 enum TreasuryStatus {
   PENDING
