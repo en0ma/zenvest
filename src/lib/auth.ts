@@ -4,7 +4,6 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import {verifyChallenge,consumeRecoveryCode,IDLE_MS} from "@/lib/two-factor";
 import {randomUUID} from "node:crypto";
-import {needsStaffTwoFactor} from "@/lib/staff-2fa-enrollment-policy";
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -28,8 +27,7 @@ export const authOptions: NextAuthOptions = {
         if (!user?.isActive || !user.emailVerifiedAt) return null;
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!valid) return null;
-        const [twoFactor,staffRoles]=await Promise.all([prisma.twoFactor.findUnique({where:{userId:user.id}}),prisma.userRole.findMany({where:{userId:user.id},include:{role:true}})]);
-        if(needsStaffTwoFactor(staffRoles.map(m=>m.role.key),!!twoFactor))return null;
+        const twoFactor=await prisma.twoFactor.findUnique({where:{userId:user.id}});
         if(twoFactor){
           const recoveryProvided=typeof credentials.recoveryCode==="string"&&/^[A-Fa-f0-9]{6}-?[A-Fa-f0-9]{6}$/.test(credentials.recoveryCode);
           const verified=recoveryProvided?await consumeRecoveryCode(user.id,credentials.recoveryCode!):Boolean(credentials.challengeId&&/^\d{6}$/.test(credentials.code??"")&&await verifyChallenge(credentials.challengeId,user.id,"LOGIN",credentials.code!));

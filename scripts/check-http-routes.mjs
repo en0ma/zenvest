@@ -83,26 +83,6 @@ try{
   assert.equal(saved.userId,userId);
   assert.equal(saved.amountUsdcMicros,3000001n);
   assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,10000000n);
-  // A staff assignment must require enrollment *before* NextAuth issues a session.
-  // This exercises both the login challenge API and the actual credentials provider.
-  const staffRole=await prisma.role.create({data:{key:"ci-http-enrollment"}});
-  try{
-   await prisma.userRole.create({data:{userId,roleId:staffRole.id,assignedBy:"ci-http-test"}});
-   await prisma.user.update({where:{id:userId},data:{sessionVersion:{increment:1}}});
-   const enrollStart=await call("/api/auth/2fa/start",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({email:"ci-http-authenticated@example.invalid",password})});
-   assert.equal(enrollStart.status,200);
-   assert.equal((await enrollStart.json()).requiresEnrollment,true,"unenrolled staff must receive enrollment prompt");
-   const staffLogin=await call("/api/auth/callback/credentials",{
-    method:"POST",headers:{"content-type":"application/x-www-form-urlencoded",cookie:csrfCookie},
-    body:new URLSearchParams({csrfToken,email:"ci-http-authenticated@example.invalid",password,callbackUrl:base+"/dashboard",json:"true"}).toString()
-   });
-   assert.equal(staffLogin.headers.getSetCookie().some(x=>x.includes("session-token")),false,"unenrolled staff cannot bypass the UI and receive a session");
-   const wrongPassword=await call("/api/auth/2fa/staff-enroll",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"setup",method:"APP",email:"ci-http-authenticated@example.invalid",password:"wrong-password"})});
-   assert.equal(wrongPassword.status,401,"staff enrollment must verify account credentials");
-  }finally{
-   await prisma.userRole.deleteMany({where:{userId,roleId:staffRole.id}});
-   await prisma.role.delete({where:{id:staffRole.id}});
-  }
   console.log("Authenticated HTTP verified: real NextAuth credentials login, invalid and successful investor allocation, and PostgreSQL ownership");
  }finally{
   await prisma.positionAllocation.deleteMany({where:{userId}});

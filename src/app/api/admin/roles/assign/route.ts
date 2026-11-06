@@ -21,19 +21,18 @@ export async function POST(request:NextRequest){
   const result=await prisma.$transaction(async tx=>{
    if(!await tx.userRole.findFirst({where:{userId:actorId,role:{key:"super-admin"}},select:{userId:true}}))return "FORBIDDEN";
    const target=await tx.user.findUnique({where:{id:userId},select:{isActive:true,emailVerifiedAt:true}});
-   if(!target?.isActive||!target.emailVerifiedAt)return "INELIGIBLE";
+   const factor=await tx.twoFactor.findUnique({where:{userId},select:{verifiedAt:true}});
+   if(!target?.isActive||!target.emailVerifiedAt||!factor?.verifiedAt)return "INELIGIBLE";
    const role=await tx.role.findUnique({where:{key:roleKey}});
    if(!role)return "UNKNOWN_ROLE";
    const existing=await tx.userRole.findUnique({where:{userId_roleId:{userId,roleId:role.id}}});
    if(existing)return "EXISTS";
    await tx.userRole.create({data:{userId,roleId:role.id,assignedBy:actorId}});
-   // Invalidate any existing investor session before staff membership takes effect.
-   await tx.user.update({where:{id:userId},data:{sessionVersion:{increment:1}}});
    await tx.staffAudit.create({data:{actorId,action:"role.assigned:"+roleKey,resource:"roles",targetId:userId}});
    return "CREATED";
   });
   if(result==="FORBIDDEN")return Response.json({error:"Super Admin required"},{status:403});
-  if(result==="INELIGIBLE")return Response.json({error:"Target must be active and email-verified"},{status:422});
+  if(result==="INELIGIBLE")return Response.json({error:"Target must be active, verified and enrolled in 2FA"},{status:422});
   if(result==="UNKNOWN_ROLE")return Response.json({error:"Role is not provisioned"},{status:409});
   if(result==="EXISTS")return Response.json({error:"Role is already assigned"},{status:409});
   return Response.json({status:"ASSIGNED"},{status:201});

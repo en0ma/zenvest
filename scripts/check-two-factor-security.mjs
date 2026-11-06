@@ -18,7 +18,6 @@ process.env.RESEND_API_KEY="offline-key";
 process.env.EMAIL_FROM="ci@example.invalid";
 const {makeChallenge,newTotpSecret,totpAt,validTotpStep,encryptSecret,decryptSecret,verifyChallenge,consumeRecoveryCode,IDLE_MS}=await import("../src/lib/two-factor.ts");
 const {POST:start}=await import("../src/app/api/auth/2fa/start/route.ts");
-const {POST:staffEnroll}=await import("../src/app/api/auth/2fa/staff-enroll/route.ts");
 const {POST:manage,GET:status}=await import("../src/app/api/account/2fa/route.ts");
 const {POST:activity}=await import("../src/app/api/session/activity/route.ts");
 const {deliveries}=await import("./ci-resend-shim.mjs");
@@ -62,7 +61,8 @@ try{
  assert.equal((await settings({action:"set-default",password,method:"APP"})).status,200);
  assert.equal((await prisma.twoFactor.findUniqueOrThrow({where:{userId}})).method,"APP");
  const alternate=(await (await login({email:"ci-security@example.invalid",password,method:"EMAIL"})).json());
- assert.equal(alternate.method,"APP","requesting an alternate login method must not override the persisted default");
+ assert.equal(alternate.method,"APP","client-requested EMAIL cannot override APP as the saved login default");
+ assert.ok(alternate.challengeId,"login challenge still exists for the saved APP method");
  const removalRequest=(await (await settings({action:"remove-method-code",password,method:"EMAIL"})).json());
  assert.ok(removalRequest.challengeId);
  assert.equal((await settings({action:"remove-method",password,method:"EMAIL",challengeId:removalRequest.challengeId,code:emailCode()})).status,200);
@@ -91,36 +91,6 @@ try{
  const requestDisable=(await (await settings({action:"disable-code",password})).json());
  assert.ok(requestDisable.challengeId);
  assert.equal((await settings({action:"disable",password,challengeId:requestDisable.challengeId,code:emailCode()})).status,200);
- // Reset old disposable challenge fixtures before testing a separate onboarding session.
- await prisma.twoFactorChallenge.deleteMany({where:{userId,purpose:{in:["ENABLE","LOGIN"]}}});
- // Staff roles are additive; unenrolled staff cannot log in until 2FA setup completes.
- assert.equal((await staffEnroll(req({action:"setup",password,method:"APP",email:"ci-security@example.invalid"}))).status,403,"investor-only users enroll in Settings instead");
- const staffRole=await prisma.role.create({data:{key:"ci-security-staff"}});
- try{
-  await prisma.userRole.create({data:{userId,roleId:staffRole.id,assignedBy:"ci-test-admin"}});
-  assert.equal((await staffEnroll(req({action:"setup",password:"wrong",method:"APP",email:"ci-security@example.invalid"}))).status,401);
-  assert.deepEqual(await (await login({email:"ci-security@example.invalid",password})).json(),{requiresEnrollment:true});
-  const appStart=await (await staffEnroll(req({action:"setup",password,method:"APP",email:"ci-security@example.invalid"}))).json();
-  assert.equal(appStart.method,"APP");assert.ok(appStart.secret&&appStart.uri);
-  assert.equal((await staffEnroll(req({action:"confirm",password,method:"APP",challengeId:appStart.challengeId,code:"111abc",email:"ci-security@example.invalid"}))).status,400);
-  const appConfirm=await staffEnroll(req({action:"confirm",password,method:"APP",challengeId:appStart.challengeId,code:totpAt(appStart.secret,Math.floor(Date.now()/30000)),email:"ci-security@example.invalid"}));
-  assert.equal(appConfirm.status,200);
-  assert.equal((await appConfirm.json()).recoveryCodes.length,8);
-  assert.equal((await prisma.twoFactor.findUniqueOrThrow({where:{userId}})).method,"APP");
-  assert.equal((await staffEnroll(req({action:"confirm",password,method:"APP",challengeId:appStart.challengeId,code:"123456",email:"ci-security@example.invalid"}))).status,409);
-  assert.equal((await (await login({email:"ci-security@example.invalid",password})).json()).method,"APP");
-  await prisma.twoFactor.delete({where:{userId}}); // Simulate staff account with 2FA removed; reenrollment is mandatory.
-  assert.deepEqual(await (await login({email:"ci-security@example.invalid",password})).json(),{requiresEnrollment:true});
-  const emailStart=await (await staffEnroll(req({action:"setup",password,method:"EMAIL",email:"ci-security@example.invalid"}))).json();
-  assert.equal(emailStart.method,"EMAIL");
-  const emailConfirm=await staffEnroll(req({action:"confirm",password,method:"EMAIL",challengeId:emailStart.challengeId,code:emailCode(),email:"ci-security@example.invalid"}));
-  assert.equal(emailConfirm.status,200);
-  assert.equal((await emailConfirm.json()).recoveryCodes.length,8);
-  assert.equal((await (await login({email:"ci-security@example.invalid",password})).json()).method,"EMAIL");
- }finally{
-  await prisma.userRole.deleteMany({where:{userId,roleId:staffRole.id}});
-  await prisma.role.delete({where:{id:staffRole.id}});
- }
  await prisma.securitySession.create({data:{id:"ci_security_device",userId}});
  assert.equal((await activity(new Request("https://ci.invalid/api/session/activity",{method:"POST"}))).status,200);
  await prisma.securitySession.update({where:{id:"ci_security_device"},data:{lastActivityAt:new Date(Date.now()-31*60000)}});
