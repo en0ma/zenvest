@@ -9,7 +9,7 @@ The `treasury_transactions` direction enum has seven values:
 - **PLATFORM_M_BANK**: platform share transferred from Kalshi into master custody. Admin may request at most `K_BANK - SUM(pending/processing/review PLATFORM_M_BANK amounts)`; after verified funds arrive, decrement K_BANK and increment M_BANK exactly once. Do not subtract pending requests from K_BANK itself before settlement.
 - **PLATFORM_PULL**: future admin-initiated movement of platform-held funds out of master custody.
 
-The `treasuries` table is designed for exactly one balance row per `kind`: WITHDRAWAL_FEE, DEPOSIT_FEE, DEPOSIT, DEALLOCATE, ALLOCATE, M_BANK, K_BANK (seven kinds). `kind` is UNIQUE. Amounts are USDC micros, updated atomically with the respective settlement record.
+The `treasuries` table uses exactly one balance row per active `kind`: WITHDRAWAL_FEE, DEPOSIT_FEE, DEPOSIT, ALLOCATE, M_BANK, K_BANK (six active kinds). `kind` is UNIQUE. The legacy `DEALLOCATE` enum member is retained for database compatibility but has no active balance row; never create or credit one. The `DEALLOCATE` *transfer direction and strategy event kind* remain for audit history. Amounts are USDC micros and settle transactionally.
 
 ## Authoritative investor capital reservation rules (confirmed 2026-10-23)
 
@@ -27,8 +27,8 @@ The system calculates **available unallocated USDC** as:
 **Implementation boundary (2026-10-23):** The `CONFIRMING` state and reservation accounting have been added; the independently authenticated Kalshi final-receipt handler is not yet implemented. Cross-worker master custody reservation/concurrency and late-confirmation reconciliation still require an audit and tests. Do not present outbound Blockradar success as fully settled capital.
 
 Bucket meaning:
-- DEPOSIT: investor unallocated funds held in master wallet.
-- ALLOCATE: investor-allocated funds held in Kalshi.
+- DEPOSIT: investor unallocated funds held in the master wallet, including independently verified strategy returns.
+- ALLOCATE: investor-allocated funds held in Kalshi. A verified return atomically debits ALLOCATE and credits DEPOSIT; allocation debits DEPOSIT after signed Blockradar outbound success and credits ALLOCATE only after independently authenticated Kalshi receipt and safe position application.
 - WITHDRAWAL_FEE / DEPOSIT_FEE: retained fees in master wallet (deposit fee presently zero).
 - K_BANK: platform profits at Kalshi, not yet withdrawn.
 - M_BANK: platform profits confirmed at master wallet.

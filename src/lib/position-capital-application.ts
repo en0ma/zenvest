@@ -67,11 +67,13 @@ export async function applyVerifiedCapitalEvent(eventId:string):Promise<string>{
   }else{
    await tx.strategy.update({where:{id:event.strategyId},
     data:{availableCapacityUsdcMicros:{increment:event.amountUsdcMicros}}});
-   const master=await tx.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}});
-   await tx.treasury.upsert({where:{kind:"DEALLOCATE"},
-    create:{walletAddress:master.walletAddress,walletId:master.walletId,source:"MASTER_WALLET",
-     kind:"DEALLOCATE",amount:event.amountUsdcMicros},
-    update:{amount:{increment:event.amountUsdcMicros}}});
+   // This legacy deallocation branch is currently unreachable (ALLOCATE-only
+   // event gate above), but it must not recreate the retired DEALLOCATE bucket.
+   const credited=await tx.treasury.updateMany({
+    where:{kind:"DEPOSIT",source:"MASTER_WALLET"},
+    data:{amount:{increment:event.amountUsdcMicros}},
+   });
+   if(credited.count!==1)throw new Error("Missing DEPOSIT treasury for verified return");
    for(const [id,amount] of totals){
     const original=byId.get(id)!;
     if(original.status==="CLOSING"){

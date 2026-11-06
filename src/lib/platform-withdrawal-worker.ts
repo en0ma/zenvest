@@ -22,15 +22,15 @@ export async function processPendingPlatformWithdrawal(id:string){
  if(changed.count!==1)return "already_claimed";
  let providerStarted=false;
  try{
-  const [deposit,deallocate,holds]=await Promise.all([
+  const [deposit,holds]=await Promise.all([
    prisma.treasury.findUnique({where:{kind:"DEPOSIT"}}),
-   prisma.treasury.findUnique({where:{kind:"DEALLOCATE"}}),
    prisma.platformWithdrawal.aggregate({where:{status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},_sum:{amountUsdcMicros:true}})
   ]);
-  if(!deposit||deposit.amount<0n||(deallocate&&deallocate.amount<0n))throw Error("Invalid investor treasury custody");
+  if(!deposit||deposit.amount<0n||deposit.walletId!==walletId||deposit.source!=="MASTER_WALLET")
+   throw Error("Invalid investor DEPOSIT custody");
   const outstanding=holds._sum.amountUsdcMicros??0n;
   const chain=await readBlockradarUsdcBalance({key,walletId,assetId});
-  if(chain<deposit.amount+(deallocate?.amount??0n)+outstanding)
+  if(chain<deposit.amount+outstanding)
    throw Error("Insufficient unencumbered master custody");
   providerStarted=true;
   const receipt=await submitBlockradarWithdrawal({
