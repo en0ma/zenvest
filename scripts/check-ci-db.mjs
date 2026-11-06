@@ -12,8 +12,14 @@ try {
  assert.equal(position.status,"OPEN");
  assert.equal(position.lastPnlUpdated,false);
  const buckets=await prisma.treasury.findMany({orderBy:{kind:"asc"}});
- assert.equal(buckets.length,7);
- assert.deepEqual(buckets.map(x=>x.kind).sort(),["ALLOCATE","DEALLOCATE","DEPOSIT","DEPOSIT_FEE","K_BANK","M_BANK","WITHDRAWAL_FEE"].sort());
+ assert.equal(buckets.length,6);
+ assert.deepEqual(buckets.map(x=>x.kind).sort(),["ALLOCATE","DEPOSIT","DEPOSIT_FEE","K_BANK","M_BANK","WITHDRAWAL_FEE"].sort());
+ // Staff ledger directions must exist in the real database enum after migration.
+ const treasuryDirections=await prisma.$queryRawUnsafe('SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid WHERE t.typname=$1','TreasuryDirection');
+ assert.deepEqual(treasuryDirections.map(row=>row.enumlabel).sort(),
+  ["DEPOSIT","ALLOCATE","DEALLOCATE","WITHDRAWAL",
+   "K_BANK_DEPOSIT","K_BANK_WITHDRAWAL","M_BANK_DEPOSIT","M_BANK_WITHDRAWAL"].sort(),
+  "No obsolete PLATFORM_* directions are allowed in the database");
  // Verify the real PostgreSQL enum values after migration.
  for(const name of ['WithdrawalStatus','PositionTransferStatus']){
   const rows=await prisma.$queryRawUnsafe('SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid WHERE t.typname=$1',name);
@@ -405,8 +411,16 @@ try {
  await prisma.strategyEvent.update({where:{id:returnEvent.id},data:{sourceConfirmed:true,
   kalshiWithdrawalId:receipt.kalshiWithdrawalId}});
  const userBeforeReturn=(await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated;
+ const depositBeforeReturn=(await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).amount;
+ const allocateBeforeReturn=(await prisma.treasury.findUniqueOrThrow({where:{kind:"ALLOCATE"}})).amount;
  assert.equal(await settleVerifiedStrategyReturn(receipt),"completed");
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).unallocated,userBeforeReturn+finalValue);
+ assert.equal((await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).amount,depositBeforeReturn+finalValue,
+  "verified return must increase master DEPOSIT once");
+ assert.equal((await prisma.treasury.findUniqueOrThrow({where:{kind:"ALLOCATE"}})).amount,allocateBeforeReturn-finalValue,
+  "verified return must decrease Kalshi ALLOCATE once");
+ assert.equal(await prisma.treasury.count({where:{kind:"DEALLOCATE"}}),0,
+  "historical deallocation events must not create legacy balance bucket");
  assert.equal(await settleVerifiedStrategyReturn(receipt),"duplicate");
  assert.equal(await settleVerifiedStrategyReturn({...receipt,masterReceiptId:"different"}),"mismatch");
  assert.equal(await settleVerifiedStrategyReturn({...receipt,kalshiWithdrawalId:"different"}),"mismatch");

@@ -28,8 +28,7 @@ export function validateAdminWalletTransfer(value:unknown):
 }
 export type TreasuryBalances={M_BANK:bigint;DEPOSIT_FEE:bigint;WITHDRAWAL_FEE:bigint;K_BANK:bigint};
 type FundingResult={ok:true;amount:bigint;debits:{M_BANK:bigint;DEPOSIT_FEE:bigint;WITHDRAWAL_FEE:bigint;K_BANK:bigint}}|{ok:false;reason:string};
-/** Reservations are deducted before determining spendable funds. Never spend DEPOSIT,
- * DEALLOCATE or ALLOCATE; never count K_BANK toward master custody.
+/** Reservations are deducted before determining spendable funds. Never spend DEPOSIT or ALLOCATE; never count K_BANK toward master custody.
  */
 export function planAdminWalletFunding(kind:AdminWalletTransferKind,amount:bigint,balances:TreasuryBalances,reserved:bigint=0n):FundingResult{
  if(amount<=0n||reserved<0n||Object.values(balances).some(x=>x<0n))return {ok:false,reason:"INVALID_TREASURY_STATE"};

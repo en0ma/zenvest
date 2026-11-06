@@ -42,13 +42,11 @@ export async function processPendingAllocations(){
  if(!batch)return "already_claimed";
  let submissionStarted=false;
  try{
-  const [deposit,deallocate]=await Promise.all([
-   prisma.treasury.findUnique({where:{kind:"DEPOSIT"}}),
-   prisma.treasury.findUnique({where:{kind:"DEALLOCATE"}}),
-  ]);
-  if(!deposit||deposit.amount<0n||(deallocate&&deallocate.amount<0n))throw new Error("Invalid master balance");
+  const deposit=await prisma.treasury.findUnique({where:{kind:"DEPOSIT"}});
+  if(!deposit||deposit.amount<0n||deposit.walletId!==config.walletId||deposit.source!=="MASTER_WALLET")
+   throw new Error("Invalid master DEPOSIT balance");
   const onChain=await readBlockradarUsdcBalance({key:config.key,walletId:config.walletId,assetId});
-  if(!masterCustodyCoversTreasury(onChain,deposit.amount,deallocate?.amount??0n))throw new Error("Insufficient master custody");
+  if(!masterCustodyCoversTreasury(onChain,deposit.amount))throw new Error("Insufficient master custody");
   submissionStarted=true;
   await submitBlockradarAllocation({
    reference:"strategy_withdrawal:"+batch.eventId,strategyId:strategy.id,address,amount:batch.amount,

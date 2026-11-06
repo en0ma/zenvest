@@ -25,7 +25,7 @@ try{
  process.env.BLOCK_RADAR_MASTER_WALLET_ID=deposit.walletId;
  process.env.BLOCKRADAR_SOLANA_USDC_ASSET_ID="ci-usdc";
  process.env.BLOCKRADAR_SOLANA_USDC_MINT="ci-test-usdc-mint";
- treasuryStart=await prisma.treasury.findMany({where:{kind:{in:["DEPOSIT","DEALLOCATE","WITHDRAWAL_FEE"]}},select:{kind:true,amount:true}});
+ treasuryStart=await prisma.treasury.findMany({where:{kind:{in:["DEPOSIT","WITHDRAWAL_FEE"]}},select:{kind:true,amount:true}});
  await prisma.user.create({data:{id:userId,name:"CI Payout Worker",email:"ci-payout-worker@example.invalid",passwordHash:"ci-only",unallocated:100000000n}});
  createdUser=true;
  const make=(id,stamp)=>prisma.withdrawal.create({data:{
@@ -132,13 +132,11 @@ try{
  }});
  const beforeInterrupted=(await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated;
  const depositBeforeInterrupted=await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}});
- const deallocateBeforeInterrupted=await prisma.treasury.findUniqueOrThrow({where:{kind:"DEALLOCATE"}});
  await prisma.treasury.update({where:{kind:"DEPOSIT"},data:{amount:0n}});
- await prisma.treasury.update({where:{kind:"DEALLOCATE"},data:{amount:0n}});
  const interruptedData={...signedData,id:"ci-provider-interrupted",reference:interruptedReference,hash:"ci-interrupted-hash"};
  try{
   await assert.rejects(handleWithdrawalWebhook("withdraw.success",interruptedData,deposit.walletId),
-   /Insufficient master treasury balance/);
+   /Insufficient DEPOSIT treasury balance/);
   assert.equal((await prisma.withdrawal.findUniqueOrThrow({where:{id:interruptedId}})).status,"PROCESSING",
    "failed settlement must roll back status transition");
   assert.equal(await prisma.treasuryTransfer.count({where:{reference:interruptedReference}}),0,
@@ -147,7 +145,6 @@ try{
    "failed settlement cannot debit funds");
  }finally{
   await prisma.treasury.update({where:{kind:"DEPOSIT"},data:{amount:depositBeforeInterrupted.amount>=7000001n?depositBeforeInterrupted.amount:7000001n}});
-  await prisma.treasury.update({where:{kind:"DEALLOCATE"},data:{amount:deallocateBeforeInterrupted.amount}});
  }
  // Race first-time signed settlement deliveries, not merely duplicates after completion.
  // PostgreSQL SERIALIZABLE may abort a contender with P2034; it must be retryable

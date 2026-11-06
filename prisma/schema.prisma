@@ -369,9 +369,11 @@ enum TreasuryDirection {
   ALLOCATE
   DEALLOCATE
   WITHDRAWAL
-  PLATFORM_PULL
-  PLATFORM_M_BANK
-  PLATFORM_K_BANK
+  // Active staff ledger directions, named for the custody bucket.
+  K_BANK_DEPOSIT
+  K_BANK_WITHDRAWAL
+  M_BANK_DEPOSIT
+  M_BANK_WITHDRAWAL
 }
 enum TreasuryStatus {
   PENDING

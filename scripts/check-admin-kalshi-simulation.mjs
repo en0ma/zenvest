@@ -119,11 +119,16 @@ try{
  assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"K_BANK"}})).amount,15_000_000n);
  assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"M_BANK"}})).amount,initialMBank+5000000n);
  const ledger=await db.treasuryTransfer.findUniqueOrThrow({where:{reference:"platform_kalshi_return:"+record.id}});
- assert.equal(ledger.direction,"PLATFORM_K_BANK");
+ assert.equal(ledger.direction,"M_BANK_DEPOSIT");
+ const outboundLedger=await db.treasuryTransfer.findUniqueOrThrow({where:{reference:"platform_kalshi_return:"+record.id+":k_bank_withdrawal"}});
+ assert.equal(outboundLedger.direction,"K_BANK_WITHDRAWAL");
+ assert.equal(outboundLedger.amountUsdcMicros,ledger.amountUsdcMicros);
+ assert.equal(outboundLedger.originExternalId,ledger.originExternalId);
+ assert.equal(outboundLedger.destinationExternalId,ledger.destinationExternalId);
  assert.equal(ledger.amountUsdcMicros,5000000n);
  assert.equal(ledger.originExternalId,verifiedId);
  assert.equal(ledger.destinationExternalId,"ci-staff-receipt-confirmed");
- assert.equal(await db.treasuryTransfer.count({where:{reference:"platform_kalshi_return:"+record.id}}),1);
+ assert.equal(await db.treasuryTransfer.count({where:{reference:{startsWith:"platform_kalshi_return:"+record.id}}}),2,"one verified Kalshi-to-master movement has paired bank ledger entries");
  assert.equal((await sendSweep("ci-staff-receipt-confirmed")).status,200,"signed sweep must be replay-safe");
  assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"K_BANK"}})).amount,15_000_000n);
  assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"M_BANK"}})).amount,initialMBank+5000000n);
@@ -149,7 +154,7 @@ try{
  await db.userRole.delete({where:{userId_roleId:{userId:"ci_test_user",roleId:superAdminRoleId}}});
  superAdminMembership=false;
  assert.equal((await call(privilegedIds[1])).status,409,"revoked Super Admin cannot execute own prior approval");
- console.log("Admin Kalshi withdrawal passed: mocked HTTP acceptance never settles; verified source + HMAC-signed Blockradar sweep moves only K_BANK to M_BANK and creates exactly one PLATFORM_K_BANK ledger entry");
+ console.log("Admin Kalshi withdrawal passed: mocked HTTP acceptance never settles; verified source + HMAC-signed Blockradar sweep moves only K_BANK to M_BANK and creates a matched K_BANK_WITHDRAWAL + M_BANK_DEPOSIT ledger pair");
 }finally{
  await db.treasuryTransfer.deleteMany({where:{reference:{startsWith:"platform_kalshi_return:"}}});
  await db.staffAudit.deleteMany({where:{targetId:{in:ids}}});

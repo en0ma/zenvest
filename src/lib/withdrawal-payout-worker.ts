@@ -53,18 +53,14 @@ export async function processPendingWithdrawal(targetWithdrawalId?:string){
  if(claim==="failed_validation")return "failed_validation";
  if(!claim)return "already_claimed";
  // Preflight uses the already-approved withdrawal fee. No additional quote here.
- // The master must hold at least the funds accounted for in DEPOSIT +
- // DEALLOCATE treasury buckets before any payout submission.
+ // All master-held investor principal is in DEPOSIT; no separate returned bucket.
  let providerSubmissionStarted=false;
  try{
-  const [deposit,deallocate]=await Promise.all([
-    prisma.treasury.findUnique({where:{kind:"DEPOSIT"}}),
-    prisma.treasury.findUnique({where:{kind:"DEALLOCATE"}}),
-  ]);
-  if(!deposit||deposit.amount<0n||(deallocate&&deallocate.amount<0n))
-    throw new Error("Invalid treasury custody accounting");
+  const deposit=await prisma.treasury.findUnique({where:{kind:"DEPOSIT"}});
+  if(!deposit||deposit.amount<0n||deposit.walletId!==walletId||deposit.source!=="MASTER_WALLET")
+   throw new Error("Invalid DEPOSIT treasury custody accounting");
   const onChain=await readBlockradarUsdcBalance({key,walletId,assetId});
-  if(!masterCustodyCoversTreasury(onChain,deposit.amount,deallocate?.amount??0n))throw new Error("Insufficient master wallet custody for treasury liabilities");
+  if(!masterCustodyCoversTreasury(onChain,deposit.amount))throw new Error("Insufficient master wallet custody for treasury liabilities");
   providerSubmissionStarted=true;
   const receipt=await submitBlockradarPayout({id:candidate.id,userId:candidate.userId,address:candidate.destinationAddress,amount:candidate.amountUsdcMicros},{key,walletId,assetId});
   await prisma.$transaction(async tx=>{
