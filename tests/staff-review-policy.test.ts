@@ -10,8 +10,8 @@ test("decided or executed actions cannot be reviewed again",()=>{
  for(const status of ["APPROVED","REJECTED","EXECUTED"] as const)assert.equal(canReviewAction({...base,status}),false);
 });
 test("financial request targets use an explicit allowlist",()=>{
- for(const [resource,operation] of [["users","write"],["deposits","reconcile"],["withdrawals","approve"],["wallets","operate"]])assert.equal(validateActionTarget(resource,operation),true);
- for(const [resource,operation] of [["balances","write"],["wallets","delete"],["deposits","credit"],["users","make-super-admin"],["unknown","approve"]])assert.equal(validateActionTarget(resource,operation),false);
+ for(const [resource,operation] of [["users","write"],["wallets","operate"]])assert.equal(validateActionTarget(resource,operation),true);
+ for(const [resource,operation] of [["balances","write"],["wallets","delete"],["deposits","reconcile"],["withdrawals","approve"],["deposits","credit"],["users","make-super-admin"],["unknown","approve"]])assert.equal(validateActionTarget(resource,operation),false);
 });
 
 import {isWithinReviewWindow,REVIEW_WINDOW_MS} from "../src/lib/staff-review-policy.ts";

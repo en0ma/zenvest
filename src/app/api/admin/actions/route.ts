@@ -6,7 +6,7 @@ import {validateActionTarget} from "@/lib/staff-review-policy";
 import {validateProposalPayload} from "@/lib/staff-financial-limits";
 import {requireStaffPermission} from "@/lib/staff-access";
 import type {StaffPermissionKey} from "@/lib/staff-permissions";
-const supported:Record<string,StaffPermissionKey>={"users:write":"users:write","deposits:reconcile":"deposits:reconcile","withdrawals:approve":"withdrawals:approve","wallets:operate":"wallets:operate"};
+const supported:Record<string,StaffPermissionKey>={"users:write":"users:write","wallets:operate":"wallets:operate"};
 const proposal=z.object({resource:z.string(),operation:z.string(),targetId:z.string().min(1).max(128),reason:z.string().min(12).max(500),idempotencyKey:z.string().min(12).max(100),payload:z.unknown().optional()}).strict();
 export async function POST(request:NextRequest){
  try{

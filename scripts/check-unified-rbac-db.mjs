@@ -16,7 +16,11 @@ try{
  assert.equal(initial[0].role.key,"user");
  const allowed=new Set(initial[0].role.grants.map(g=>g.permission.key));
  for(const key of ["account:access","portfolio:read:own","wallet:read:own","deposits:create:own","withdrawals:create:own","allocations:create:own"])assert.ok(allowed.has(key),key);
- for(const key of ["roles:manage","wallets:operate","withdrawals:approve","balances:adjust"])assert.ok(!allowed.has(key),"baseline must never have privileged permission "+key);
+ for(const key of ["roles:manage","wallets:operate","withdrawals:approve","deposits:reconcile","balances:adjust"])assert.ok(!allowed.has(key),"baseline must never have privileged permission "+key);
+ for(const key of ["deposits:reconcile","withdrawals:approve"])assert.equal(await db.permission.count({where:{key}}),0,"retired admin financial permission must not survive migration");
+ for(const [resource,operation] of [["deposits","reconcile"],["withdrawals","approve"]]){
+  await assert.rejects(db.staffAction.create({data:{resource,operation,targetId:userId,reason:"Retired admin operation blocked",requestedBy:userId,idempotencyKey:"ci_denied_"+resource,payload:{}}}),"database must forbid retired staff action "+resource);
+ }
  roleId=(await db.role.create({data:{key:roleKey}})).id;
  permissionId=(await db.permission.create({data:{key:permissionKey}})).id;
  await db.rolePermission.create({data:{roleId,permissionId}});

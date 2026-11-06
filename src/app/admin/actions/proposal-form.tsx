@@ -4,8 +4,6 @@ import {useRouter} from "next/navigation";
 import Link from "next/link";
 const operations=[
  {value:"users:write",label:"User change request"},
- {value:"deposits:reconcile",label:"Deposit reconciliation"},
- {value:"withdrawals:approve",label:"Withdrawal approval"},
  {value:"wallets:operate",label:"Wallet operation"}
 ] as const;
 export default function ActionProposalForm({allowed}:{allowed:string[]}){

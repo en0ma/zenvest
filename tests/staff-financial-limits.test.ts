@@ -7,5 +7,5 @@ test("manual balance changes are categorically rejected",()=>{
 });
 test("existing wallet transfer validation remains strict",()=>{
  assert.equal(validateProposalPayload("wallets","operate",{destination:"attacker"},"999","999").ok,false);
- assert.equal(validateProposalPayload("withdrawals","approve",{},"999").ok,true);
+ assert.equal(validateProposalPayload("users","write",{},"999").ok,true);
 });
