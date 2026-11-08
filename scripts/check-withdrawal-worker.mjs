@@ -107,20 +107,30 @@ try{
  assert.equal(await prisma.treasuryTransfer.count({where:{reference:"withdrawal:"+successId}}),1);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,92999999n,
   "replayed trusted callback cannot debit funds again");
- // A stale REVIEW must expire without contacting the provider or debiting funds.
+ // An ancient unknown payout must stay in REVIEW indefinitely; the alert
+ // age cannot release its hold, debit funds, or broadcast another payout.
  const stale=await prisma.withdrawal.create({data:{
   id:"cworkerreviewexpired000001",userId,amountUsdcMicros:5000001n,
   grossUsdcMicros:7000001n,feeUsdcMicros:2000000n,
   destinationAddress:"11111111111111111111111111111111",
-  status:"REVIEW",createdAt:new Date("2000-01-01T00:00:00Z")
+  status:"REVIEW",failureCode:"PAYOUT_RESPONSE_UNKNOWN",
+  createdAt:new Date("2000-01-01T00:00:00Z"),updatedAt:new Date("2000-01-01T00:00:00Z")
  }});
- const transfersBeforeExpiry=transfers;
- assert.equal(await processPendingWithdrawal(),"review_expired");
- const expired=await prisma.withdrawal.findUniqueOrThrow({where:{id:stale.id}});
- assert.equal(expired.status,"FAILED");
- assert.equal(expired.failureCode,"REVIEW_TIMEOUT");
- assert.equal(expired.treasuryTransactionId,null);
- assert.equal(transfers,transfersBeforeExpiry,"review expiration must not submit a payout");
+ const transfersBeforeReview=transfers;
+ assert.equal(await processPendingWithdrawal(),"empty",
+  "stale REVIEW cannot be automatically failed or retransmitted");
+ let held=await prisma.withdrawal.findUniqueOrThrow({where:{id:stale.id}});
+ assert.equal(held.status,"REVIEW");
+ assert.equal(held.failureCode,"PAYOUT_RESPONSE_UNKNOWN");
+ assert.equal(held.treasuryTransactionId,null);
+ assert.equal(transfers,transfersBeforeReview);
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,92999999n);
+ // Independently authenticated failure can safely release the old reservation.
+ const staleFailure={...signedData,id:"ci-provider-stale-failure",reference:"withdrawal:"+stale.id,status:"FAILED",confirmed:false};
+ assert.equal(await handleWithdrawalWebhook("withdraw.failed",staleFailure,deposit.walletId),"settled");
+ assert.equal((await prisma.withdrawal.findUniqueOrThrow({where:{id:stale.id}})).status,"FAILED");
+ assert.equal(await handleWithdrawalWebhook("withdraw.failed",staleFailure,deposit.walletId),"duplicate");
+ assert.equal(await prisma.treasuryTransfer.count({where:{reference:"withdrawal:"+stale.id}}),0);
  assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,92999999n);
  // Interrupted settlement must roll back ALL journal writes and remain retryable.
  const interruptedId="cworkerinterrupted0000003";
@@ -232,6 +242,25 @@ try{
  assert.equal(overdraw.failureCode,"INSUFFICIENT_AVAILABLE_FUNDS");
  assert.equal(await processPendingWithdrawal(),"empty","failed operation must not be retried");
  await prisma.withdrawal.delete({where:{id:overdrawId}});
+ // Even a long-pending REVIEW may settle on a late authenticated success.
+ const lateReviewId="cworkerlatereviewsuccess0008";
+ await prisma.withdrawal.create({data:{id:lateReviewId,userId,
+  amountUsdcMicros:5000001n,grossUsdcMicros:7000001n,feeUsdcMicros:2000000n,
+  destinationAddress:"11111111111111111111111111111111",
+  status:"REVIEW",failureCode:"PAYOUT_RESPONSE_UNKNOWN",
+  createdAt:new Date("2000-01-01T00:00:00Z"),updatedAt:new Date("2000-01-01T00:00:00Z")}});
+ const lateBalance=(await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated;
+ const lateDeposit=(await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).amount;
+ const lateData={...signedData,id:"ci-provider-late-review",reference:"withdrawal:"+lateReviewId,hash:"ci-late-review-hash"};
+ assert.equal(await processPendingWithdrawal(),"empty","stale REVIEW stays parked");
+ assert.equal(await handleWithdrawalWebhook("withdraw.success",lateData,deposit.walletId),"settled");
+ assert.equal((await prisma.withdrawal.findUniqueOrThrow({where:{id:lateReviewId}})).status,"COMPLETED");
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,lateBalance-7000001n);
+ assert.equal((await prisma.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}})).amount,lateDeposit-7000001n);
+ assert.equal((await prisma.treasuryTransfer.findUniqueOrThrow({where:{reference:"withdrawal:"+lateReviewId}})).direction,"WITHDRAWAL");
+ assert.equal(await handleWithdrawalWebhook("withdraw.success",lateData,deposit.walletId),"duplicate");
+ assert.equal(await prisma.treasuryTransfer.count({where:{reference:"withdrawal:"+lateReviewId}}),1);
+ assert.equal((await prisma.user.findUniqueOrThrow({where:{id:userId}})).unallocated,lateBalance-7000001n);
  console.log("Withdrawal worker PostgreSQL lifecycle passed: custody preflight, successful provider acceptance, unknown response enters REVIEW, signed settlement, one ledger entry, replay-safe gross debit");
 }finally{
  globalThis.fetch=realFetch;
@@ -240,7 +269,7 @@ try{
  }
  await prisma.withdrawal.deleteMany({where:{userId}});
  await prisma.investorActivity.deleteMany({where:{userId}});
- await prisma.treasuryTransfer.deleteMany({where:{reference:{in:["withdrawal:"+successId,"withdrawal:cworkerinterrupted0000003"]}}});
+ await prisma.treasuryTransfer.deleteMany({where:{reference:{in:["withdrawal:"+successId,"withdrawal:cworkerinterrupted0000003","withdrawal:cworkerlatereviewsuccess0008"]}}});
  if(treasuryStart)for(const entry of treasuryStart)await prisma.treasury.update({where:{kind:entry.kind},data:{amount:entry.amount}});
  if(priorMint===undefined)delete process.env.BLOCKRADAR_SOLANA_USDC_MINT;else process.env.BLOCKRADAR_SOLANA_USDC_MINT=priorMint;
  if(createdUser)await prisma.user.deleteMany({where:{id:userId}});

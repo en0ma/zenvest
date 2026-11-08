@@ -5,7 +5,8 @@ import {submitBlockradarPayout} from "./blockradar-payout";
 import {readBlockradarUsdcBalance} from "./blockradar-master-balance";
 import {WITHDRAWAL_FEE_USDC_MICROS} from "./withdrawal-fee";
 import {masterCustodyCoversTreasury} from "./withdrawal-worker-rules";
-import {reviewExpiryCutoff} from "./withdrawal-review-timeout";
+import {reviewAlertCutoff} from "./withdrawal-review-timeout";
+import {journeyLog} from "./journey-log";
 
 export async function processPendingWithdrawal(targetWithdrawalId?:string){
  const {key,walletId}=blockradarConfig();
@@ -13,22 +14,16 @@ export async function processPendingWithdrawal(targetWithdrawalId?:string){
  if(!assetId)throw new Error("Missing Blockradar asset ID");
  const master=await prisma.treasury.findUnique({where:{kind:"DEPOSIT"}});
  if(!master||master.walletId!==walletId||master.source!=="MASTER_WALLET"||master.asset!=="USDC")throw new Error("Missing master deposit treasury");
- // Expire REVIEW records two hours after their original creation time.
- // Conditional updates and the matching treasury mutation remain atomic.
- const expired=targetWithdrawalId?null:await prisma.withdrawal.findFirst({
-  where:{status:"REVIEW",createdAt:{lte:reviewExpiryCutoff(new Date())}},
-  orderBy:{createdAt:"asc"},
- });
- if(expired){
-  const expiredNow=await prisma.$transaction(async tx=>{
-   const changed=await tx.withdrawal.updateMany({
-    where:{id:expired.id,status:"REVIEW",createdAt:{lte:reviewExpiryCutoff(new Date())}},
-    data:{status:"FAILED",failureCode:"REVIEW_TIMEOUT"},
-   });
-   if(changed.count!==1)return false;
-   return true;
-  },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
-  return expiredNow?"review_expired":"already_settled";
+ // An unknown provider outcome is NOT a failed payout. A stale REVIEW keeps
+ // reserving gross investor funds indefinitely, even if Blockradar timed out.
+ // Alert operators after the threshold, but continue serving other PENDING
+ // requests. No automatic reversal, refund, or second provider submission.
+ if(!targetWithdrawalId){
+  const stale=await prisma.withdrawal.findFirst({
+   where:{status:"REVIEW",updatedAt:{lte:reviewAlertCutoff(new Date())}},
+   orderBy:{updatedAt:"asc"},select:{id:true},
+  });
+  if(stale)journeyLog("warn","withdrawal_payout","review_requires_reconciliation",{withdrawalId:stale.id});
  }
  const candidate=await prisma.withdrawal.findFirst({where:{status:"PENDING",treasuryTransactionId:null,...(targetWithdrawalId?{id:targetWithdrawalId}:{})},orderBy:[{updatedAt:"asc"},{createdAt:"asc"}]});
  if(!candidate)return "empty";
@@ -83,8 +78,8 @@ export async function processPendingWithdrawal(targetWithdrawalId?:string){
   await prisma.withdrawal.updateMany({where:{id:candidate.id,status:"SUBMITTING"},data:{
     status:"REVIEW",failureCode:"PAYOUT_RESPONSE_UNKNOWN"
   }});
-  // REVIEW retains the balance hold until webhook settlement or the two-hour
-  // policy deadline; the worker never resubmits a potentially paid transfer.
+  // REVIEW retains its gross reservation until authenticated provider outcome;
+  // the worker never resubmits a potentially paid transfer.
   return "review_pending";
  }
 }
