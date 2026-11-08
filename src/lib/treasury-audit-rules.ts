@@ -47,6 +47,23 @@ export function auditTreasuryBuckets(rows:TreasuryRow[]):AuditFinding[]{
  }
  return issues;
 }
+export type PlatformReservationRow={
+ id:string;amountUsdcMicros:bigint;
+ reservedMBankMicros:bigint;reservedDepositFeeMicros:bigint;reservedWithdrawalFeeMicros:bigint;
+};
+/** Check each active reservation separately: a negative component must not be
+ * hidden by another withdrawal's positive reserve or by the aggregate sum. */
+export function auditPlatformReservations(rows:PlatformReservationRow[]):AuditFinding[]{
+ const issues:AuditFinding[]=[];
+ for(const row of rows){
+  const parts=[row.reservedMBankMicros,row.reservedDepositFeeMicros,row.reservedWithdrawalFeeMicros];
+  if(row.amountUsdcMicros<=0n||parts.some(amount=>amount<0n)||
+     parts.reduce((sum,amount)=>sum+amount,0n)!==row.amountUsdcMicros)
+   issues.push(finding("PLATFORM_RESERVATION_MISMATCH","critical",1,
+    "Active platform payout has invalid or inconsistent reserved treasury amounts",[row.id]));
+ }
+ return issues;
+}
 export function expectedMasterMicros(rows:TreasuryRow[]):bigint{
  return rows.filter(r=>["DEPOSIT","DEPOSIT_FEE","WITHDRAWAL_FEE","M_BANK"].includes(r.kind))
   .reduce((n,r)=>n+r.amount,0n);

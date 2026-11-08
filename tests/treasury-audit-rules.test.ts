@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
  auditTreasuryBuckets,auditCompletedWithdrawal,auditStaffReturnPair,
- compareMasterCustody,expectedMasterMicros,
+ compareMasterCustody,expectedMasterMicros,auditPlatformReservations,
 } from "../src/lib/treasury-audit-rules.ts";
 const wallet="master-wallet";
 const make=(kind:string,amount=10n)=>({
@@ -55,4 +55,18 @@ test("Kalshi->master paired ledgers require same amount and provider identities"
  assert.deepEqual(auditStaffReturnPair(outbound,inbound),[]);
  assert.equal(auditStaffReturnPair(outbound,null)[0].code,"STAFF_RETURN_PAIR_MISMATCH");
  assert.equal(auditStaffReturnPair(outbound,{...inbound,amountUsdcMicros:9n})[0].code,"STAFF_RETURN_PAIR_MISMATCH");
+});
+
+test("active platform reservation audit rejects negative offsets and incorrect bucket totals",()=>{
+ const valid={id:"p1",amountUsdcMicros:10n,
+  reservedMBankMicros:5n,reservedDepositFeeMicros:3n,reservedWithdrawalFeeMicros:2n};
+ assert.deepEqual(auditPlatformReservations([valid]),[]);
+ const offset={...valid,id:"p2",reservedMBankMicros:-2n,reservedDepositFeeMicros:10n};
+ const wrongTotal={...valid,id:"p3",reservedWithdrawalFeeMicros:1n};
+ const invalidAmount={...valid,id:"p4",amountUsdcMicros:0n};
+ const issues=auditPlatformReservations([valid,offset,wrongTotal,invalidAmount]);
+ assert.deepEqual(issues.map(x=>x.sampleIds[0]),["p2","p3","p4"]);
+ assert.ok(issues.every(x=>x.code==="PLATFORM_RESERVATION_MISMATCH"&&x.severity==="critical"));
+ // Aggregates still look nonnegative: row-level checks must independently fail.
+ assert.ok([valid,offset,wrongTotal].reduce((sum,r)=>sum+r.reservedMBankMicros+r.reservedDepositFeeMicros+r.reservedWithdrawalFeeMicros,0n)>0n);
 });

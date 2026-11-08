@@ -3,7 +3,7 @@ import {prisma} from "./db";
 import {blockradarConfig} from "./blockradar";
 import {readBlockradarUsdcBalance} from "./blockradar-master-balance";
 import {
- auditTreasuryBuckets,auditCompletedWithdrawal,auditStaffReturnPair,
+ auditTreasuryBuckets,auditCompletedWithdrawal,auditStaffReturnPair,auditPlatformReservations,
  compareMasterCustody,expectedMasterMicros,finding,
  type AuditFinding,type TreasuryRow,
 } from "./treasury-audit-rules";
@@ -50,7 +50,7 @@ export async function runTreasuryAudit(options:{
    tx.investorPosition.findMany({where:{allocatedUsdcMicros:{lt:0n}},take:SAMPLE_LIMIT+1,select:{id:true}}),
    tx.withdrawal.count({where:{status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}}}),
    tx.platformWithdrawal.findMany({where:{status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},
-    select:{reservedMBankMicros:true,reservedDepositFeeMicros:true,reservedWithdrawalFeeMicros:true}}),
+    select:{id:true,amountUsdcMicros:true,reservedMBankMicros:true,reservedDepositFeeMicros:true,reservedWithdrawalFeeMicros:true}}),
   ]);
   // Scan both directions: an unmatched inbound is as serious as an unmatched outbound.
   const inbound=await tx.treasuryTransfer.findMany({
@@ -163,8 +163,7 @@ export async function runTreasuryAudit(options:{
   "Uncertain platform payout still reserves platform funds");
  const unreserved=snapshot.activePlatform.reduce((n,w)=>n+
   w.reservedMBankMicros+w.reservedDepositFeeMicros+w.reservedWithdrawalFeeMicros,0n);
- if(unreserved<0n)issues.push(finding("NEGATIVE_PLATFORM_RESERVATION","critical",1,
-  "Outstanding platform payout contains negative reservation"));
+ append(issues,auditPlatformReservations(snapshot.activePlatform));
  const expected=expectedMasterMicros(buckets)+unreserved;
  let observed:bigint|null=null;
  let custodyStatus:AuditReport["custody"]["status"]="unavailable";
