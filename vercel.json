@@ -31,6 +31,10 @@
     {
       "path": "/api/internal/process-position-trade-pnl",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/internal/audit-treasury",
+      "schedule": "0 4 * * *"
     }
   ]
 }
