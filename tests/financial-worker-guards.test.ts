@@ -26,5 +26,5 @@ test("REVIEW alert threshold is two hours, not automatic payout failure",()=>{
  assert.equal(now.toISOString(),"2026-01-01T00:00:00.000Z","helper must not mutate time source");
 });
 test("REVIEW alert cutoff rejects invalid time",()=>{
- assert.throws(()=>reviewExpiryCutoff(new Date(NaN)),/Invalid current time/);
+ assert.throws(()=>reviewAlertCutoff(new Date(NaN)),/Invalid current time/);
 });
