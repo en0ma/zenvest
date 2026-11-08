@@ -31,8 +31,10 @@ export async function POST(_request:Request,{params}:{params:Promise<{id:string}
    const status=data.status;
    const event=status==="SUCCESS"?"withdraw.success":
     status==="FAILED"?"withdraw.failed":status==="CANCELLED"?"withdraw.cancelled":null;
-   if(event&&data.confirmed!==false&&
-       (event!=="withdraw.success"||(data.confirmed===true&&typeof data.hash==="string"&&Boolean(data.hash)))){
+   // A definitive provider FAILED/CANCELLED entry was never chain-confirmed;
+   // only SUCCESS needs positive chain confirmation and a transaction hash.
+   if(event&&(event!=="withdraw.success"||
+       (data.confirmed===true&&typeof data.hash==="string"&&Boolean(data.hash)))){
     outcome=await handleWithdrawalWebhook(event,data,walletId);
     reason=outcome==="settled"?"provider_verified":outcome;
    }else reason="provider_not_final";
