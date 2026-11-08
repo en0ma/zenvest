@@ -36,8 +36,13 @@ implementation does **not** provide a separate email/SMS paging service.
 - Verified `K_BANK_WITHDRAWAL` staff transfers have one matching
   `M_BANK_DEPOSIT` for the **same** provider withdrawal, master receipt and
   amount; this is a two-sided history entry, not two credits.
+  The audit detects either side missing, including a master receipt with no
+  corresponding Kalshi withdrawal journal.
+- Every completed platform-owned master payout must have a completed
+  `M_BANK_WITHDRAWAL` ledger entry for its exact amount and destination.
 - `K_BANK_DEPOSIT` platform-profit ledger amounts match settled
-  participating investor fee shares for the referenced trade.
+  participating investor fee shares for the referenced trade. A profitable
+  finalized trade missing its `K_BANK_DEPOSIT` journal also raises a finding.
 - Negative investor unallocated and position allocated amounts, plus investor
   or staff payout `REVIEW` records older than two hours.
 - Records scanned for ledger checks are capped at 2,000 per type; reaching the

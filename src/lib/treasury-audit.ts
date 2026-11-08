@@ -52,9 +52,21 @@ export async function runTreasuryAudit(options:{
    tx.platformWithdrawal.findMany({where:{status:{in:["PENDING","SUBMITTING","PROCESSING","REVIEW"]}},
     select:{reservedMBankMicros:true,reservedDepositFeeMicros:true,reservedWithdrawalFeeMicros:true}}),
   ]);
-  const returns=staffOutbounds.filter(x=>x.reference.endsWith(":k_bank_withdrawal"));
-  const matchRefs=returns.map(x=>x.reference.slice(0,-":k_bank_withdrawal".length));
-  const inbound=matchRefs.length?await tx.treasuryTransfer.findMany({where:{reference:{in:matchRefs}}}):[];
+  // Scan both directions: an unmatched inbound is as serious as an unmatched outbound.
+  const inbound=await tx.treasuryTransfer.findMany({
+   where:{direction:"M_BANK_DEPOSIT",status:"COMPLETE"},orderBy:{id:"asc"},take:PAGE_LIMIT+1,
+  });
+  const completedPlatforms=await tx.platformWithdrawal.findMany({
+   where:{status:"COMPLETED"},orderBy:{id:"asc"},take:PAGE_LIMIT+1,
+  });
+  const platformRefs=completedPlatforms.map(x=>"platform_withdrawal:"+x.id);
+  const platformLedgers=platformRefs.length?await tx.treasuryTransfer.findMany({
+   where:{reference:{in:platformRefs}},
+  }):[];
+  const settledTrades=await tx.strategyTrade.findMany({
+   where:{isPnlCalculated:true,status:"SETTLED"},orderBy:{id:"asc"},take:PAGE_LIMIT+1,
+   select:{id:true,positionTradePnls:{select:{platformFeeUsdcMicros:true,status:true}}},
+  });
   const feeEntries=await tx.treasuryTransfer.findMany({
    where:{direction:"K_BANK_DEPOSIT",status:"COMPLETE"},take:PAGE_LIMIT+1,
    orderBy:{id:"asc"},select:{reference:true,amountUsdcMicros:true}});
@@ -64,7 +76,7 @@ export async function runTreasuryAudit(options:{
    select:{id:true,isPnlCalculated:true,positionTradePnls:{select:{platformFeeUsdcMicros:true,status:true}}}}):[];
   return {buckets,withdrawals,deposits,staffOutbounds,inbound,
    staleWithdrawals,stalePlatform,negativeUsers,negativePositions,activeWithdrawals,activePlatform,
-   feeEntries,trades};
+   feeEntries,trades,completedPlatforms,platformLedgers,settledTrades};
  },{isolationLevel:Prisma.TransactionIsolationLevel.RepeatableRead,timeout:20000});
  const issues:AuditFinding[]=[];
  const buckets=snapshot.buckets as TreasuryRow[];
@@ -76,6 +88,9 @@ export async function runTreasuryAudit(options:{
  cap("withdrawal",snapshot.withdrawals.length);
  cap("deposit",snapshot.deposits.length);
  cap("staff return",snapshot.staffOutbounds.length);
+ cap("staff return inbound",snapshot.inbound.length);
+ cap("completed platform payout",snapshot.completedPlatforms.length);
+ cap("settled strategy trade",snapshot.settledTrades.length);
  cap("profit",snapshot.feeEntries.length);
  for(const w of snapshot.withdrawals.slice(0,PAGE_LIMIT))
   append(issues,auditCompletedWithdrawal(w));
@@ -87,12 +102,29 @@ export async function runTreasuryAudit(options:{
     "Credited deposit lacks matching completed DEPOSIT ledger",[d.id]));
  }
  const inbound=new Map(snapshot.inbound.map(x=>[x.reference,x]));
+ const outbounds=new Map(snapshot.staffOutbounds.map(x=>[x.reference,x]));
  for(const out of snapshot.staffOutbounds.slice(0,PAGE_LIMIT)){
   if(!out.reference.endsWith(":k_bank_withdrawal")){
    issues.push(finding("STAFF_RETURN_REFERENCE_MISMATCH","critical",1,"Invalid staff return reference",[out.id]));
    continue;
   }
   append(issues,auditStaffReturnPair(out,inbound.get(out.reference.slice(0,-":k_bank_withdrawal".length))??null));
+ }
+ // Also flag an inbound receipt without the required Kalshi outbound half.
+ if(snapshot.staffOutbounds.length<=PAGE_LIMIT)
+  for(const entry of snapshot.inbound.slice(0,PAGE_LIMIT)){
+   const counterpart=outbounds.get(entry.reference+":k_bank_withdrawal");
+   if(!counterpart)issues.push(finding("STAFF_RETURN_INBOUND_ORPHAN","critical",1,
+    "Master receipt lacks its verified Kalshi outbound journal",[entry.id]));
+  }
+ const platformLedger=new Map(snapshot.platformLedgers.map(x=>[x.reference,x]));
+ for(const payout of snapshot.completedPlatforms.slice(0,PAGE_LIMIT)){
+  const entry=platformLedger.get("platform_withdrawal:"+payout.id);
+  if(!entry||entry.direction!=="M_BANK_WITHDRAWAL"||entry.status!=="COMPLETE"||
+     entry.amountUsdcMicros!==payout.amountUsdcMicros||
+     entry.destinationWalletAddress!==payout.destinationAddress)
+   issues.push(finding("COMPLETED_PLATFORM_PAYOUT_LEDGER_MISMATCH","critical",1,
+    "Completed staff master payout lacks its matching completed journal",[payout.id]));
  }
  const trades=new Map(snapshot.trades.map(x=>[x.id,x]));
  for(const entry of snapshot.feeEntries.slice(0,PAGE_LIMIT)){
@@ -104,6 +136,19 @@ export async function runTreasuryAudit(options:{
     sum!==entry.amountUsdcMicros||entry.amountUsdcMicros<=0n)
     issues.push(finding("PLATFORM_PROFIT_LEDGER_MISMATCH","critical",1,
      "K_BANK profit journal does not match settled participant fee shares",[id]));
+ }
+ // A positive settled fee without its K_BANK_DEPOSIT entry is also an anomaly.
+ // If the journal scan is incomplete, do not claim missing records.
+ if(snapshot.feeEntries.length<=PAGE_LIMIT){
+  const journals=new Map(snapshot.feeEntries.map(x=>[x.reference,x]));
+  for(const trade of snapshot.settledTrades.slice(0,PAGE_LIMIT)){
+   const fee=trade.positionTradePnls.reduce((n,p)=>n+(p.platformFeeUsdcMicros??0n),0n);
+   if(fee<=0n)continue;
+   const entry=journals.get("trade-platform-profit:"+trade.id);
+   if(!entry||entry.amountUsdcMicros!==fee)
+    issues.push(finding("SETTLED_PLATFORM_PROFIT_JOURNAL_MISSING","critical",1,
+     "Settled positive platform fee lacks equal K_BANK_DEPOSIT ledger",[trade.id]));
+  }
  }
  function sample(code:string,severity:"critical"|"warning",arr:{id:string}[],detail:string){
   if(arr.length)issues.push(finding(code,severity,arr.length,detail,arr.map(x=>x.id)));

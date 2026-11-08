@@ -11,6 +11,9 @@ if(!process.env.DATABASE_URL?.includes("zenvest_ci"))throw Error("Disposable CI 
 const db=new PrismaClient();
 const {runTreasuryAudit}=await import("../src/lib/treasury-audit.ts");
 const id="caudittreasuryreview0000001";
+const orphanRef="platform_kalshi_return:ci_audit_orphan";
+const completedPlatformId="cauditplatformpayout00001";
+const missingProfitTrade="ci_audit_profit_without_journal";
 try{
  const before=await db.treasury.findMany({orderBy:{kind:"asc"}});
  const user=await db.user.findUniqueOrThrow({where:{id:"ci_test_user"}});
@@ -21,6 +24,29 @@ try{
   destinationAddress:"11111111111111111111111111111111",
   createdAt:new Date("2000-01-01T00:00:00Z"),
   updatedAt:new Date("2000-01-01T00:00:00Z"),
+ }});
+ const master=await db.treasury.findUniqueOrThrow({where:{kind:"DEPOSIT"}});
+ await db.treasuryTransfer.create({data:{
+  direction:"M_BANK_DEPOSIT",status:"COMPLETE",amountUsdcMicros:1000000n,
+  destinationWalletAddress:master.walletAddress,masterWalletAddress:master.walletAddress,
+  masterWalletId:master.walletId,reference:orphanRef,
+  originExternalId:"ci-orphan-kalshi",destinationExternalId:"ci-orphan-master",completedAt:new Date(),
+ }});
+ await db.platformWithdrawal.create({data:{
+  id:completedPlatformId,staffActionId:"ci_audit_platform_action",amountUsdcMicros:1000000n,
+  reservedMBankMicros:1000000n,destinationAddress:"11111111111111111111111111111111",
+  status:"COMPLETED",completedAt:new Date(),
+ }});
+ await db.strategyTrade.create({data:{
+  id:missingProfitTrade,strategyId:"ci_test_strategy",marketTradeName:"Audit missing platform profit",
+  marketTradeId:"ci_audit_missing_platform_profit",status:"SETTLED",isPnlCalculated:true,
+  realizedPnlUsdcMicros:1000000n,eligibleCapitalUsdcMicros:1000000n,
+  appliedPlatformProfitPercentage:"10.0000",settledAt:new Date(),
+ }});
+ await db.positionTradePnl.create({data:{
+  strategyTradeId:missingProfitTrade,positionId:"ci_test_position",userId:user.id,
+  eligibleCapitalUsdcMicros:1000000n,status:"SETTLED",grossPnlUsdcMicros:1000000n,
+  platformFeeUsdcMicros:100000n,netPnlUsdcMicros:900000n,settledAt:new Date(),
  }});
  let calls=0;
  const today=new Date("2026-11-08T14:35:00.000Z");
@@ -37,6 +63,14 @@ try{
   "ancient unknown payout must be highlighted but never resolved automatically");
  assert.ok(check.findings.some(f=>f.code==="MASTER_CUSTODY_DIFFERENCE"),
   "external custody mismatch must be reported");
+ for(const [code,sampleId] of [
+  ["STAFF_RETURN_INBOUND_ORPHAN",orphanRef],
+  ["COMPLETED_PLATFORM_PAYOUT_LEDGER_MISMATCH",completedPlatformId],
+  ["SETTLED_PLATFORM_PROFIT_JOURNAL_MISSING",missingProfitTrade],
+ ]){
+  assert.ok(check.findings.some(f=>f.code===code&&(code==="STAFF_RETURN_INBOUND_ORPHAN"||f.sampleIds.includes(sampleId))),
+   "audit should detect missing ledger counterpart: "+code);
+ }
  assert.equal(check.custody.status,"mismatch");
  assert.ok(check.custody.observedMasterMicros!==null);
  assert.equal(check.findings.filter(f=>f.code==="MASTER_CUSTODY_LOOKUP_UNAVAILABLE").length,0);
@@ -53,6 +87,10 @@ try{
  assert.equal(await db.withdrawal.count(),originalWithdrawals+1,"audit cannot change financial statuses");
  console.log("Read-only treasury audit PostgreSQL passed: stale holds, custody difference, provider outage, no balance/status changes");
 }finally{
+ await db.positionTradePnl.deleteMany({where:{strategyTradeId:missingProfitTrade}});
+ await db.strategyTrade.deleteMany({where:{id:missingProfitTrade}});
+ await db.platformWithdrawal.deleteMany({where:{id:completedPlatformId}});
+ await db.treasuryTransfer.deleteMany({where:{reference:orphanRef}});
  await db.withdrawal.deleteMany({where:{id}});
  await db.$disconnect();
 }
