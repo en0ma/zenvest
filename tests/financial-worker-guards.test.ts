@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {masterCustodyCoversTreasury} from "../src/lib/withdrawal-worker-rules.ts";
-import {reviewExpiryCutoff,REVIEW_TIMEOUT_MS} from "../src/lib/withdrawal-review-timeout.ts";
+import {reviewAlertCutoff,REVIEW_ALERT_AFTER_MS} from "../src/lib/withdrawal-review-timeout.ts";
 
 test("custody requires sufficient funds for consolidated DEPOSIT",()=>{
  assert.equal(masterCustodyCoversTreasury(15000000n,15000000n),true);
@@ -19,12 +19,12 @@ test("negative onchain funds are rejected",()=>{
 test("negative DEPOSIT liability is rejected",()=>{
  assert.throws(()=>masterCustodyCoversTreasury(10n,-1n),/Invalid custody balances/);
 });
-test("REVIEW timeout is exactly two hours based on supplied clock",()=>{
+test("REVIEW alert threshold is two hours, not automatic payout failure",()=>{
  const now=new Date("2026-01-01T00:00:00.000Z");
- assert.equal(REVIEW_TIMEOUT_MS,7200000);
- assert.equal(reviewExpiryCutoff(now).toISOString(),"2025-12-31T22:00:00.000Z");
+ assert.equal(REVIEW_ALERT_AFTER_MS,7200000);
+ assert.equal(reviewAlertCutoff(now).toISOString(),"2025-12-31T22:00:00.000Z");
  assert.equal(now.toISOString(),"2026-01-01T00:00:00.000Z","helper must not mutate time source");
 });
-test("REVIEW cutoff rejects invalid time",()=>{
+test("REVIEW alert cutoff rejects invalid time",()=>{
  assert.throws(()=>reviewExpiryCutoff(new Date(NaN)),/Invalid current time/);
 });
