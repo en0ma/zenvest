@@ -98,6 +98,7 @@ model Strategy {
   positionEvents PositionAllocation[]
   trades StrategyTrade[]
   bot Bot?
+  shutdownEventId String? @unique @map("shutdown_event_id") @db.VarChar(64)
   @@index([isActive,isPublic])
   @@map("strategies")
 }

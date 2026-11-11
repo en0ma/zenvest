@@ -20,3 +20,5 @@ Important limitations requiring further work before enabling live manager strate
 5. Operational handling of strategies with earlier completed deallocations, and reconciliation/monitoring on long-running shutdown.
 
 Bot role revocation requires **all** owned strategies in SHUTDOWN and revokes all active bot keys in the same transaction. Neither admins nor managers can force an unverified transfer to be treated as complete. No production migration/merge without explicit approval.
+
+A strategy has a unique `shutdownEventId` to prevent a second pooled withdrawal. At the P&L-safe boundary, the coordinator debits remaining invested position equity and creates exactly one matched pooled StrategyEvent plus one internal deallocation event per investor position. That debit is a reservation for a pending external return, not an investor credit; confirmed master-wallet custody and authenticated Kalshi evidence are still mandatory before final deallocation. Existing uncompleted deallocation work blocks pooling rather than being silently included twice.

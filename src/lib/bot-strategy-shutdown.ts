@@ -27,7 +27,15 @@ export async function processStrategyShutdowns(){
    const settled=await tx.positionTradePnl.count({where:{strategyTrade:{strategyId:strategy.id},status:"SNAPSHOTTED"}});
    if(settled)return "WAITING_FOR_PNL";
    const remaining=positions.filter(p=>p.allocatedUsdcMicros>0n);
+   const strategyRecord=await tx.strategy.findUniqueOrThrow({where:{id:strategy.id}});
+   // Exactly one pooled submission is allowed for this shutdown.
+   if(strategyRecord.shutdownEventId)return "WAITING_FOR_SHUTDOWN_RETURN_SETTLEMENT";
    if(remaining.length===0){
+    if(strategyRecord.shutdownEventId){
+      const event=await tx.strategyEvent.findUnique({where:{id:strategyRecord.shutdownEventId}});
+      if(!event||event.status!=="COMPLETED"||!event.destinationConfirmed||!event.sourceConfirmed)
+       return "WAITING_FOR_VERIFIED_SHUTDOWN_SETTLEMENT";
+    }
     if(positions.some(p=>p.status!=="CLOSED"&&p.allocatedUsdcMicros!==0n))return "WAITING_FOR_POSITIONS";
     await tx.investorPosition.updateMany({where:{strategyId:strategy.id,status:"CLOSING",allocatedUsdcMicros:0n},data:{status:"CLOSED",closedAt:new Date()}});
     await tx.strategy.update({where:{id:strategy.id},data:{status:"SHUTDOWN",isActive:false,isPublic:false}});
@@ -36,8 +44,8 @@ export async function processStrategyShutdowns(){
    }
    // Do not send a new request if an earlier pooled deallocation exists,
    // including one already completed but not yet applied to position equity.
-   const prior=await tx.strategyEvent.count({where:{strategyId:strategy.id,kind:"DEALLOCATE"}});
-   if(prior)return "WAITING_FOR_PRIOR_RETURN_APPLICATION";
+   // Earlier completed investor deallocations do not justify a second
+   // shutdown payout; shutdownEventId is the unique durable claim.
    const amount=remaining.reduce((n,p)=>n+p.allocatedUsdcMicros,0n);
    if(!amount)return "WAITING_FOR_AMOUNT";
    const s=await tx.strategy.findUniqueOrThrow({where:{id:strategy.id}});
@@ -45,6 +53,17 @@ export async function processStrategyShutdowns(){
    const event=await tx.strategyEvent.create({data:{
     strategyId:strategy.id,kind:"DEALLOCATE",status:"PROCESSING",amountUsdcMicros:amount
    }});
+   // Lock the single-shutdown intent in the same serializable transaction
+   // as the individual position principal reservations.
+   const claimed=await tx.strategy.updateMany({where:{id:strategy.id,status:"SHUTTING_DOWN",shutdownEventId:null},
+    data:{shutdownEventId:event.id}});
+   if(claimed.count!==1)throw Error("Shutdown already claimed");
+   for(const pos of remaining){
+    const debited=await tx.investorPosition.updateMany({where:{
+      id:pos.id,status:"CLOSING",allocatedUsdcMicros:pos.allocatedUsdcMicros},
+      data:{allocatedUsdcMicros:{decrement:pos.allocatedUsdcMicros},lastPnlUpdated:true}});
+    if(debited.count!==1)throw Error("Shutdown position changed before reservation");
+   }
    await tx.positionAllocation.createMany({data:remaining.map(p=>({
     userId:p.userId,positionId:p.id,strategyId:strategy.id,
     kind:"DEALLOCATE" as const,amountUsdcMicros:p.allocatedUsdcMicros,
