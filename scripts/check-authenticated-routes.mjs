@@ -25,7 +25,7 @@ try{
  await prisma.user.create({data:{id:userId,name:"CI Route Investor",email:"ci-route-investor@example.invalid",passwordHash:"ci-fixture-only",unallocated:15000000n}});
  await prisma.strategy.create({data:{
   id:strategyId,name:"CI Route Test Strategy",description:"Route integration fixture",
-  isActive:true,isPublic:true,kalshiWalletAddress:"11111111111111111111111111111111",
+  status:"TRADING",isActive:true,isPublic:true,kalshiWalletAddress:"11111111111111111111111111111111",
   minAllocationUsdcMicros:1000000n,maxAllocationUsdcMicros:10000000n,
   availableCapacityUsdcMicros:12000000n
  }});
@@ -34,6 +34,10 @@ try{
  assert.equal((await post({strategyId,amount:"0"})).status,400,"zero principal forbidden");
  assert.equal((await post({strategyId,amount:"1.0000001"})).status,400,"sub-micro units forbidden");
  assert.equal((await post({strategyId,amount:"-3"})).status,400,"negative principal forbidden");
+ await prisma.strategy.update({where:{id:strategyId},data:{status:"MONITORING"}});
+ assert.equal((await post({strategyId,amount:"8.000001"})).status,409,
+  "public monitoring strategy is visible but must reject allocation");
+ await prisma.strategy.update({where:{id:strategyId},data:{status:"TRADING"}});
  const created=await post({strategyId,amount:"8.000001"});
  assert.equal(created.status,201,"valid authenticated investor request must persist");
  const body=await created.json();
