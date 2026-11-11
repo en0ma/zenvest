@@ -16,6 +16,8 @@ export async function GET(request:Request){
   for(const p of candidates){
    const result=await prisma.$transaction(async tx=>{
     await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${p.strategyId} FOR UPDATE`;
+    const state=await tx.strategy.findUnique({where:{id:p.strategyId},select:{status:true}});
+    if(state?.status==="SHUTTING_DOWN"||state?.status==="SHUTDOWN")return "skip";
     const position=await tx.investorPosition.findUnique({where:{id:p.id}});
     if(!position||position.status!=="CLOSING"||!position.lastPnlUpdated)return "skip";
     const outstanding=await tx.positionAllocation.count({where:{positionId:p.id,status:{in:["PENDING","SUBMITTING","PROCESSING","CONFIRMING","AWAITING_ALLOCATION","AWAITING_DEALLOCATION","DEALLOCATING","AWAITING_WITHDRAWAL","REVIEW"]}}});

@@ -13,6 +13,8 @@ export async function processMockDeallocationSubmissions(){
  if(!first)return "empty";
  const claimed=await prisma.$transaction(async tx=>{
   await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${first.strategyId} FOR UPDATE`;
+  const active=await tx.strategy.findUnique({where:{id:first.strategyId},select:{status:true}});
+  if(active?.status==="SHUTTING_DOWN"||active?.status==="SHUTDOWN")return null;
   const operation=await tx.positionAllocation.findUnique({where:{id:first.id}});
   if(!operation||operation.status!=="AWAITING_DEALLOCATION"||operation.strategyEventId)return null;
   const event=await tx.strategyEvent.create({data:{

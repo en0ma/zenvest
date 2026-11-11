@@ -4,7 +4,7 @@ import {randomUUID} from "node:crypto";
 import {prisma} from "@/lib/db";
 import {currentBotManager} from "@/lib/bot-manager-access";
 export const dynamic="force-dynamic";
-const create=z.object({name:z.string().trim().min(3).max(120),description:z.string().trim().max(500).default("")}).strict();
+const create=z.object({name:z.string().trim().min(3).max(100),description:z.string().trim().max(500).default("")}).strict();
 export async function GET(){
  const ownerId=await currentBotManager();
  if(!ownerId)return Response.json({error:"Bot role required"},{status:403});

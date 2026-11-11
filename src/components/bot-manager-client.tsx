@@ -47,7 +47,7 @@ export function BotManagerClient(){
  return <div className="space-y-6">
   <form onSubmit={createBot} className="rounded-2xl border bg-white p-5 space-y-3">
    <h2 className="font-semibold">Create bot</h2>
-   <label className="block text-sm">Bot name<input required minLength={3} maxLength={120} value={name} onChange={e=>setName(e.target.value)} className="mt-1 block w-full rounded-lg border p-3"/></label>
+   <label className="block text-sm">Bot name<input required minLength={3} maxLength={100} value={name} onChange={e=>setName(e.target.value)} className="mt-1 block w-full rounded-lg border p-3"/></label>
    <label className="block text-sm">Description<textarea maxLength={500} value={description} onChange={e=>setDescription(e.target.value)} className="mt-1 block w-full rounded-lg border p-3"/></label>
    <button disabled={busy} className="rounded-lg bg-[#635BFF] px-5 py-2 text-white disabled:opacity-50">Create bot</button>
   </form>
