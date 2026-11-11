@@ -4,6 +4,7 @@ import { AutoCloseDetails } from "@/components/auto-close-details";
 import { Signout } from "@/components/signout";
 import { InvestorNavLink } from "@/components/investor-nav-link";
 import { Menu } from "lucide-react";
+import { BotManagerNav } from "@/components/bot-manager-nav";
 export function Shell({ admin = false, preview = false, children }: {admin?:boolean;preview?:boolean;children:React.ReactNode}) {
   const nav = admin ? [
     {text:"Overview",href:"/admin"},
@@ -21,6 +22,7 @@ export function Shell({ admin = false, preview = false, children }: {admin?:bool
       <AutoCloseDetails className="relative"><summary aria-label="Open investor navigation" className="list-none cursor-pointer rounded-lg border border-[#E4E8E2] p-2 text-[#0A2540]"><Menu size={22}/></summary>
         <nav aria-label="Investor navigation" className="absolute right-0 top-12 z-50 w-60 rounded-2xl border border-[#E4E8E2] bg-white p-4 shadow-xl flex flex-col gap-1 text-sm text-[#0A2540]">
           {items.map(({href,text})=><InvestorNavLink key={text} href={href} text={text} variant="menu"/>)}
+          {!preview&&<BotManagerNav variant="menu"/>}
           {!preview&&<div className="mt-2 border-t border-[#E4E8E2] pt-2"><Signout mobile/></div>}
         </nav>
       </AutoCloseDetails>
@@ -28,7 +30,7 @@ export function Shell({ admin = false, preview = false, children }: {admin?:bool
     <aside className="hidden lg:flex lg:flex-col bg-[#FAFAF8] border-r border-[#E4E8E2] text-[#0A2540] lg:w-64 p-7 lg:min-h-screen">
       <Link href="/" className="text-3xl font-bold tracking-tight text-[#0A2540]">zenvest<span className="text-[#635BFF]">.</span></Link>
       <p className="text-xs tracking-[.16em] text-[#52637B] uppercase mt-2">Investment Portal</p>
-      <nav aria-label="Investor sidebar" className="mt-12 flex flex-col gap-1">{items.map(({href,text})=><InvestorNavLink key={text} href={href} text={text} variant="sidebar"/>)}</nav>
+      <nav aria-label="Investor sidebar" className="mt-12 flex flex-col gap-1">{items.map(({href,text})=><InvestorNavLink key={text} href={href} text={text} variant="sidebar"/>)}{!preview&&<BotManagerNav variant="sidebar"/>}</nav>
       {!preview&&<Signout/>}
     </aside>
     <nav aria-label="Mobile investor navigation" className="fixed bottom-0 inset-x-0 z-40 grid grid-cols-4 border-t border-[#E4E8E2] bg-white/95 backdrop-blur lg:hidden pb-[env(safe-area-inset-bottom)]">{items.map(({href,text})=><InvestorNavLink key={text} href={href} text={text} variant="mobile"/>)}</nav>

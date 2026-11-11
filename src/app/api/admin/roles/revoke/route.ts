@@ -13,7 +13,7 @@ export async function POST(request:NextRequest){
   const parsed=input.safeParse(await request.json());
   if(!parsed.success)return Response.json({error:"Invalid revocation request"},{status:400});
   const {userId,roleKey}=parsed.data;
-  if(!isEditableRoleKey(roleKey))return Response.json({error:"Protected or invalid role"},{status:400});
+  if(roleKey!=="bot"&&!isEditableRoleKey(roleKey))return Response.json({error:"Protected or invalid role"},{status:400});
   if(userId===actor)return Response.json({error:"Self-revocation requires independent authorization"},{status:403});
   const outcome=await prisma.$transaction(async tx=>{
    if(!await tx.userRole.findFirst({where:{userId:actor,role:{key:"super-admin"}},select:{userId:true}}))return "FORBIDDEN";

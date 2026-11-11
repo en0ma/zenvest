@@ -16,7 +16,7 @@ export async function POST(request:NextRequest){
   const parsed=assignment.safeParse(await request.json());
   if(!parsed.success)return Response.json({error:"Invalid role assignment"},{status:400});
   const {userId,roleKey}=parsed.data;
-  if(!isEditableRoleKey(roleKey))return Response.json({error:"Protected or invalid role"},{status:400});
+  if(roleKey!=="bot"&&!isEditableRoleKey(roleKey))return Response.json({error:"Protected or invalid role"},{status:400});
   if(userId===actorId)return Response.json({error:"Self-assignment prohibited"},{status:403});
   const result=await prisma.$transaction(async tx=>{
    if(!await tx.userRole.findFirst({where:{userId:actorId,role:{key:"super-admin"}},select:{userId:true}}))return "FORBIDDEN";
