@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   if (!amount) return NextResponse.json({error:"Invalid allocation amount"},{status:400});
   try {
     const result = await prisma.$transaction(async tx=>{
-      const strategy=await tx.strategy.findFirst({where:{id:strategyId,isActive:true,isPublic:true}});
+      const strategy=await tx.strategy.findFirst({where:{id:strategyId,isActive:true,isPublic:true,status:"TRADING"}});
       if(!strategy||!strategy.kalshiWalletAddress||!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(strategy.kalshiWalletAddress))return null;
       // Count outstanding requests against the strategy's advertised capacity.
       // Serializable isolation protects the concurrent capacity predicate.
@@ -47,6 +47,8 @@ export async function POST(request: Request) {
       // Serialize allocation attempts for this strategy even before the unique
       // index gets a chance to reject a racing INSERT.
       await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${strategyId} FOR UPDATE`;
+      const live=await tx.strategy.findUnique({where:{id:strategyId},select:{status:true,isActive:true,isPublic:true}});
+      if(!live||live.status!=="TRADING"||!live.isActive||!live.isPublic)return null;
       // Each new allocation creates a separate position unless a specific OPEN
       // position belonging to this investor and strategy is selected.
       const existing=existingId?await tx.investorPosition.findFirst({where:{

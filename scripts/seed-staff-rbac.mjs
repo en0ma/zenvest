@@ -3,9 +3,10 @@
 import {PrismaClient} from "@prisma/client";
 import {STAFF_PERMISSION_DESCRIPTIONS} from "../src/lib/staff-permissions.ts";
 const db=new PrismaClient();
-const permissions=["account:access","portfolio:read:own","wallet:read:own","deposits:create:own","withdrawals:create:own","allocations:create:own","users:read","users:write","deposits:read","withdrawals:read","balances:read","wallets:read","wallets:operate","roles:read","roles:manage","audit:read"];
+const permissions=["account:access","portfolio:read:own","wallet:read:own","deposits:create:own","withdrawals:create:own","allocations:create:own","users:read","users:write","deposits:read","withdrawals:read","balances:read","wallets:read","wallets:operate","roles:read","roles:manage","audit:read","bots:manage:own"];
 const roleGrants={
  user:["account:access","portfolio:read:own","wallet:read:own","deposits:create:own","withdrawals:create:own","allocations:create:own"],
+ bot:["bots:manage:own"],
  auditor:["users:read","deposits:read","withdrawals:read","balances:read","wallets:read","roles:read","audit:read"],
  support:["users:read","deposits:read","withdrawals:read","balances:read","wallets:read"],
  operations:["users:read","users:write","deposits:read","withdrawals:read","wallets:read","wallets:operate"],

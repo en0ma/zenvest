@@ -33,6 +33,7 @@ model User {
   tradePnls PositionTradePnl[]
   activity InvestorActivity[]
   roles UserRole[]
+  bots Bot[]
   tokens       ActionToken[]
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -59,6 +60,9 @@ enum StrategyStatus {
   TRADING
   PAUSED
   ERROR
+  ONBOARDING
+  SHUTTING_DOWN
+  SHUTDOWN
 }
 enum MarketType {
   PREDICTION
@@ -93,6 +97,7 @@ model Strategy {
   strategyEvents StrategyEvent[]
   positionEvents PositionAllocation[]
   trades StrategyTrade[]
+  bot Bot?
   @@index([isActive,isPublic])
   @@map("strategies")
 }
@@ -682,4 +687,32 @@ model StaffKalshiWithdrawal {
   updatedAt DateTime @updatedAt
   @@index([strategyId,createdAt])
   @@map("StaffKalshiReturnSimulation")
+}
+
+model Bot {
+ id String @id @default(cuid())
+ ownerId String @map("owner_id")
+ owner User @relation(fields:[ownerId],references:[id],onDelete:Restrict)
+ strategyId String @unique @map("strategy_id") @db.VarChar(64)
+ strategy Strategy @relation(fields:[strategyId],references:[id],onDelete:Restrict)
+ name String @db.VarChar(120)
+ description String @default("") @db.VarChar(500)
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ keys BotApiKey[]
+ @@index([ownerId,createdAt])
+ @@map("bots")
+}
+model BotApiKey {
+ id String @id @default(cuid())
+ botId String @map("bot_id")
+ bot Bot @relation(fields:[botId],references:[id],onDelete:Restrict)
+ label String @db.VarChar(100)
+ keyHash String @unique @map("key_hash") @db.Char(64)
+ keyPrefix String @map("key_prefix") @db.VarChar(20)
+ createdAt DateTime @default(now()) @map("created_at")
+ revokedAt DateTime? @map("revoked_at")
+ lastUsedAt DateTime? @map("last_used_at")
+ @@index([botId,revokedAt])
+ @@map("bot_api_keys")
 }
