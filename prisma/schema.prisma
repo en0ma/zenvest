@@ -34,6 +34,7 @@ model User {
   activity InvestorActivity[]
   roles UserRole[]
   bots Bot[]
+  botApiKeys BotApiKey[]
   tokens       ActionToken[]
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -703,15 +704,14 @@ model Bot {
  description String @default("") @db.VarChar(500)
  createdAt DateTime @default(now()) @map("created_at")
  updatedAt DateTime @updatedAt @map("updated_at")
- keys BotApiKey[]
  intents BotTradeIntent[]
  @@index([ownerId,createdAt])
  @@map("bots")
 }
 model BotApiKey {
  id String @id @default(cuid())
- botId String @map("bot_id")
- bot Bot @relation(fields:[botId],references:[id],onDelete:Restrict)
+ ownerId String @map("owner_id")
+ owner User @relation(fields:[ownerId],references:[id],onDelete:Restrict)
  label String @db.VarChar(100)
  keyHash String @unique @map("key_hash") @db.Char(64)
  keyPrefix String @map("key_prefix") @db.VarChar(20)
@@ -719,7 +719,7 @@ model BotApiKey {
  revokedAt DateTime? @map("revoked_at")
  lastUsedAt DateTime? @map("last_used_at")
  rateLimits BotApiRateLimit[]
- @@index([botId,revokedAt])
+ @@index([ownerId,revokedAt])
  @@map("bot_api_keys")
 }
 

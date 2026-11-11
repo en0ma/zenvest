@@ -23,7 +23,7 @@ export async function POST(request:NextRequest){
     await tx.$queryRaw`SELECT id FROM "users" WHERE id = ${userId} FOR UPDATE`;
     const open=await tx.bot.count({where:{ownerId:userId,strategy:{status:{not:"SHUTDOWN"}}}});
     if(open)return "ACTIVE_STRATEGIES";
-    await tx.botApiKey.updateMany({where:{bot:{ownerId:userId},revokedAt:null},data:{revokedAt:new Date()}});
+    await tx.botApiKey.updateMany({where:{ownerId:userId,revokedAt:null},data:{revokedAt:new Date()}});
    }
    const removed=await tx.userRole.deleteMany({where:{userId,roleId:role.id}});
    if(removed.count===0)return "NOT_FOUND";

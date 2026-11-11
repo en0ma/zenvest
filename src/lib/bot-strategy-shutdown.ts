@@ -37,7 +37,6 @@ export async function processStrategyShutdowns(){
     if(positions.some(p=>p.status!=="CLOSED"&&p.allocatedUsdcMicros!==0n))return "WAITING_FOR_POSITIONS";
     await tx.investorPosition.updateMany({where:{strategyId:strategy.id,status:"CLOSING",allocatedUsdcMicros:0n},data:{status:"CLOSED",closedAt:new Date()}});
     await tx.strategy.update({where:{id:strategy.id},data:{status:"SHUTDOWN",isActive:false,isPublic:false}});
-    await tx.botApiKey.updateMany({where:{bot:{strategyId:strategy.id},revokedAt:null},data:{revokedAt:new Date()}});
     return "SHUTDOWN";
    }
    // Do not send a new request if an earlier pooled deallocation exists,
