@@ -28,7 +28,8 @@ export async function authorizeBotV1(request:Request,strategyId?:string):Promise
    {error:"API key rate limit exceeded",retry_after_seconds:resetSeconds},
    {status:429,headers:{...headers,"Retry-After":String(resetSeconds)}})};
   // This field is informational only; failures to record it must not grant more API requests.
-  await prisma.botApiKey.updateMany({where:{id:identity.keyId,revokedAt:null},data:{lastUsedAt:new Date()}});
+  const stillValid=await prisma.botApiKey.updateMany({where:{id:identity.keyId,revokedAt:null},data:{lastUsedAt:new Date()}});
+  if(stillValid.count!==1)return {ok:false,response:Response.json({error:"API key was revoked"},{status:401})};
   return {ok:true,...identity,headers};
  }catch{
   return {ok:false,response:Response.json({error:"API rate limit unavailable"},{status:503})};

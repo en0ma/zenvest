@@ -10,7 +10,7 @@ export async function GET(request:Request,{params}:Context){
  const access=await authorizeBotV1(request,strategyId);
  if(!access.ok)return access.response;
  const [strategy,position,investors,pending]=await Promise.all([
-  prisma.strategy.findUnique({where:{id:strategyId},select:{status:true}}),
+  prisma.strategy.findUnique({where:{id:strategyId},select:{status:true,isActive:true,isPublic:true}}),
   prisma.investorPosition.aggregate({where:{strategyId,status:{in:["OPEN","CLOSING"]}},
    _sum:{allocatedUsdcMicros:true},_count:{_all:true}}),
   prisma.investorPosition.groupBy({by:["userId"],where:{strategyId,status:{in:["OPEN","CLOSING"]},allocatedUsdcMicros:{gt:0}}}),
@@ -23,6 +23,6 @@ export async function GET(request:Request,{params}:Context){
   total_allocated_usdc_micros:(position._sum.allocatedUsdcMicros??0n).toString(),
   open_position_count:position._count._all,investor_count:investors.length,
   pending_allocation_usdc_micros:(pending._sum.amountUsdcMicros??0n).toString(),
-  accepts_new_allocations:strategy.status==="TRADING"},
+  accepts_new_allocations:strategy.status==="TRADING"&&strategy.isActive&&strategy.isPublic},
   {headers:access.headers});
 }
