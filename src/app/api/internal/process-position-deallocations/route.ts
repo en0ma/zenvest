@@ -3,6 +3,7 @@ import {authorizedCron} from "@/lib/cron-auth";
 import {Prisma} from "@prisma/client";
 import {prisma} from "@/lib/db";
 import {processMockDeallocationSubmissions} from "@/lib/kalshi-deallocation-submission-worker";
+import {processStrategyShutdowns} from "@/lib/bot-strategy-shutdown";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 // Kalshi outbound rail is not connected. Create final close requests but NEVER
@@ -10,7 +11,7 @@ export const dynamic="force-dynamic";
 export async function GET(request:Request){
  if(!authorizedCron(request))return NextResponse.json({error:"Unauthorized"},{status:401});
  try{
-  const candidates=await prisma.investorPosition.findMany({where:{status:"CLOSING",lastPnlUpdated:true},take:50,orderBy:{createdAt:"asc"}});
+  const candidates=await prisma.investorPosition.findMany({where:{status:"CLOSING",lastPnlUpdated:true,strategy:{status:{not:"SHUTTING_DOWN"}}},take:50,orderBy:{createdAt:"asc"}});
   let created=0,closedWithoutFunds=0;
   for(const p of candidates){
    const result=await prisma.$transaction(async tx=>{
@@ -32,10 +33,11 @@ export async function GET(request:Request){
    if(result==="created")created++;if(result==="closed")closedWithoutFunds++;
   }
   const pending=await prisma.positionAllocation.aggregate({where:{kind:"DEALLOCATE",status:"PENDING",
-   position:{OR:[{status:"OPEN"},{status:"CLOSING",lastPnlUpdated:true}]}},_count:{_all:true},_sum:{amountUsdcMicros:true}});
+   position:{strategy:{status:{not:"SHUTTING_DOWN"}},OR:[{status:"OPEN"},{status:"CLOSING",lastPnlUpdated:true}]}},_count:{_all:true},_sum:{amountUsdcMicros:true}});
   const submission=await processMockDeallocationSubmissions();
+  const shutdown=await processStrategyShutdowns();
   return NextResponse.json({status:"awaiting_verified_kalshi_return_integration",submission,direction:"kalshi_to_master",
-   createdFinalCloseRequests:created,closedWithoutFunds,
+   createdFinalCloseRequests:created,closedWithoutFunds,shutdown,
    eligibleRequests:pending._count._all,amountUsdcMicros:(pending._sum.amountUsdcMicros??0n).toString()});
  }catch(error){console.error(JSON.stringify({component:"deallocation-worker",errorType:error instanceof Error?error.name:"unknown"}));
   return NextResponse.json({error:"Deallocation coordinator failed"},{status:503});}
