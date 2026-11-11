@@ -35,7 +35,7 @@ export async function POST(request:Request,{params}:Context){
     if(!canPromoteStrategy(s.status,next))return "CONFLICT";
     if(next==="TRADING"&&(!s.kalshiWalletAddress||!s.blockRadarAddress))return "MISSING_WALLETS";
     await tx.strategy.update({where:{id},data:{
-     status:next,isActive:next==="TRADING",isPublic:next==="TRADING"
+     status:next,isActive:next==="TRADING",isPublic:true
     }});
    }
    await tx.staffAudit.create({data:{actorId:actor,action:"bot.strategy.lifecycle:"+next,resource:"strategies",targetId:id}});
