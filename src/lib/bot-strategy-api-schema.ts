@@ -16,7 +16,10 @@ export const strategyConfiguration=z.object({
  min_allocation:positiveUsdc,
  max_allocation:positiveUsdc,
  strategy_id:z.string().min(1).max(64).optional()
-}).strict().refine(x=>allocationMicros(x.min_allocation)!<=allocationMicros(x.max_allocation)!,{
+}).strict().refine(x=>{
+ const min=allocationMicros(x.min_allocation),max=allocationMicros(x.max_allocation);
+ return min!==null&&max!==null&&min<=max;
+},{
  message:"Minimum allocation cannot exceed maximum allocation",path:["max_allocation"]
 });
 export const eventTradeInput=z.object({
