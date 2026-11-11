@@ -9,8 +9,7 @@ export async function GET(){
  const ownerId=await currentBotManager();
  if(!ownerId)return Response.json({error:"Bot role required"},{status:403});
  const bots=await prisma.bot.findMany({where:{ownerId},orderBy:{createdAt:"desc"},include:{
-  strategy:{select:{id:true,status:true,isActive:true,isPublic:true}},
-  keys:{select:{id:true,label:true,keyPrefix:true,createdAt:true,revokedAt:true,lastUsedAt:true},orderBy:{createdAt:"desc"}}
+  strategy:{select:{id:true,status:true,isActive:true,isPublic:true}}
  }});
  return Response.json({bots},{headers:{"Cache-Control":"no-store"}});
 }
