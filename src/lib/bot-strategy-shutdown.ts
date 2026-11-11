@@ -28,8 +28,6 @@ export async function processStrategyShutdowns(){
    if(settled)return "WAITING_FOR_PNL";
    const remaining=positions.filter(p=>p.allocatedUsdcMicros>0n);
    const strategyRecord=await tx.strategy.findUniqueOrThrow({where:{id:strategy.id}});
-   // Exactly one pooled submission is allowed for this shutdown.
-   if(strategyRecord.shutdownEventId)return "WAITING_FOR_SHUTDOWN_RETURN_SETTLEMENT";
    if(remaining.length===0){
     if(strategyRecord.shutdownEventId){
       const event=await tx.strategyEvent.findUnique({where:{id:strategyRecord.shutdownEventId}});
@@ -46,6 +44,7 @@ export async function processStrategyShutdowns(){
    // including one already completed but not yet applied to position equity.
    // Earlier completed investor deallocations do not justify a second
    // shutdown payout; shutdownEventId is the unique durable claim.
+   if(strategyRecord.shutdownEventId)return "WAITING_FOR_SHUTDOWN_RETURN_SETTLEMENT";
    const amount=remaining.reduce((n,p)=>n+p.allocatedUsdcMicros,0n);
    if(!amount)return "WAITING_FOR_AMOUNT";
    const s=await tx.strategy.findUniqueOrThrow({where:{id:strategy.id}});
