@@ -109,7 +109,7 @@ try{
  await db.bot.deleteMany({where:{ownerId:{in:[managerId,strangerId]}}});
  await db.strategy.deleteMany({where:{id:{in:[strategyId,strangerStrategyId]}}});
  await db.strategy.deleteMany({where:{name:{startsWith:"BTC-15min · "}}});
- await db.userRole.deleteMany({where:{userId:{in:[managerId,strangerId]}}});
+ await db.userRole.deleteMany({where:{userId:{in:[managerId,strangerId]},role:{key:"bot"}}});
  await db.twoFactor.deleteMany({where:{userId:{in:[managerId,strangerId]}}});
  await db.user.deleteMany({where:{id:{in:[managerId,strangerId]}}});
  await db.$disconnect();
