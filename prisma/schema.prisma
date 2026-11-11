@@ -739,7 +739,7 @@ model BotTradeIntent {
  bot Bot @relation(fields:[botId],references:[id],onDelete:Restrict)
  strategyId String @map("strategy_id") @db.VarChar(64)
  keyId String @map("key_id")
- idempotencyKey String @map("idempotency_key") @db.VarChar(100)
+ idempotencyKey String @map("request_dedupe_key") @db.VarChar(100)
  orderType String @map("order_type") @db.VarChar(4)
  tradeSize Int @map("trade_size")
  eventId String @map("event_id") @db.VarChar(180)
