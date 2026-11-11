@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import {useState} from "react";
-type Row={id:string;name:string;symbol:string|null;logo:string|null;status:"MONITORING"|"TRADING";allocation:string;lifetime:string;dayPnl:string;dayPct:number|null;hourPct:number|null;monthPct:number|null;settledCount:number};
+type Row={id:string;name:string;symbol:string|null;logo:string|null;status:string;allocation:string;lifetime:string;dayPnl:string;dayPct:number|null;hourPct:number|null;monthPct:number|null;settledCount:number};
 const fmt=(n:string)=>(Number(BigInt(n))/1e6).toLocaleString("en-US",{maximumFractionDigits:0});
 function ReturnValue({value}:{value:number|null}){
  return <span className={"whitespace-nowrap text-sm font-semibold tabular-nums "+(value===null?"text-[#94A3B8]":value>0?"text-[#059669]":value<0?"text-[#E11D48]":"text-[#475569]")}>{value===null?"—":(value>0?"+":"")+value.toFixed(2)+"%"}</span>;
