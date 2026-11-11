@@ -1,34 +1,35 @@
-# Bot Strategy API v1 — draft contract
+# Bot Strategy API v1 — draft
 
-**Draft integration; not yet an executable trading API.** Base path: `/api/v1/strategies`. Use the unique API key generated in Bot Manager:
+Base: `/api/v1/strategies`. Authenticate with a manager-level API key, shared across all strategies owned by that approved `bot` user:
 
 ```http
 Authorization: Bearer zvb_<issued-secret>
 Content-Type: application/json
 ```
 
-The key is bound to exactly one bot and its **already-created** strategy. Managers create a bot via their approved Bot Manager account; `POST /api/v1/strategies` configures that bot's ONBOARDING strategy once. It cannot create another strategy or bypass administrator approval.
+All API operations verify the user's current `bot` role; strategy-specific endpoints also verify ownership, even if the manager has many strategies. A manager key cannot access another owner's strategies or control investor balances, payouts or custody.
 
-## Endpoints
+## GET /api/v1/strategies
 
-### GET /api/v1/strategies
+Lists all strategies owned by the manager, including ID, market type, venue, event tag/asset, configured minimum and maximum allocations (micro-USDC strings), current lifecycle state and whether new investor allocations are open.
 
-Returns one authorized strategy as a `strategies` array, including `id`, `status`, `market_type`, `venue`, `asset`, `side`, `is_public` and `accepting_allocations`.
+## POST /api/v1/strategies
 
-### POST /api/v1/strategies
+Creates a new strategy and associated bot in `ONBOARDING`, or configures an existing **unconfigured** onboarding bot when the optional `strategy_id` field is supplied.
 
 ```json
 {
   "market_type": "event",
   "venue": "kalshi",
-  "side": "yes",
-  "asset": "BTC-15min"
+  "asset": "BTC-15min",
+  "min_allocation": "10",
+  "max_allocation": "5000"
 }
 ```
 
-Current v1 supported `market_type`: `event` only (mapped to the legacy database enum `PREDICTION`). Venue: `kalshi` only. Event side: `yes`, `no`, `up`, `down` (case-sensitive lowercase). `asset` denotes the configured event slug/tag, not a token address. Only works while ONBOARDING and before initial configuration. Returns `201` on success or `409` if already configured, locked or promoted. This is **configuration**, not market-creation, venue approval, or verified history.
+Only `event` market type and `kalshi` venue work in v1. `asset` is the event tag/slug. There is **no strategy-side field**. `min_allocation` and `max_allocation` are positive USDC decimal strings, up to six fractional digits, with minimum less than or equal to maximum and values within signed 64-bit USDC micro-unit capacity. They persist as `minAllocationUsdcMicros` and `maxAllocationUsdcMicros`; the existing investor allocation API enforces these limits. Creating/configuring does not grant public visibility or allocation: admin approvals remain mandatory.
 
-### POST /api/v1/strategies/{strategy_id}/trade
+## POST /api/v1/strategies/{strategy_id}/trade
 
 ```http
 Idempotency-Key: trade-20261111-0001
@@ -38,27 +39,22 @@ Idempotency-Key: trade-20261111-0001
   "order_type": "buy",
   "trade_size": 5,
   "event_id": "BTC-15min-123",
-  "side": "yes"
+  "side": "up"
 }
 ```
 
-Order type: `buy` or `sell`. Trade size: positive integer in **contracts**, currently max 1,000,000, not dollars. `event_id` is required. Side must match the strategy's approved event side. Requires configured MONITORING or TRADING strategy. Under the strategy's row lock, submissions are rejected after SHUTTING_DOWN. An `Idempotency-Key` is mandatory and unique per strategy; repeating the same payload returns the same intent, conflicting payload returns `409`.
+`order_type` is `buy` or `sell`; `trade_size` is a positive integer count of **contracts**, at most 1,000,000; `event_id` is the chosen event market ID. Each trade supplies its own side. `yes` and `up` are synonyms (canonical `yes`); `no` and `down` are synonyms (canonical `no`). Synonymous sides deduplicate correctly under the same idempotency key. Requests for different strategies are isolated by strategy ID and manager ownership.
 
-**Important:** Returns HTTP `202` with `status: "RECEIVED_UNEXECUTED"` and `executed: false`. It only records a requested intent; it does NOT place orders, reach Kalshi, generate trade-history evidence, change positions, or settle P&L. Actual trading requires an independently authenticated Kalshi execution adapter, risk enforcement and reconciliation. A recorded intent is not proof of successful strategy performance.
+**Safety boundary:** the endpoint returns HTTP `202`, status `RECEIVED_UNEXECUTED`, `executed:false`. This is a recorded, idempotent intent only. It does not place an order at Kalshi, independently validate the event, count as verified trade history, change investor balances or settle returns. Strategy states ONBOARDING/SHUTTING_DOWN/SHUTDOWN reject new trade intents; MONITORING/TRADING permit intake only.
 
-### GET /api/v1/strategies/{strategy_id}/allocations
+## GET /api/v1/strategies/{strategy_id}/allocations
 
-Read-only. Returns `total_allocated_usdc_micros`, `open_position_count`, `investor_count`, `pending_allocation_usdc_micros`, `accepts_new_allocations` and current status. Money values are decimal strings of USDC micro-units (six decimal places). No investor identifiers or personal financial records. Bot credentials never authorize allocations, withdrawals or investor balance adjustments.
+Read-only manager-owned aggregate: invested USDC micro-units, number of open positions, investor count and pending investor allocations. The bot key cannot create or withdraw allocations.
 
 ## Rate limits
 
-Each unique bot API key has an independent atomic PostgreSQL fixed-window allowance of **60 requests per 60-second UTC-aligned window**, shared across instances and all v1 endpoints. Exceeding the limit returns HTTP `429`, with `Retry-After`, `X-RateLimit-Limit` and `X-RateLimit-Reset` headers. Unavailable limiter fails closed with HTTP `503`. Rotate/revoke keys from Bot Manager. The keys are hashed in storage and never redisplayed after creation. Operational retention/cleanup of expired rate-limit rows is required.
+The per-credential atomic PostgreSQL fixed-window budget is **60 requests per minute across all of that key's strategies and v1 endpoints**. Excess returns `429` and `Retry-After`; database limiter failure returns `503`. Keys can be issued/revoked/rotated via Bot Manager and are displayed only once. Multiple active manager keys may exist during rotation, but each is usable on all owned strategies.
 
-## Lifecycle
+## Release blockers
 
-- ONBOARDING: API strategy configuration, no trade intake, hidden from investors.
-- MONITORING: visible to investors, accepts **unexecuted trade intents** but no investor allocation.
-- TRADING: visible and allocatable; trade intents **still do not execute** in this draft.
-- SHUTTING_DOWN / SHUTDOWN: no trade intake or allocation; shutdown must use verified pooled return before finalization.
-
-Prerequisites for live launch: authenticated Kalshi order transport and order/settlement receipts, independent market/event validation, monitoring vs real performance separation, per-trade exposure bounds, end-to-end database concurrency tests, and complete passing CI. **Do not merge/deploy or run production migrations without explicit approval.**
+Independent Kalshi order execution and verification, event identity/side/market validation and risk enforcement, verified custody and reconciliation for pooled shutdown, sufficient integration/concurrency tests, passing CI and scheduled rate-limit-row cleanup. **No live execution, production migration, merge or deployment without approval.**
