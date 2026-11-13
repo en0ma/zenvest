@@ -90,6 +90,8 @@ model Strategy {
   publicKey String? @unique @map("public_key") @db.VarChar(64)
   managerProfitPercentage Decimal @default(0) @map("manager_profit_percentage") @db.Decimal(7,4)
   platformStrategyPercentage Decimal @default(0) @map("platform_strategy_percentage") @db.Decimal(7,4)
+  venueVerifiedAt DateTime? @map("venue_verified_at")
+  custodyVerifiedAt DateTime? @map("custody_verified_at")
   sandboxFeeBps Int? @map("sandbox_fee_bps")
   admissionMinDays Int? @map("admission_min_days")
   admissionMinFills Int? @map("admission_min_fills")
