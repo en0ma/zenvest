@@ -14,6 +14,7 @@ const db=new PrismaClient();
 const {PUT:settings}=await import("../src/app/api/admin/bot-strategies/[id]/settings/route.ts");
 const {POST:lifecycle}=await import("../src/app/api/admin/bot-strategies/[id]/lifecycle/route.ts");
 const {deliverBotManagerNotices}=await import("../src/lib/bot-manager-notices.ts");
+const {GET:notificationCron}=await import("../src/app/api/internal/process-bot-manager-notices/route.ts");
 const actor="ci_bot_admin",owner="ci_bot_target",strategyId="ci_bot_admin_strategy";
 let superRoleId="",botRoleId="";
 const ctx={params:Promise.resolve({id:strategyId})};
@@ -105,6 +106,23 @@ try{
  }finally{
   if(previousEmailKey===undefined)delete process.env.RESEND_API_KEY;
   else process.env.RESEND_API_KEY=previousEmailKey;
+ }
+ const previousCronSecret=process.env.CRON_SECRET;
+ process.env.CRON_SECRET="ci-bot-cron-secret";
+ try{
+  assert.equal((await notificationCron(new Request("https://ci.invalid/api/internal/process-bot-manager-notices"))).status,401,
+    "anonymous requests cannot deliver notification emails");
+  assert.equal((await notificationCron(new Request("https://ci.invalid/api/internal/process-bot-manager-notices",{
+   headers:{authorization:"Bearer incorrect-secret"}
+  }))).status,401,"incorrect cron token rejected");
+  const delivered=await notificationCron(new Request("https://ci.invalid/api/internal/process-bot-manager-notices",{
+   headers:{authorization:"Bearer ci-bot-cron-secret"}
+  }));
+  assert.equal(delivered.status,200,"protected cron can process empty due-notice queue");
+  assert.equal((await delivered.json()).results.length,0);
+ }finally{
+  if(previousCronSecret===undefined)delete process.env.CRON_SECRET;
+  else process.env.CRON_SECRET=previousCronSecret;
  }
  console.log("Bot admin integration passed: capacity, sandbox policy, overrides with reason, immutable fee versions and fail-closed provider verification");
 }finally{
