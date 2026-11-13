@@ -11,7 +11,7 @@ type Overview={
   manager_profit_pct:string;platform_profit_pct:string;
   pooled_returns:Array<{status:string;source_verified:boolean;destination_verified:boolean}>;
  }>;
- api_keys:Array<{id:string;api_calls_last_hour:number;limit_per_minute:number}>;
+ api_keys:Array<{id:string;api_calls_last_hour:number;rate_limited_last_hour:number;limit_per_minute:number}>;
  manager_revenue:{status:string;statements:unknown[];payout_history:unknown[]};
 };
 const usdc=(v:string)=>((Number(v)||0)/1000000).toLocaleString("en-US",{maximumFractionDigits:2,minimumFractionDigits:2});
@@ -89,7 +89,7 @@ export function BotManagerClient(){
    </div>}
    <ul className="divide-y">{keys.map(k=><li key={k.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
     <div><strong>{k.label}</strong> · {k.keyPrefix}… · {k.revokedAt?"Revoked":"Active"}
-     <p className="text-xs text-slate-500">Last-hour requests: {overview?.api_keys.find(x=>x.id===k.id)?.api_calls_last_hour??0} · Per-key limit 60/min</p></div>
+     <p className="text-xs text-slate-500">Last-hour requests: {overview?.api_keys.find(x=>x.id===k.id)?.api_calls_last_hour??0} · Rate-limited: {overview?.api_keys.find(x=>x.id===k.id)?.rate_limited_last_hour??0} · Per-key limit 60/min</p></div>
     {!k.revokedAt&&<button disabled={busy} className="rounded border px-3 py-2 text-red-700" onClick={()=>void revoke(k.id)}>Revoke</button>}
    </li>)}</ul>
   </section>
