@@ -29,9 +29,12 @@ export async function authorizeBotV1(request:Request,strategyId?:string):Promise
   `;
   const headers:HeadersInit={"Cache-Control":"no-store","X-RateLimit-Limit":String(BOT_API_RATE_LIMIT),
    "X-RateLimit-Reset":String(Math.ceil((windowStart.getTime()+60000)/1000))};
-  if(changed!==1)return {ok:false,response:Response.json(
+  if(changed!==1){
+   await prisma.botApiRateLimit.updateMany({where:{keyId:identity.keyId,windowStart},data:{rejectedCount:{increment:1}}});
+   return {ok:false,response:Response.json(
    {error:"API key rate limit exceeded",retry_after_seconds:resetSeconds},
    {status:429,headers:{...headers,"Retry-After":String(resetSeconds)}})};
+  }
   const valid=await prisma.botApiKey.updateMany({where:{id:identity.keyId,ownerId:identity.ownerId,revokedAt:null},data:{lastUsedAt:new Date()}});
   if(valid.count!==1)return {ok:false,response:Response.json({error:"API key was revoked"},{status:401})};
   return {ok:true,...identity,headers};
