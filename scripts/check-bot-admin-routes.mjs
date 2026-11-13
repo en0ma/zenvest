@@ -41,7 +41,7 @@ try{
  assert.equal((await lifecycle(req({status:"TRADING"}),ctx)).status,409,"cannot skip ONBOARDING");
  assert.equal((await settings(req({...valid,extra:true},"PUT"),ctx)).status,400,"unknown financial fields rejected");
  assert.equal((await settings(new Request("https://ci.invalid/admin",{
-  method:"PUT",headers:{"content-type":"application/json"},body:"{broken-json"},ctx)).status,400,
+  method:"PUT",headers:{"content-type":"application/json"},body:"{broken-json"}),ctx)).status,400,
   "malformed admin configuration rejected");
  assert.equal((await settings(req({...valid,admission_min_fills:0},"PUT"),ctx)).status,400,
   "zero admission sample size rejected");
