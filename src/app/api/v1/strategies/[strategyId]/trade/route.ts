@@ -25,7 +25,7 @@ export async function POST(request:Request,{params}:Context){
    const key=await tx.botApiKey.findFirst({where:{id:access.keyId,ownerId:access.ownerId,revokedAt:null}});
    if(!bot||!key)return "UNAUTHORIZED";
    const s=await tx.strategy.findUnique({where:{id:strategyId},select:{
-    status:true,marketType:true,venue:true,eventTag:true
+    status:true,marketType:true,venue:true,eventTag:true,managerProfitPercentage:true,platformStrategyPercentage:true
    }});
    if(!s||!canRecordBotTrade(s.status,s.marketType,s.venue,s.eventTag))return "NOT_AVAILABLE";
    const prev=await tx.botTradeIntent.findUnique({where:{strategyId_idempotencyKey:{strategyId,idempotencyKey:idempotency}}});
@@ -37,7 +37,8 @@ export async function POST(request:Request,{params}:Context){
    const intent=await tx.botTradeIntent.create({data:{
     botId:bot.id,strategyId,keyId:access.keyId,idempotencyKey:idempotency,
     orderType:parsed.data.order_type,tradeSize:parsed.data.trade_size,
-    eventId:parsed.data.event_id,side
+    eventId:parsed.data.event_id,side,
+    appliedManagerProfitPct:s.managerProfitPercentage,appliedPlatformStrategyPct:s.platformStrategyPercentage
    }});
    return {id:intent.id,status:intent.status,duplicate:false};
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
