@@ -86,6 +86,13 @@ model Strategy {
   isActive Boolean @default(false) @map("is_active")
   isPublic Boolean @default(false) @map("is_public")
   status StrategyStatus @default(OFFLINE)
+  publicKey String? @unique @map("public_key") @db.VarChar(64)
+  managerProfitPercentage Decimal @default(0) @map("manager_profit_percentage") @db.Decimal(7,4)
+  platformStrategyPercentage Decimal @default(0) @map("platform_strategy_percentage") @db.Decimal(7,4)
+  sandboxFeeBps Int? @map("sandbox_fee_bps")
+  admissionMinDays Int? @map("admission_min_days")
+  admissionMinFills Int? @map("admission_min_fills")
+  admissionMaxDrawdownPct Decimal? @map("admission_max_drawdown_pct") @db.Decimal(7,4)
   marketType MarketType @default(PREDICTION) @map("market_type")
   venue String? @db.VarChar(32)
   eventTag String? @map("event_tag") @db.VarChar(120)
@@ -101,6 +108,9 @@ model Strategy {
   positionEvents PositionAllocation[]
   trades StrategyTrade[]
   bot Bot?
+  sandboxAccount SandboxAccount?
+  sandboxFills SandboxFill[]
+  revenueRateVersions StrategyRevenueRateVersion[]
   shutdownEventId String? @unique @map("shutdown_event_id") @db.VarChar(64)
   @@index([isActive,isPublic])
   @@map("strategies")
@@ -749,4 +759,58 @@ model BotTradeIntent {
  @@unique([strategyId,idempotencyKey])
  @@index([botId,createdAt])
  @@map("bot_trade_intents")
+}
+
+model SandboxAccount {
+ strategyId String @id @map("strategy_id") @db.VarChar(64)
+ strategy Strategy @relation(fields:[strategyId],references:[id],onDelete:Restrict)
+ initialCashMicros BigInt @default(10000000000) @map("initial_cash_micros")
+ cashMicros BigInt @default(10000000000) @map("cash_micros")
+ realizedPnlMicros BigInt @default(0) @map("realized_pnl_micros")
+ peakEquityMicros BigInt @default(10000000000) @map("peak_equity_micros")
+ maxDrawdownBps Int @default(0) @map("max_drawdown_bps")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ @@map("sandbox_accounts")
+}
+model SandboxFill {
+ id String @id @default(cuid())
+ strategyId String @map("strategy_id") @db.VarChar(64)
+ strategy Strategy @relation(fields:[strategyId],references:[id],onDelete:Restrict)
+ keyId String @map("key_id")
+ requestKey String @map("request_key") @db.VarChar(100)
+ eventId String @map("event_id") @db.VarChar(180)
+ side String @db.VarChar(3)
+ orderType String @map("order_type") @db.VarChar(4)
+ quantity Int
+ priceMicros BigInt @map("price_micros")
+ notionalMicros BigInt @map("notional_micros")
+ estimatedFeeMicros BigInt @map("estimated_fee_micros")
+ realizedPnlMicros BigInt @default(0) @map("realized_pnl_micros")
+ bookSnapshot Json @map("book_snapshot")
+ venueObservedAt DateTime @map("venue_observed_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ @@unique([strategyId,requestKey])
+ @@index([strategyId,createdAt])
+ @@map("sandbox_fills")
+}
+model SandboxPosition {
+ strategyId String @map("strategy_id") @db.VarChar(64)
+ eventId String @map("event_id") @db.VarChar(180)
+ side String @db.VarChar(3)
+ quantity Int @default(0)
+ costBasisMicros BigInt @default(0) @map("cost_basis_micros")
+ @@id([strategyId,eventId,side])
+ @@map("sandbox_positions")
+}
+model StrategyRevenueRateVersion {
+ id String @id @default(cuid())
+ strategyId String @map("strategy_id") @db.VarChar(64)
+ strategy Strategy @relation(fields:[strategyId],references:[id],onDelete:Restrict)
+ managerPct Decimal @map("manager_pct") @db.Decimal(7,4)
+ platformPct Decimal @map("platform_pct") @db.Decimal(7,4)
+ effectiveAt DateTime @default(now()) @map("effective_at")
+ changedBy String @map("changed_by")
+ @@index([strategyId,effectiveAt])
+ @@map("strategy_revenue_rate_versions")
 }
