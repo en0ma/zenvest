@@ -13,7 +13,8 @@ export async function POST(request:Request,{params}:Context){
  let body:unknown;
  try{body=await request.json()}catch{return Response.json({error:"Invalid JSON"},{status:400,headers:access.headers})}
  const eventId=(body&&typeof body==="object"&&(body as Record<string,unknown>).event_id);
- if(typeof eventId!=="string"||!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,179}$/.test(eventId)||
+ if(!body||typeof body!=="object"||Array.isArray(body)||
+  typeof eventId!=="string"||!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,179}$/.test(eventId)||
   Object.keys(body as Record<string,unknown>).some(k=>k!=="event_id"))
   return Response.json({error:"Only event_id is accepted"},{status:400,headers:access.headers});
  const s=await prisma.strategy.findUnique({where:{id:strategyId},select:{status:true,eventTag:true,venue:true}});
