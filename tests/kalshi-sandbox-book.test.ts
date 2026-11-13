@@ -18,3 +18,16 @@ test("rejects missing liquidity, fractional contracts and large slippage",()=>{
  assert.throws(()=>quoteFromKalshiBook({yes:[["0.6","1"]],no:[["0.5","1"],["0.1","2"]]},"yes","buy",2),/SLIPPAGE/);
  assert.throws(()=>quoteFromKalshiBook({yes:[["0.4","0.5"]],no:[]},"yes","sell",1),/FRACTIONAL/);
 });
+
+test("rejects invalid or empty books without manufacturing market liquidity",()=>{
+ assert.throws(()=>quoteFromKalshiBook(null,"yes","buy",1),/INVALID_BOOK/);
+ assert.throws(()=>quoteFromKalshiBook({yes:[],no:[]},"yes","buy",1),/NO_LIQUIDITY/);
+ assert.throws(()=>quoteFromKalshiBook({yes:[["1.5","1"]],no:[]},"yes","sell",1),/INVALID_BOOK_PRICE/);
+ assert.throws(()=>quoteFromKalshiBook({yes:[["0.4","-1"]],no:[]},"yes","sell",1),/FRACTIONAL_BOOK_VOLUME/);
+ assert.throws(()=>quoteFromKalshiBook({yes:[["0.4","1"]],no:[]},"yes","sell",0),/INVALID_QUANTITY/);
+ assert.throws(()=>quoteFromKalshiBook({yes:[["0.4","1"]],no:[]},"yes","sell",1000001),/INVALID_QUANTITY/);
+ const no=quoteFromKalshiBook({yes:[["0.8","10"]],no:[["0.1","10"]]},"no","buy",3);
+ assert.equal(no.notionalMicros,600000n);
+ const noSell=quoteFromKalshiBook({yes:[["0.8","10"]],no:[["0.1","10"]]},"no","sell",3);
+ assert.equal(noSell.notionalMicros,300000n);
+});
