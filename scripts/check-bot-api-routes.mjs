@@ -53,7 +53,7 @@ try{
  assert.equal((await strategies.POST(req("/api/v1/strategies",{...body,min_allocation:"800",max_allocation:"100"},raw))).status,400);
  assert.equal((await strategies.POST(req("/api/v1/strategies",{...body,side:"yes"},raw))).status,400);
  const configured=await strategies.POST(req("/api/v1/strategies",{...body,strategy_id:strategyId},raw));
- assert.equal(configured.status,201);
+ assert.equal(configured.status,409,"dashboard-created strategy is already configured");
  assert.equal((await db.strategy.findUniqueOrThrow({where:{id:strategyId}})).minAllocationUsdcMicros,5000000n);
  assert.equal((await strategies.POST(req("/api/v1/strategies",{...body,strategy_id:strategyId},raw))).status,409);
  const created=await strategies.POST(req("/api/v1/strategies",body,raw));
