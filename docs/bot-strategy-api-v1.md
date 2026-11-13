@@ -45,7 +45,7 @@ Idempotency-Key: trade-20261111-0001
 
 `order_type` is `buy` or `sell`; `trade_size` is a positive integer count of **contracts**, at most 1,000,000; `event_id` is the chosen event market ID. Each trade supplies its own side. `yes` and `up` are synonyms (canonical `yes`); `no` and `down` are synonyms (canonical `no`). Synonymous sides deduplicate correctly under the same idempotency key. Requests for different strategies are isolated by strategy ID and manager ownership.
 
-**Safety boundary:** the endpoint returns HTTP `202`, status `RECEIVED_UNEXECUTED`, `executed:false`. This is a recorded, idempotent intent only. It does not place an order at Kalshi, independently validate the event, count as verified trade history, change investor balances or settle returns. Strategy states ONBOARDING/SHUTTING_DOWN/SHUTDOWN reject new trade intents; MONITORING/TRADING permit intake only.
+**Safety boundary:** the endpoint returns HTTP `202`, status `RECEIVED_UNEXECUTED`, `executed:false`. This is a recorded, idempotent intent only. It does not place an order at Kalshi, independently validate the event, count as verified trade history, change investor balances or settle returns. Only TRADING permits trade-intent intake. ONBOARDING, MONITORING, SHUTTING_DOWN, SHUTDOWN, and other states reject new trade requests. MONITORING remains visible to investors but cannot accept trades or allocations.
 
 ## GET /api/v1/strategies/{strategy_id}/allocations
 
