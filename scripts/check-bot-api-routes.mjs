@@ -75,6 +75,9 @@ try{
  const readAlloc=await allocations.GET(req("/api/v1/strategies/"+strategyId+"/allocations",null,raw,"GET"),strategyCtx(strategyId));
  assert.equal(readAlloc.status,200);
  assert.equal((await readAlloc.json()).accepts_new_allocations,false);
+ assert.equal((await trade.POST(tradeRequest(strategyId,"up"),strategyCtx(strategyId))).status,409,"MONITORING blocks bot trade intents");
+ assert.equal((await db.botTradeIntent.count({where:{strategyId}})),0,"MONITORING must not persist trade intents");
+ await db.strategy.update({where:{id:strategyId},data:{status:"TRADING",isActive:true,isPublic:true}});
  const firstTrade=await trade.POST(tradeRequest(strategyId,"up"),strategyCtx(strategyId));
  assert.equal(firstTrade.status,202);
  const firstBody=await firstTrade.json();assert.equal(firstBody.executed,false);
