@@ -32,5 +32,5 @@ export function canonicalEventSide(side:"up"|"down"|"yes"|"no"):"yes"|"no"{
  return side==="up"||side==="yes"?"yes":"no";
 }
 export function canRecordBotTrade(status:string,marketType:string,venue:string|null,eventTag:string|null){
- return (status==="MONITORING"||status==="TRADING")&&marketType==="PREDICTION"&&venue==="kalshi"&&Boolean(eventTag);
+ return status==="TRADING"&&marketType==="PREDICTION"&&venue==="kalshi"&&Boolean(eventTag);
 }
