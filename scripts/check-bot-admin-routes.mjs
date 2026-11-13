@@ -36,11 +36,26 @@ try{
   venue:"kalshi",eventTag:"BTC-15min",
   minAllocationUsdcMicros:5000000n,maxAllocationUsdcMicros:50000000n}});
  await db.bot.create({data:{ownerId:owner,strategyId,name:"CI Bot Admin"}});
+ assert.equal((await lifecycle(req({status:"INVALID"}),ctx)).status,400,"unrecognized lifecycle denied");
+ assert.equal((await lifecycle(req({status:"TRADING"}),ctx)).status,409,"cannot skip ONBOARDING");
+ assert.equal((await settings(req({...valid,extra:true},"PUT"),ctx)).status,400,"unknown financial fields rejected");
+ assert.equal((await settings(new Request("https://ci.invalid/admin",{
+  method:"PUT",headers:{"content-type":"application/json"},body:"{broken-json"},ctx)).status,400,
+  "malformed admin configuration rejected");
+ assert.equal((await settings(req({...valid,admission_min_fills:0},"PUT"),ctx)).status,400,
+  "zero admission sample size rejected");
+ assert.equal((await settings(req({...valid,sandbox_fee_bps:-1},"PUT"),ctx)).status,400,
+  "negative estimated sandbox fee rejected");
+ assert.equal((await settings(req({...valid,total_capacity_usdc:"0"},"PUT"),ctx)).status,400,
+  "zero capacity rejected");
  assert.equal((await lifecycle(req({status:"MONITORING"}),ctx)).status,409,"missing admin sandbox fee policy blocks promotion");
  assert.equal((await settings(req({...valid,manager_percentage:"90",platform_percentage:"50"},"PUT"),ctx)).status,400,"shares cannot exceed 100%");
  assert.equal((await settings(req({...valid,total_capacity_usdc:"2"},"PUT"),ctx)).status,409,"capacity below allocation ceiling denied");
  assert.equal((await settings(req(valid,"PUT"),ctx)).status,200,"admin policy and revenue percentages saved");
  assert.equal(await db.strategyRevenueRateVersion.count({where:{strategyId}}),1);
+ assert.equal((await settings(req(valid,"PUT"),ctx)).status,200,"re-saving unchanged rates is allowed");
+ assert.equal(await db.strategyRevenueRateVersion.count({where:{strategyId}}),1,
+  "unchanged profit percentages do not create duplicate rate versions");
  assert.equal((await lifecycle(req({status:"MONITORING"}),ctx)).status,409,"unproven sandbox admission blocked");
  assert.equal((await lifecycle(req({status:"MONITORING",override_admission:true,override_reason:"too short"}),ctx)).status,400);
  const reason="Reviewed CI-only sandbox strategy for manual admission exception";
@@ -49,6 +64,7 @@ try{
  const observed=await db.strategy.findUniqueOrThrow({where:{id:strategyId}});
  assert.equal(observed.status,"MONITORING");
  assert.equal(observed.isPublic,true);assert.equal(observed.isActive,false);
+ assert.equal((await lifecycle(req({status:"MONITORING"}),ctx)).status,409,"duplicate promotion denied");
  assert.equal((await lifecycle(req({status:"TRADING",override_admission:true,override_reason:reason}),ctx)).status,409,"wallets required");
  assert.equal(await db.botAdmissionOverride.count({where:{strategyId}}),1,"rejected transition must not log an approved override");
  await db.strategy.update({where:{id:strategyId},data:{
@@ -74,6 +90,7 @@ try{
  const closing=await db.strategy.findUniqueOrThrow({where:{id:strategyId}});
  assert.equal(closing.status,"SHUTTING_DOWN");assert.equal(closing.isActive,false);
  assert.equal((await settings(req(valid,"PUT"),ctx)).status,409,"shutdown settings are locked");
+ assert.equal((await lifecycle(req({status:"TRADING"}),ctx)).status,409,"cannot restart shutdown via promotion");
  // Delivery outage must not manufacture a success or remove the durable notice.
  await db.botManagerNotice.create({data:{userId:owner,kind:"APPROVED"}});
  const previousEmailKey=process.env.RESEND_API_KEY;
