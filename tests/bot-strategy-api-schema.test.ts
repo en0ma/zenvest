@@ -31,11 +31,10 @@ test("event trade requests have bounded contract sizes and canonical yes/up no/d
  assert.equal(eventTradeInput.safeParse({...valid,side:"maybe"}).success,false);
  assert.equal(eventTradeInput.safeParse({...valid,settled:true}).success,false);
 });
-test("only configured monitoring/trading strategies admit unexecuted intents",()=>{
- for(const s of ["ONBOARDING","SHUTTING_DOWN","SHUTDOWN","OFFLINE"]){
+test("only configured TRADING strategies admit unexecuted intents",()=>{
+ for(const s of ["ONBOARDING","MONITORING","SHUTTING_DOWN","SHUTDOWN","OFFLINE"]){
   assert.equal(canRecordBotTrade(s,"PREDICTION","kalshi","BTC-15min"),false);
  }
- assert.equal(canRecordBotTrade("MONITORING","PREDICTION","kalshi","BTC-15min"),true);
  assert.equal(canRecordBotTrade("TRADING","PREDICTION","kalshi","BTC-15min"),true);
  assert.equal(canRecordBotTrade("TRADING","SPOT","kalshi","BTC-15min"),false);
  assert.equal(canRecordBotTrade("TRADING","PREDICTION",null,"BTC-15min"),false);
