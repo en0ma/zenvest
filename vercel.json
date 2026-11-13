@@ -29,6 +29,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/internal/process-bot-manager-notices",
+      "schedule": "*/2 * * * *"
+    },
+    {
       "path": "/api/internal/process-position-trade-pnl",
       "schedule": "* * * * *"
     }
