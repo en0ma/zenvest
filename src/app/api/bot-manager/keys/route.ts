@@ -29,7 +29,7 @@ export async function POST(request:Request){
    return tx.botApiKey.create({data:{ownerId,label:parsed.data.label,keyHash:secret.hash,keyPrefix:secret.prefix}});
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
   if(typeof result==="string")return Response.json({error:result},{status:409});
-  return Response.json({id:result.id,apiKey:secret.raw,prefix:secret.prefix},{status:201,headers:{"Cache-Control":"no-store"}});
+  return Response.json({apiKey:result.id,apiSecret:secret.raw,prefix:secret.prefix},{status:201,headers:{"Cache-Control":"no-store"}});
  }catch(error){
   if(error instanceof Prisma.PrismaClientKnownRequestError&&error.code==="P2034")
    return Response.json({error:"Concurrent key update; retry"},{status:409});

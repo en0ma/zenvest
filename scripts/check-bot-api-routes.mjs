@@ -12,8 +12,10 @@ registerHooks({resolve(specifier,context,nextResolve){
 if(!process.env.DATABASE_URL?.includes("zenvest_ci"))throw Error("Refusing non-CI database");
 const db=new PrismaClient();
 const managerId="ci_bot_api_manager",strangerId="ci_bot_api_stranger";
+let testPublicKey="";
+let testKeyId="";
 const req=(path,body,token,method="POST",headers={})=>new Request("http://ci.local"+path,{
- method,headers:{"content-type":"application/json",...(token?{authorization:"Bearer "+token}:{}),...headers},
+ method,headers:{"content-type":"application/json",...(token?{"x-zenvest-api-key":testKeyId,"x-zenvest-api-secret":token}:{}),...(testPublicKey?{"x-zenvest-strategy-pubkey":testPublicKey}:{}),...headers},
  ...(method==="GET"?{}:{body:typeof body==="string"?body:JSON.stringify(body)})
 });
 const managerBots=await import("../src/app/api/bot-manager/bots/route.ts");
@@ -37,7 +39,7 @@ try{
  assert.equal((await managerKeys.POST(req("/api/bot-manager/keys",{label:""}))).status,400);
  const keyResponse=await managerKeys.POST(req("/api/bot-manager/keys",{label:"Shared key"}));
  assert.equal(keyResponse.status,201);
- const secret=await keyResponse.json();raw=secret.apiKey;keyId=secret.id;
+ const secret=await keyResponse.json();raw=secret.apiSecret;keyId=secret.apiKey;testKeyId=keyId;
  assert.match(raw,/^zvb_[A-Za-z0-9_-]{43}$/);
  assert.equal((await managerKeys.GET()).status,200);
  assert.equal((await strategies.GET(req("/api/v1/strategies",null,null,"GET"))).status,401);
@@ -46,6 +48,7 @@ try{
  const botResult=await managerBots.POST(req("/api/bot-manager/bots",{name:"Fixture Bot",description:"Manager owned"}));
  assert.equal(botResult.status,201);
  strategyId=(await botResult.json()).bot.strategyId;
+ testPublicKey=(await db.strategy.findUniqueOrThrow({where:{id:strategyId}})).publicKey;
  assert.equal((await managerBots.GET()).status,200);
  assert.equal((await strategies.POST(req("/api/v1/strategies",{...body,min_allocation:"800",max_allocation:"100"},raw))).status,400);
  assert.equal((await strategies.POST(req("/api/v1/strategies",{...body,side:"yes"},raw))).status,400);

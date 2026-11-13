@@ -1,6 +1,6 @@
 import {Prisma} from "@prisma/client";
 import {z} from "zod";
-import {randomUUID} from "node:crypto";
+import {randomUUID,randomBytes} from "node:crypto";
 import {prisma} from "@/lib/db";
 import {currentBotManager} from "@/lib/bot-manager-access";
 export const dynamic="force-dynamic";
@@ -9,7 +9,7 @@ export async function GET(){
  const ownerId=await currentBotManager();
  if(!ownerId)return Response.json({error:"Bot role required"},{status:403});
  const bots=await prisma.bot.findMany({where:{ownerId},orderBy:{createdAt:"desc"},include:{
-  strategy:{select:{id:true,status:true,isActive:true,isPublic:true}}
+  strategy:{select:{id:true,publicKey:true,status:true,isActive:true,isPublic:true}}
  }});
  return Response.json({bots},{headers:{"Cache-Control":"no-store"}});
 }
@@ -29,7 +29,7 @@ export async function POST(request:Request){
    if(count>=100)throw Error("BOT_LIMIT");
    const id=randomUUID();
    const strategy=await tx.strategy.create({data:{
-    id,name:parsed.data.name+" · "+id.slice(0,8),description:parsed.data.description,
+    id,publicKey:"zvs_"+randomBytes(20).toString("hex"),name:parsed.data.name+" · "+id.slice(0,8),description:parsed.data.description,
     status:"ONBOARDING",isActive:false,isPublic:false
    }});
    return tx.bot.create({data:{ownerId,strategyId:strategy.id,name:parsed.data.name,description:parsed.data.description}});

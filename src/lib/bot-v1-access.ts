@@ -8,11 +8,14 @@ type AccessResult=
 /** Atomic per-key limiter shared across every strategy owned by the manager.
  * Per-strategy ownership checks also run inside each sensitive transaction. */
 export async function authorizeBotV1(request:Request,strategyId?:string):Promise<AccessResult>{
- const identity=await authenticateBotKey(request.headers.get("authorization"));
+ const identity=await authenticateBotKey(request);
  if(!identity)return {ok:false,response:Response.json({error:"Invalid or revoked manager API key"},{status:401})};
  if(strategyId!==undefined){
-  const owned=await prisma.bot.findFirst({where:{ownerId:identity.ownerId,strategyId},select:{id:true}});
-  if(!owned)return {ok:false,response:Response.json({error:"Strategy not owned by this manager"},{status:403})};
+  const publicKey=request.headers.get("x-zenvest-strategy-pubkey");
+  if(!publicKey)return {ok:false,response:Response.json({error:"X-Zenvest-Strategy-Pubkey header required"},{status:400})};
+  const owned=await prisma.bot.findFirst({where:{ownerId:identity.ownerId,strategyId,
+    strategy:{publicKey}},select:{id:true}});
+  if(!owned)return {ok:false,response:Response.json({error:"Strategy public key does not match an owned strategy"},{status:403})};
  }
  const now=Date.now(),windowStart=new Date(Math.floor(now/60000)*60000);
  const resetSeconds=Math.ceil((windowStart.getTime()+60000-now)/1000);
