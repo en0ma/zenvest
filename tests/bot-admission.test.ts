@@ -15,3 +15,13 @@ test("blocks poor admission track records without changing live financial data",
  assert.ok(failures.includes("EXCESSIVE_SANDBOX_DRAWDOWN"));
  assert.ok(failures.includes("NO_POSITIVE_REALIZED_SANDBOX_PNL"));
 });
+
+test("admission period boundary and nullable risk thresholds fail closed",()=>{
+ const early=evaluateSandboxAdmission({...base,now:new Date("2026-01-03"),fills:30,settlements:1,drawdownBps:500,realizedPnlMicros:1n});
+ assert.deepEqual(early,["INSUFFICIENT_SANDBOX_DAYS"]);
+ assert.deepEqual(evaluateSandboxAdmission({...base,maxDrawdownPct:null}),["ADMISSION_POLICY_UNCONFIGURED"]);
+ assert.deepEqual(evaluateSandboxAdmission({...base,minFills:null}),["ADMISSION_POLICY_UNCONFIGURED"]);
+ assert.deepEqual(evaluateSandboxAdmission({...base,realizedPnlMicros:0n}),["NO_POSITIVE_REALIZED_SANDBOX_PNL"]);
+ assert.deepEqual(evaluateSandboxAdmission({...base,drawdownBps:500}),[]);
+ assert.deepEqual(evaluateSandboxAdmission({...base,now:new Date("2026-01-08"),fills:30,settlements:1,realizedPnlMicros:1n}),[]);
+});
