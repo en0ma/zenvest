@@ -66,6 +66,13 @@ try{
  strategyId=(await botResult.json()).bot.strategyId;
  testPublicKey=(await db.strategy.findUniqueOrThrow({where:{id:strategyId}})).publicKey;
  assert.equal((await managerBots.GET()).status,200);
+ assert.equal((await allocations.GET(req("/api/v1/strategies/"+strategyId+"/allocations",null,raw,"GET",
+  {"x-zenvest-strategy-pubkey":""}),strategyCtx(strategyId))).status,400,"strategy pubkey is mandatory");
+ assert.equal((await allocations.GET(req("/api/v1/strategies/"+strategyId+"/allocations",null,raw,"GET",
+  {"x-zenvest-strategy-pubkey":"zvs_wrong"}),strategyCtx(strategyId))).status,403,"pubkey must match owned strategy");
+ assert.equal((await strategies.GET(req("/api/v1/strategies",null,"zvb_"+"A".repeat(43),"GET"))).status,401,"unknown secret rejected");
+ assert.equal((await strategies.GET(req("/api/v1/strategies",null,raw,"GET",
+  {"x-zenvest-api-key":"unknown-credential"}))).status,401,"unknown key ID rejected");
  assert.equal((await strategies.POST(req("/api/v1/strategies",{...body,min_allocation:"800",max_allocation:"100"},raw))).status,400);
  assert.equal((await strategies.POST(req("/api/v1/strategies",{...body,side:"yes"},raw))).status,400);
  const configured=await strategies.POST(req("/api/v1/strategies",{...body,strategy_id:strategyId},raw));
@@ -101,6 +108,21 @@ try{
   order_type:orderType,trade_size:qty,event_id:"BTC-15min-123",side
  },raw,"POST",{"idempotency-key":key});
  await db.strategy.update({where:{id:strategyId},data:{status:"ONBOARDING",isPublic:false,sandboxFeeBps:100}});
+ assert.equal((await sandbox.POST(sandboxRequest("yes","invalid-lot-0001","buy",0),strategyCtx(strategyId))).status,400,
+  "invalid quantity must fail before venue fetch");
+ assert.equal((await sandbox.POST(req("/api/v1/strategies/"+strategyId+"/sandbox/trade",{
+  order_type:"buy",trade_size:1,event_id:"BTC-15min-123",side:"yes"
+ },raw,"POST"),strategyCtx(strategyId))).status,400,"sandbox requires idempotency");
+ assert.equal((await sandbox.POST(sandboxRequest("no","virtual-noinventory-001","sell",1),strategyCtx(strategyId))).status,409,
+  "virtual sell cannot invent inventory");
+ assert.equal((await sandbox.POST(sandboxRequest("yes","virtual-illiquid-0001","buy",50),strategyCtx(strategyId))).status,503,
+  "virtual execution rejects insufficient venue book depth");
+ assert.equal((await sandboxSettle.POST(req("/api/v1/strategies/"+strategyId+"/sandbox/settle",
+  {event_id:"BTC-15min-123"},raw),strategyCtx(strategyId))).status,409,
+  "open venue events cannot settle sandbox positions");
+ assert.equal((await sandboxSettle.POST(req("/api/v1/strategies/"+strategyId+"/sandbox/settle",
+  {event_id:"BTC-15min-123",result:"yes"},raw),strategyCtx(strategyId))).status,400,
+  "user-supplied settlement result forbidden");
  const virtual=await sandbox.POST(sandboxRequest("yes","virtual-trade-0001"),strategyCtx(strategyId));
  assert.equal(virtual.status,201,"real Kalshi read-only book fixture can simulate sandbox fills");
  assert.equal((await virtual.json()).is_real_trade,false);
