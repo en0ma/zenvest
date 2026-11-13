@@ -21,7 +21,7 @@ export async function GET(request:Request,{params}:Context){
   unrealized_pnl_usdc_micros:null,
   max_realized_drawdown_bps:account?.maxDrawdownBps??0,
   recent_fills:fills.map(f=>({...f,priceMicros:f.priceMicros.toString(),
-   realizedPnlMicros:f.realizedPnlMicros.toString(),estimatedFeeMicros:f.estimatedFeeMicros.toString()}))},
+   realizedPnlMicros:f.realizedPnlMicros.toString(),estimatedFeeMicros:f.estimatedFeeMicros.toString()})),
   open_virtual_positions:positions.map(p=>({...p,costBasisMicros:p.costBasisMicros.toString()}))
  },{headers:access.headers});
 }
