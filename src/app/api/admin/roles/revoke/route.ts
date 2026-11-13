@@ -37,6 +37,7 @@ export async function POST(request:NextRequest){
    if(removed.count===0)return "NOT_FOUND";
    await tx.user.update({where:{id:userId},data:{sessionVersion:{increment:1}}});
    await tx.staffAudit.create({data:{actorId:actor,action:"role.revoked:"+roleKey,resource:"roles",targetId:userId}});
+   if(roleKey==="bot")await tx.botManagerNotice.create({data:{userId,kind:"REVOKED"}});
    return "REVOKED";
   },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
   if(outcome==="ACTIVE_STRATEGIES")return Response.json({error:"All bot strategies must be SHUTDOWN before revoking bot role"},{status:409});
