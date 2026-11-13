@@ -14,6 +14,7 @@ const db=new PrismaClient();
 const {PUT:settings}=await import("../src/app/api/admin/bot-strategies/[id]/settings/route.ts");
 const {POST:lifecycle}=await import("../src/app/api/admin/bot-strategies/[id]/lifecycle/route.ts");
 const actor="ci_bot_admin",owner="ci_bot_target",strategyId="ci_bot_admin_strategy";
+let superRoleId="",botRoleId="";
 const ctx={params:Promise.resolve({id:strategyId})};
 const req=(body,method="POST")=>new Request("https://ci.invalid/api/admin/bot-strategies/"+strategyId,{
  method,headers:{"content-type":"application/json"},body:JSON.stringify(body)});
@@ -21,8 +22,9 @@ const valid={manager_percentage:"30",platform_percentage:"20",
  sandbox_fee_bps:100,admission_min_days:7,admission_min_fills:30,
  admission_max_drawdown_pct:"10",total_capacity_usdc:"500"};
 try{
- const superRole=await db.role.findUniqueOrThrow({where:{key:"super-admin"}});
+ const superRole=await db.role.upsert({where:{key:"super-admin"},create:{key:"super-admin"},update:{}});
  const botRole=await db.role.findUniqueOrThrow({where:{key:"bot"}});
+ superRoleId=superRole.id;botRoleId=botRole.id;
  for(const [id,roleId] of [[actor,superRole.id],[owner,botRole.id]]){
   await db.user.create({data:{id,email:id+"@example.invalid",name:"CI Bot Admin Fixture",passwordHash:"ci-only",
    emailVerifiedAt:new Date()}});
@@ -78,10 +80,7 @@ try{
  await db.strategyRevenueRateVersion.deleteMany({where:{strategyId}});
  await db.bot.deleteMany({where:{strategyId}});
  await db.strategy.deleteMany({where:{id:strategyId}});
- await db.userRole.deleteMany({where:{userId:{in:[actor,owner]},roleId:{in:[
-   (await db.role.findUniqueOrThrow({where:{key:"super-admin"}})).id,
-   (await db.role.findUniqueOrThrow({where:{key:"bot"}})).id
- ]}}});
+ await db.userRole.deleteMany({where:{userId:{in:[actor,owner]},roleId:{in:[superRoleId,botRoleId].filter(Boolean)}}});
  await db.user.deleteMany({where:{id:{in:[actor,owner]}}});
  await db.$disconnect();
 }
