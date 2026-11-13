@@ -17,6 +17,7 @@ const sections: Array<{ name: string; permission: StaffPermissionKey }> = [
  {name:"audit",permission:"audit:read"},
  {name:"actions",permission:"audit:read"},
  {name:"roles/manage",permission:"roles:manage"},
+ {name:"bots",permission:"roles:manage"},
 ];
 export default async function AdminPage(){
  const session=await getServerSession(authOptions);

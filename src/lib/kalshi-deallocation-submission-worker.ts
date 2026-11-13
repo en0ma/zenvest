@@ -8,11 +8,13 @@ import {submitMockKalshiWithdrawal} from "./kalshi-withdrawal-mock.ts";
 export async function processMockDeallocationSubmissions(){
  const first=await prisma.positionAllocation.findFirst({where:{
   kind:"DEALLOCATE",status:"AWAITING_DEALLOCATION",strategyEventId:null,
-  position:{status:{in:["OPEN","CLOSING"]},strategy:{blockRadarAddress:{not:null}}}
+  position:{status:{in:["OPEN","CLOSING"]},strategy:{status:{not:"SHUTTING_DOWN"},blockRadarAddress:{not:null}}}
  },orderBy:[{createdAt:"asc"},{id:"asc"}],include:{position:{include:{strategy:true}}}});
  if(!first)return "empty";
  const claimed=await prisma.$transaction(async tx=>{
   await tx.$queryRaw`SELECT id FROM "strategies" WHERE id = ${first.strategyId} FOR UPDATE`;
+  const active=await tx.strategy.findUnique({where:{id:first.strategyId},select:{status:true}});
+  if(active?.status==="SHUTTING_DOWN"||active?.status==="SHUTDOWN")return null;
   const operation=await tx.positionAllocation.findUnique({where:{id:first.id}});
   if(!operation||operation.status!=="AWAITING_DEALLOCATION"||operation.strategyEventId)return null;
   const event=await tx.strategyEvent.create({data:{
