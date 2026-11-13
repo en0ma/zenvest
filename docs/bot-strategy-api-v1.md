@@ -1,60 +1,79 @@
-# Bot Strategy API v1 — draft
+# Bot Strategy API v1 — draft / do not deploy
 
-Base: `/api/v1/strategies`. Authenticate with a manager-level API key, shared across all strategies owned by that approved `bot` user:
+The manager submits an application by email including their existing Zenvest **user handle**. A Super Admin verifies and assigns the `bot` role using that handle. The user can then create a strategy and generate a manager API credential in Bot Manager.
+
+## Three-part strategy authentication
+
+Each manager API credential is a public **API key ID** and a one-time-view **secret**. The same pair can access all strategies owned by that manager, but every **strategy-scoped** request must also include the exact public key of the selected strategy:
 
 ```http
-Authorization: Bearer zvb_<issued-secret>
+X-Zenvest-API-Key: <manager-key-id>
+X-Zenvest-API-Secret: <one-time-issued-manager-secret>
+X-Zenvest-Strategy-Pubkey: zvs_<strategy-public-key>
 Content-Type: application/json
 ```
 
-All API operations verify the user's current `bot` role; strategy-specific endpoints also verify ownership, even if the manager has many strategies. A manager key cannot access another owner's strategies or control investor balances, payouts or custody.
+Never send the secret in the query string. The server hashes the secret at rest and checks the current approved user role, account/2FA eligibility, key revocation, manager/strategy ownership, and strategy public-key match. All scoped calls are rate limited by manager key ID at **60 requests/minute across all of that key's strategies**. HTTP 429 includes Retry-After. Failed credential checks return 401/403; database limiter outages return 503. Managers can revoke keys globally and rotate them.
 
-## GET /api/v1/strategies
+**Bootstrap exception:** `GET /api/v1/strategies` (listing all owned strategies) and `POST /api/v1/strategies` (creating a new strategy without a public key yet) require the API key ID and secret, but not a strategy public key. They return public keys for subsequent calls. A brand-new strategy has no public key to present before creation; requiring one for creation would be impossible.
 
-Lists all strategies owned by the manager, including ID, market type, venue, event tag/asset, configured minimum and maximum allocations (micro-USDC strings), current lifecycle state and whether new investor allocations are open.
+## GET/POST /api/v1/strategies
 
-## POST /api/v1/strategies
-
-Creates a new strategy and associated bot in `ONBOARDING`, or configures an existing **unconfigured** onboarding bot when the optional `strategy_id` field is supplied.
+GET lists all manager-owned strategies and their public keys. POST creates a private ONBOARDING strategy:
 
 ```json
 {
   "market_type": "event",
   "venue": "kalshi",
-  "asset": "BTC-15min",
+  "asset": "KXBTC15M",
   "min_allocation": "10",
   "max_allocation": "5000"
 }
 ```
 
-Only `event` market type and `kalshi` venue work in v1. `asset` is the event tag/slug. There is **no strategy-side field**. `min_allocation` and `max_allocation` are positive USDC decimal strings, up to six fractional digits, with minimum less than or equal to maximum and values within signed 64-bit USDC micro-unit capacity. They persist as `minAllocationUsdcMicros` and `maxAllocationUsdcMicros`; the existing investor allocation API enforces these limits. Creating/configuring does not grant public visibility or allocation: admin approvals remain mandatory.
+The dashboard form also accepts `name` and `description`. Only event markets on Kalshi are supported. `asset` must identify a Kalshi `series_ticker` or `event_ticker` for read-only book validation; a friendly display alias (such as `BTC-15min`) needs a verified mapping before simulation. Allocation bounds use decimal USDC strings (six digits after the decimal at most); the transaction enforces positive min<=max.
+
+There is **no strategy-wide side**; side is supplied on each trade. A new strategy is hidden from investors and cannot allocate or submit live trades.
 
 ## POST /api/v1/strategies/{strategy_id}/trade
 
-```http
-Idempotency-Key: trade-20261111-0001
-```
+Requires all three authentication headers and an `Idempotency-Key`. Body:
+
 ```json
 {
   "order_type": "buy",
   "trade_size": 5,
-  "event_id": "BTC-15min-123",
+  "event_id": "KXBTC15M-EXAMPLE",
   "side": "up"
 }
 ```
 
-`order_type` is `buy` or `sell`; `trade_size` is a positive integer count of **contracts**, at most 1,000,000; `event_id` is the chosen event market ID. Each trade supplies its own side. `yes` and `up` are synonyms (canonical `yes`); `no` and `down` are synonyms (canonical `no`). Synonymous sides deduplicate correctly under the same idempotency key. Requests for different strategies are isolated by strategy ID and manager ownership.
+`trade_size` currently means whole contracts. `yes`=`up` and `no`=`down`; aliases are normalized before idempotency comparisons.
 
-**Safety boundary:** the endpoint returns HTTP `202`, status `RECEIVED_UNEXECUTED`, `executed:false`. This is a recorded, idempotent intent only. It does not place an order at Kalshi, independently validate the event, count as verified trade history, change investor balances or settle returns. Only TRADING permits trade-intent intake. ONBOARDING, MONITORING, SHUTTING_DOWN, SHUTDOWN, and other states reject new trade requests. MONITORING remains visible to investors but cannot accept trades or allocations.
+**Only a strategy in TRADING may submit to the live trade-intake endpoint.** The endpoint currently returns 202, `RECEIVED_UNEXECUTED`, and `executed:false`: it is a durable request intent, **not** a live venue order or verified P&L. The manager's and Zenvest's configured profit percentages are frozen on the intent for prospective rate accounting, but they do not cause a fee/payout.
+
+## Virtual sandbox endpoints
+
+Requires all three authentication headers. A strategy in **ONBOARDING or MONITORING** may use:
+
+- `POST /api/v1/strategies/{strategy_id}/sandbox/trade` — accepts the same trade payload and Idempotency-Key, but uses a **read-only** Kalshi market and current YES/NO order-book snapshot to simulate a fully liquidity-backed fill. Asks are inferred from opposite-side bids. No liquidity or excessive sweep slippage (>5 percentage points vs best level) fails closed. Virtual trading starts with **10,000 virtual USDC** per strategy (a provisional sandbox default) and keeps its own cash and inventory ledger.
+- `POST /api/v1/strategies/{strategy_id}/sandbox/settle` — accepts `{"event_id":"<venue-market-ticker>"}`; **never** accepts a caller-provided winning side. Fetches the venue's independently resolved market result and only then pays out the virtual inventory. One settlement per strategy/market, fully idempotent.
+- `GET /api/v1/strategies/{strategy_id}/sandbox/summary` — virtual cash, realized virtual P&L, open virtual positions, cost-basis equity and recent fills.
+
+The sandbox fee is an **admin-configured bps estimate**, not a claim about the exact venue transaction charge. The venue ticker must belong to the configured strategy series/event. No live order, investor movement, treasury credit, fee payout, or verified-investor return is created. Simulation is explicitly labeled and does not prove realizable live returns. If the venue rejects read-only book requests or no validated result is available, sandbox operations reject rather than fabricate a fill or settlement.
 
 ## GET /api/v1/strategies/{strategy_id}/allocations
 
-Read-only manager-owned aggregate: invested USDC micro-units, number of open positions, investor count and pending investor allocations. The bot key cannot create or withdraw allocations.
+Read-only aggregates: investor positions and counts, committed/pending allocations and current state. No investor PII, transfers or withdrawal authority. Only TRADING accepts **new investor allocations**, and the separate investor allocation API checks capacity under a strategy lock.
 
-## Rate limits
+## Admin admission and capacity
 
-The per-credential atomic PostgreSQL fixed-window budget is **60 requests per minute across all of that key's strategies and v1 endpoints**. Excess returns `429` and `Retry-After`; database limiter failure returns `503`. Keys can be issued/revoked/rotated via Bot Manager and are displayed only once. Multiple active manager keys may exist during rotation, but each is usable on all owned strategies.
+Admin configuration sets: sandbox estimated fee bps, minimum sandbox days/fills, maximum realized-cost drawdown, total strategy capacity, and the two current manager/platform net-profit percentages. Settings are serialized and audited; percentage changes create immutable history. Admin transitions to MONITORING and TRADING evaluate the sandbox admission record (including positive realized virtual P&L and an independently resolved virtual market). An explicit reasoned admission override is audited, but never bypasses real-money readiness.
 
-## Release blockers
+TRADING also requires Kalshi and Blockradar wallet configuration, separate **provider-verified timestamps**, positive capacity/min/max limits, and zero open virtual positions. Verification timestamps cannot be set through the manager or admin settings API: an authenticated provider verification flow must populate them. Until that verification integration is present, live activation remains blocked.
 
-Independent Kalshi order execution and verification, event identity/side/market validation and risk enforcement, verified custody and reconciliation for pooled shutdown, sufficient integration/concurrency tests, passing CI and scheduled rate-limit-row cleanup. **No live execution, production migration, merge or deployment without approval.**
+## Still release-blocked
+
+Live authenticated Kalshi order execution, independently verified custody binding and treasury funding, production-grade price marks/unrealized P&L, approved venue fee model, loss carryforward/revenue recognition, manager revenue accrual/payout reconciliation and full financial concurrency tests are not done. Existing platform-fee P&L posting must not be stacked on the new manager/platform profit split without explicit financial rules.
+
+PR #90 is draft. **No live deployment, merge or production migration is authorized.**
