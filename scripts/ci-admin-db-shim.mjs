@@ -21,6 +21,7 @@ export const prisma={
  bot:{count:async()=>0},
  botApiKey:{updateMany:async()=>({count:1})},
  $queryRaw:async()=>[{id:"ci-bot-user"}],
+ botManagerNotice:{create:async()=>({})},
  staffAudit:{...lookup,create:async({data})=>{state.logs.push(data);return data}},
  staffAction:{...lookup,findMany:async()=>[{id:"ci-action",resource:"users",operation:"write",status:"PENDING"}],create:async({data})=>{const value={id:"ci-action",status:"PENDING",...data};state.actions.push(value);return value},updateMany:async({where,data})=>{if(state.decision!=="PENDING")return {count:0};state.decision=data.status;return {count:1}}},
  $transaction:async(fn)=>fn(prisma),
