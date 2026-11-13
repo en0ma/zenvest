@@ -48,23 +48,28 @@ export async function POST(request:Request,{params}:Context){
       minDays:s.admissionMinDays,minFills:s.admissionMinFills,
       maxDrawdownPct:s.admissionMaxDrawdownPct?Number(s.admissionMaxDrawdownPct):null
     });
-    if(reasons.length){
-      if(!parsed.data.override_admission||!parsed.data.override_reason)return "ADMISSION_NOT_MET:"+reasons.join(",");
-      await tx.botAdmissionOverride.create({data:{
-        strategyId:id,actorId:actor,fromStatus:s.status,toStatus:next,
-        reason:parsed.data.override_reason,failedRules:reasons
-      }});
-      await tx.staffAudit.create({data:{actorId:actor,
-        action:"bot.strategy.admission.override:"+next,resource:"strategies",targetId:id}});
-    }
+    if(reasons.length&&(!parsed.data.override_admission||!parsed.data.override_reason))
+      return "ADMISSION_NOT_MET:"+reasons.join(",");
     if(next==="TRADING"){
       // Admission override cannot bypass real custody, funding, or open sandbox
       // inventory. No automated allocation on a merely simulated wallet.
       if(!s.kalshiWalletAddress||!s.blockRadarAddress||!s.blockRadarAddressId)return "MISSING_WALLETS";
+      if(!s.venueVerifiedAt||!s.custodyVerifiedAt)return "PROVIDER_VERIFICATION_PENDING";
       if(s.maxCapacityUsdcMicros<=0n||s.availableCapacityUsdcMicros<=0n||
        s.minAllocationUsdcMicros<=0n||s.maxAllocationUsdcMicros<s.minAllocationUsdcMicros||
        s.maxCapacityUsdcMicros<s.maxAllocationUsdcMicros)return "CAPACITY_NOT_READY";
       if(unclosed>0)return "UNSETTLED_SANDBOX_POSITIONS";
+    }
+    // Only after every readiness check passed may an admission override
+    // be committed. A rejected promotion must never leave an audit record
+    // indicating that the exception was approved.
+    if(reasons.length){
+      await tx.botAdmissionOverride.create({data:{
+        strategyId:id,actorId:actor,fromStatus:s.status,toStatus:next,
+        reason:parsed.data.override_reason!,failedRules:reasons
+      }});
+      await tx.staffAudit.create({data:{actorId:actor,
+        action:"bot.strategy.admission.override:"+next,resource:"strategies",targetId:id}});
     }
     await tx.strategy.update({where:{id},data:{
      status:next,isActive:next==="TRADING",isPublic:true
@@ -79,6 +84,7 @@ export async function POST(request:Request,{params}:Context){
   if(result.startsWith("ADMISSION_NOT_MET:"))return Response.json({error:result},{status:409});
   if(result==="CAPACITY_NOT_READY")return Response.json({error:"Capacity and allocation limits are not ready"},{status:409});
   if(result==="UNSETTLED_SANDBOX_POSITIONS")return Response.json({error:"Resolve open virtual positions before live TRADING approval"},{status:409});
+  if(result==="PROVIDER_VERIFICATION_PENDING")return Response.json({error:"Authenticated venue and custody verification required before TRADING"},{status:409});
   if(result==="MISSING_WALLETS")return Response.json({error:"Configured Kalshi and Blockradar wallets are required"},{status:409});
   if(result==="CONFLICT")return Response.json({error:"Invalid current strategy state"},{status:409});
   return Response.json({status:next},{headers:{"Cache-Control":"no-store"}});
