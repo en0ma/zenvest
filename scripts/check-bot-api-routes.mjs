@@ -81,7 +81,21 @@ try{
  assert.equal((await strategies.POST(req("/api/v1/strategies",{...body,strategy_id:strategyId},raw))).status,409);
  const created=await strategies.POST(req("/api/v1/strategies",body,raw));
  assert.equal(created.status,201);
- const secondId=(await created.json()).strategy_id;
+ const secondCreated=await created.json();
+ const secondId=secondCreated.strategy_id;
+ const emptySandbox=await sandboxSummary.GET(req("/api/v1/strategies/"+secondId+"/sandbox/summary",
+  null,raw,"GET",{"x-zenvest-strategy-pubkey":secondCreated.strategy_pubkey}),strategyCtx(secondId));
+ assert.equal(emptySandbox.status,200,"new strategy should show an empty, isolated sandbox");
+ const emptySummary=await emptySandbox.json();
+ assert.equal(emptySummary.virtual_cash_usdc_micros,"10000000000");
+ assert.equal(emptySummary.realized_virtual_pnl_usdc_micros,"0");
+ assert.equal(emptySummary.recent_fills.length,0);
+ assert.equal(emptySummary.open_virtual_positions.length,0);
+ const noFee=await sandbox.POST(req("/api/v1/strategies/"+secondId+"/sandbox/trade",{
+  order_type:"buy",trade_size:1,event_id:"BTC-15min-123",side:"yes"
+ },raw,"POST",{"x-zenvest-strategy-pubkey":secondCreated.strategy_pubkey,
+  "idempotency-key":"no-fee-config-0001"}),strategyCtx(secondId));
+ assert.equal(noFee.status,409,"sandbox without admin fee policy must reject simulations");
  assert.notEqual(secondId,strategyId);
  const listed=await strategies.GET(req("/api/v1/strategies",null,raw,"GET"));
  assert.equal(listed.status,200);
@@ -120,6 +134,10 @@ try{
  assert.equal((await sandboxSettle.POST(req("/api/v1/strategies/"+strategyId+"/sandbox/settle",
   {event_id:"BTC-15min-123"},raw),strategyCtx(strategyId))).status,409,
   "open venue events cannot settle sandbox positions");
+ assert.equal((await sandboxSettle.POST(req("/api/v1/strategies/"+strategyId+"/sandbox/settle",
+  null,raw),strategyCtx(strategyId))).status,400,"null settlement body rejected");
+ assert.equal((await sandboxSettle.POST(req("/api/v1/strategies/"+strategyId+"/sandbox/settle",
+  {event_id:"INVALID/ID"},raw),strategyCtx(strategyId))).status,400,"malformed venue event rejected");
  assert.equal((await sandboxSettle.POST(req("/api/v1/strategies/"+strategyId+"/sandbox/settle",
   {event_id:"BTC-15min-123",result:"yes"},raw),strategyCtx(strategyId))).status,400,
   "user-supplied settlement result forbidden");
