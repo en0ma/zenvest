@@ -50,6 +50,10 @@ export async function POST(request:Request,{params}:Context){
     });
     if(reasons.length){
       if(!parsed.data.override_admission||!parsed.data.override_reason)return "ADMISSION_NOT_MET:"+reasons.join(",");
+      await tx.botAdmissionOverride.create({data:{
+        strategyId:id,actorId:actor,fromStatus:s.status,toStatus:next,
+        reason:parsed.data.override_reason,failedRules:reasons
+      }});
       await tx.staffAudit.create({data:{actorId:actor,
         action:"bot.strategy.admission.override:"+next,resource:"strategies",targetId:id}});
     }
