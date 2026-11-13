@@ -31,7 +31,7 @@ export async function GET(){
   prisma.strategyEvent.findMany({where:{strategyId:{in:strategyIds},kind:"DEALLOCATE"},
    select:{strategyId:true,status:true,sourceConfirmed:true,destinationConfirmed:true,amountUsdcMicros:true}}),
   prisma.botApiRateLimit.findMany({where:{keyId:{in:keys.map(x=>x.id)},windowStart:{
-   gte:new Date(Date.now()-3600000)}},select:{keyId:true,requestCount:true,windowStart:true}}),
+   gte:new Date(Date.now()-3600000)}},select:{keyId:true,requestCount:true,rejectedCount:true,windowStart:true}}),
   prisma.strategyRevenueRateVersion.findMany({where:{strategyId:{in:strategyIds}},
    select:{strategyId:true,managerPct:true,platformPct:true,effectiveAt:true},orderBy:{effectiveAt:"desc"},take:100})
  ]);
@@ -79,6 +79,7 @@ export async function GET(){
  return Response.json({
   strategies:strategyData,
   api_keys:keys.map(k=>({...k,api_calls_last_hour:rateRows.filter(r=>r.keyId===k.id).reduce((n,r)=>n+r.requestCount,0),
+   rate_limited_last_hour:rateRows.filter(r=>r.keyId===k.id).reduce((n,r)=>n+r.rejectedCount,0),
    limit_per_minute:60})),
   manager_revenue:{status:"PAYOUT_NOT_ENABLED",recognized_usdc_micros:"0",
     statements:[],payout_history:[],note:"Verified manager profit-sharing accrual and custody settlement remain unconnected."}
