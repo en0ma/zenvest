@@ -5,7 +5,7 @@ Draft implementation. **Not production-ready**. Admin-only bot role assignment r
 Each approved manager may create multiple bots and strategies. Bot creation also creates a private strategy in ONBOARDING, with no ability to accept investor allocations or automatically fund Kalshi. An approved manager has a shared manager-scoped API key usable across every strategy they own. Keys are cryptographically random, hashed at rest, displayed only on issuance, and revocable across all manager strategies. Each strategy API operation enforces owner isolation. A bot key does not authorize custody, investor balance updates, or verification of trade outcomes. Trade/event API surface and independent Kalshi trade verification are future integration work.
 
 Only Super Admin can transition:
-- ONBOARDING -> MONITORING (visible to investors, but no allocations; observational events only)
+- ONBOARDING -> MONITORING (visible to investors; no trade requests and no allocations)
 - MONITORING -> TRADING (requires configured Kalshi and Blockradar wallet identities; investor allocations allowed)
 - ONBOARDING/MONITORING/TRADING -> SHUTTING_DOWN (blocks future allocations; new trade ingestion must also reject)
 - SHUTTING_DOWN -> SHUTDOWN **only via coordinator** after verified capital and position closure.
@@ -30,3 +30,5 @@ Public MONITORING and TRADING strategies appear in discovery and have investor-r
 ## Strategy API contract
 
 `POST /api/v1/strategies` creates an ONBOARDING strategy with `market_type: event`, `venue: kalshi`, an `asset` tag/slug and `min_allocation`/`max_allocation` USDC bounds. Strategy configuration does **not** include a side. Each event trade has its own side; yes/up are equivalent and no/down are equivalent. Keys are manager-scoped and rate-limited per key across all owned strategies. See `docs/bot-strategy-api-v1.md` for the complete contract.
+
+Trade intake is strictly TRADING-only. MONITORING is investor-visible but neither manager trade requests nor investor allocation requests are accepted. The event trade endpoint evaluates the lifecycle inside its strategy-row-locked transaction, so a concurrent shutdown cannot accept a new event.
