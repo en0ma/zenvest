@@ -45,7 +45,7 @@ try{
  assert.equal((await strategies.GET(req("/api/v1/strategies",null,null,"GET"))).status,401);
  assert.equal((await strategies.GET(req("/api/v1/strategies",null,raw,"GET"))).status,200);
  assert.equal((await managerBots.POST(req("/api/bot-manager/bots",{name:"a"}))).status,400);
- const botResult=await managerBots.POST(req("/api/bot-manager/bots",{name:"Fixture Bot",description:"Manager owned"}));
+ const botResult=await managerBots.POST(req("/api/bot-manager/bots",{name:"Fixture Bot",description:"Manager owned",...body}));
  assert.equal(botResult.status,201);
  strategyId=(await botResult.json()).bot.strategyId;
  testPublicKey=(await db.strategy.findUniqueOrThrow({where:{id:strategyId}})).publicKey;
