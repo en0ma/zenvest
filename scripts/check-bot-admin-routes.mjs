@@ -13,6 +13,7 @@ if(!process.env.DATABASE_URL?.includes("zenvest_ci"))throw Error("Refusing non-C
 const db=new PrismaClient();
 const {PUT:settings}=await import("../src/app/api/admin/bot-strategies/[id]/settings/route.ts");
 const {POST:lifecycle}=await import("../src/app/api/admin/bot-strategies/[id]/lifecycle/route.ts");
+const {deliverBotManagerNotices}=await import("../src/lib/bot-manager-notices.ts");
 const actor="ci_bot_admin",owner="ci_bot_target",strategyId="ci_bot_admin_strategy";
 let superRoleId="",botRoleId="";
 const ctx={params:Promise.resolve({id:strategyId})};
@@ -73,8 +74,24 @@ try{
  const closing=await db.strategy.findUniqueOrThrow({where:{id:strategyId}});
  assert.equal(closing.status,"SHUTTING_DOWN");assert.equal(closing.isActive,false);
  assert.equal((await settings(req(valid,"PUT"),ctx)).status,409,"shutdown settings are locked");
+ // Delivery outage must not manufacture a success or remove the durable notice.
+ await db.botManagerNotice.create({data:{userId:owner,kind:"APPROVED"}});
+ const previousEmailKey=process.env.RESEND_API_KEY;
+ process.env.RESEND_API_KEY="";
+ try{
+  const notifications=await deliverBotManagerNotices(1);
+  assert.equal(notifications.length,1);
+  assert.equal(notifications[0].outcome,"RETRY_PENDING");
+  const queued=await db.botManagerNotice.findFirstOrThrow({where:{userId:owner}});
+  assert.equal(queued.status,"PENDING");
+  assert.equal(queued.attempts,1);
+ }finally{
+  if(previousEmailKey===undefined)delete process.env.RESEND_API_KEY;
+  else process.env.RESEND_API_KEY=previousEmailKey;
+ }
  console.log("Bot admin integration passed: capacity, sandbox policy, overrides with reason, immutable fee versions and fail-closed provider verification");
 }finally{
+ await db.botManagerNotice.deleteMany({where:{userId:{in:[actor,owner]}}});
  await db.staffAudit.deleteMany({where:{targetId:strategyId}});
  await db.botAdmissionOverride.deleteMany({where:{strategyId}});
  await db.strategyRevenueRateVersion.deleteMany({where:{strategyId}});
