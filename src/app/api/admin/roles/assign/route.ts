@@ -36,6 +36,7 @@ export async function POST(request:NextRequest){
    if(existing)return "EXISTS";
    await tx.userRole.create({data:{userId,roleId:role.id,assignedBy:actorId}});
    await tx.staffAudit.create({data:{actorId,action:"role.assigned:"+roleKey,resource:"roles",targetId:userId}});
+   if(roleKey==="bot")await tx.botManagerNotice.create({data:{userId,kind:"APPROVED"}});
    return "CREATED";
   });
   if(result==="NOT_FOUND")return Response.json({error:"User handle not found"},{status:404});
