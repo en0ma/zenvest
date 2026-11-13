@@ -110,6 +110,7 @@ model Strategy {
   bot Bot?
   sandboxAccount SandboxAccount?
   sandboxFills SandboxFill[]
+  sandboxSettlements SandboxSettlement[]
   revenueRateVersions StrategyRevenueRateVersion[]
   shutdownEventId String? @unique @map("shutdown_event_id") @db.VarChar(64)
   @@index([isActive,isPublic])
@@ -813,4 +814,20 @@ model StrategyRevenueRateVersion {
  changedBy String @map("changed_by")
  @@index([strategyId,effectiveAt])
  @@map("strategy_revenue_rate_versions")
+}
+
+model SandboxSettlement {
+ id String @id @default(cuid())
+ strategyId String @map("strategy_id") @db.VarChar(64)
+ strategy Strategy @relation(fields:[strategyId],references:[id],onDelete:Restrict)
+ eventId String @map("event_id") @db.VarChar(180)
+ result String @db.VarChar(3)
+ payoutMicros BigInt @map("payout_micros")
+ realizedPnlMicros BigInt @map("realized_pnl_micros")
+ providerEvidence Json @map("provider_evidence")
+ observedAt DateTime @map("observed_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ @@unique([strategyId,eventId])
+ @@index([strategyId,createdAt])
+ @@map("sandbox_settlements")
 }
