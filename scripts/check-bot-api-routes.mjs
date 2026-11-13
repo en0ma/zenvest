@@ -24,6 +24,22 @@ const managerKey=await import("../src/app/api/bot-manager/keys/[keyId]/route.ts"
 const strategies=await import("../src/app/api/v1/strategies/route.ts");
 const trade=await import("../src/app/api/v1/strategies/[strategyId]/trade/route.ts");
 const allocations=await import("../src/app/api/v1/strategies/[strategyId]/allocations/route.ts");
+const sandbox=await import("../src/app/api/v1/strategies/[strategyId]/sandbox/trade/route.ts");
+const sandboxSettle=await import("../src/app/api/v1/strategies/[strategyId]/sandbox/settle/route.ts");
+const sandboxSummary=await import("../src/app/api/v1/strategies/[strategyId]/sandbox/summary/route.ts");
+const overview=await import("../src/app/api/bot-manager/overview/route.ts");
+const nativeFetch=globalThis.fetch;
+let marketResolved=false;
+globalThis.fetch=async(url)=>{
+ const path=new URL(String(url));
+ assert.equal(path.origin,"https://external-api.kalshi.com","Sandbox must use real Kalshi read-only origin");
+ assert.ok(path.pathname.includes("/markets/BTC-15min-123"));
+ if(path.pathname.endsWith("/orderbook"))
+  return Response.json({orderbook_fp:{yes_dollars:[["0.40","20"],["0.35","20"]],
+   no_dollars:[["0.55","20"],["0.54","20"]]}});
+ return Response.json({market:{ticker:"BTC-15min-123",series_ticker:"BTC-15min",
+  status:marketResolved?"settled":"open",result:marketResolved?"yes":null}});
+};
 const keyCtx=id=>({params:Promise.resolve({keyId:id})});
 const strategyCtx=id=>({params:Promise.resolve({strategyId:id})});
 const body={market_type:"event",venue:"kalshi",asset:"BTC-15min",min_allocation:"5",max_allocation:"500"};
@@ -81,6 +97,30 @@ try{
  assert.equal((await trade.POST(tradeRequest(strategyId,"up"),strategyCtx(strategyId))).status,409,"MONITORING blocks bot trade intents");
  assert.equal((await db.botTradeIntent.count({where:{strategyId}})),0,"MONITORING must not persist trade intents");
  await db.strategy.update({where:{id:strategyId},data:{status:"TRADING",isActive:true,isPublic:true}});
+ const sandboxRequest=(side,key,orderType="buy",qty=5)=>req("/api/v1/strategies/"+strategyId+"/sandbox/trade",{
+  order_type:orderType,trade_size:qty,event_id:"BTC-15min-123",side
+ },raw,"POST",{"idempotency-key":key});
+ await db.strategy.update({where:{id:strategyId},data:{status:"ONBOARDING",isPublic:false,sandboxFeeBps:100}});
+ const virtual=await sandbox.POST(sandboxRequest("yes","virtual-trade-0001"),strategyCtx(strategyId));
+ assert.equal(virtual.status,201,"real Kalshi read-only book fixture can simulate sandbox fills");
+ assert.equal((await virtual.json()).is_real_trade,false);
+ assert.equal((await sandbox.POST(sandboxRequest("up","virtual-trade-0001"),strategyCtx(strategyId))).status,200,"virtual replay is idempotent");
+ assert.equal((await sandbox.POST(sandboxRequest("no","virtual-trade-0001"),strategyCtx(strategyId))).status,409,"conflicting sandbox replay rejected");
+ assert.equal((await sandbox.POST(sandboxRequest("yes","virtual-sell-00002","sell",2),strategyCtx(strategyId))).status,201,"selling simulated inventory must use bid-side liquidity");
+ const summary=await sandboxSummary.GET(req("/api/v1/strategies/"+strategyId+"/sandbox/summary",null,raw,"GET"),strategyCtx(strategyId));
+ assert.equal(summary.status,200);
+ assert.equal((await summary.json()).environment,"SANDBOX_ONLY");
+ marketResolved=true;
+ const settlement=await sandboxSettle.POST(req("/api/v1/strategies/"+strategyId+"/sandbox/settle",
+  {event_id:"BTC-15min-123"},raw),strategyCtx(strategyId));
+ assert.equal(settlement.status,201,"verified venue outcome settles virtual cash only");
+ assert.equal((await sandboxSettle.POST(req("/api/v1/strategies/"+strategyId+"/sandbox/settle",
+  {event_id:"BTC-15min-123"},raw),strategyCtx(strategyId))).status,200,"virtual settlement idempotent");
+ assert.equal((await db.sandboxSettlement.count({where:{strategyId}})),1);
+ marketResolved=false;
+ await db.strategy.update({where:{id:strategyId},data:{status:"TRADING",isActive:true,isPublic:true}});
+ assert.equal((await sandbox.POST(sandboxRequest("yes","virtual-denied-0003"),strategyCtx(strategyId))).status,409,"live TRADING cannot write virtual sandbox fills");
+ assert.equal((await overview.GET()).status,200,"manager dashboard exposes separated sandbox and live records");
  const firstTrade=await trade.POST(tradeRequest(strategyId,"up"),strategyCtx(strategyId));
  assert.equal(firstTrade.status,202);
  const firstBody=await firstTrade.json();assert.equal(firstBody.executed,false);
@@ -109,6 +149,11 @@ try{
  assert.equal((await db.botTradeIntent.count({where:{strategyId}})),2,"unexecuted intents never become verified trades");
  console.log("Bot manager/v1 PostgreSQL route integration passed: API key lifecycle, ownership isolation, onboarding state, allocation bounds, canonical trade sides, idempotency and rate limiting");
 }finally{
+ globalThis.fetch=nativeFetch;
+ await db.sandboxSettlement.deleteMany({where:{strategyId:{in:[strategyId,strangerStrategyId]}}});
+ await db.sandboxFill.deleteMany({where:{strategyId:{in:[strategyId,strangerStrategyId]}}});
+ await db.sandboxPosition.deleteMany({where:{strategyId:{in:[strategyId,strangerStrategyId]}}});
+ await db.sandboxAccount.deleteMany({where:{strategyId:{in:[strategyId,strangerStrategyId]}}});
  await db.botApiRateLimit.deleteMany({where:{key:{ownerId:managerId}}});
  await db.botTradeIntent.deleteMany({where:{bot:{ownerId:{in:[managerId,strangerId]}}}});
  await db.botApiKey.deleteMany({where:{ownerId:managerId}});
