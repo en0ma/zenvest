@@ -64,6 +64,34 @@ try{
  assert.equal(await db.treasuryTransfer.count({where:{reference:refs[1]}}),0);
  assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"K_BANK"}})).amount,originalKBank+2_000_000n,
   "loss cannot mint K_BANK profit");
+ // A strategy promoted to external bot ownership must not inherit the legacy
+ // platform-performance-fee posting path while cost evidence and custody
+ // verification are unimplemented.
+ const botOwnerId="ci_bot_policy_guard_owner";
+ await db.user.create({data:{id:botOwnerId,email:"ci-bot-policy-guard@example.invalid",
+  name:"CI Bot Policy Guard",passwordHash:"ci-only"}});
+ await db.bot.create({data:{ownerId:botOwnerId,strategyId,name:"CI Bot Policy Guard"}});
+ const botTrade=await createTrade("ci_platform_profit_bot_pending");
+ results=await processPositionTradePnl();
+ assert.ok(results.includes("prepare:"+botTrade.id+":ready"),"bot rates freeze on exposure");
+ const botFrozen=await db.strategyTrade.findUniqueOrThrow({where:{id:botTrade.id}});
+ assert.equal(botFrozen.appliedManagerProfitPercentage?.toFixed(4),"0.0000");
+ assert.equal(botFrozen.appliedPlatformStrategyPercentage?.toFixed(4),"0.0000");
+ const positionsBefore=await db.investorPosition.findMany({where:{strategyId},orderBy:{userId:"asc"}});
+ await db.strategyTrade.update({where:{id:botTrade.id},data:{
+  status:"SETTLED",settledAt:new Date(),realizedPnlUsdcMicros:2_000_000n
+ }});
+ results=await processPositionTradePnl();
+ assert.ok(results.includes("settle:"+botTrade.id+":awaiting_bot_verified_cost_and_custody_reconciliation"));
+ assert.equal((await db.strategyTrade.findUniqueOrThrow({where:{id:botTrade.id}})).isPnlCalculated,false);
+ assert.equal(await db.botStrategyRevenueAccounting.count({where:{strategyId}}),0,
+  "pending bot trades create no misleading recognized earnings");
+ assert.equal(await db.treasuryTransfer.count({where:{reference:"trade-platform-profit:"+botTrade.id}}),0);
+ assert.deepEqual(await db.investorPosition.findMany({where:{strategyId},orderBy:{userId:"asc"}}),
+  positionsBefore,"blocked bot posting cannot alter investor positions");
+ assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"K_BANK"}})).amount,originalKBank+2_000_000n);
+ await db.bot.deleteMany({where:{strategyId}});
+ await db.user.delete({where:{id:botOwnerId}});
  console.log("Two-participant P&L attribution verified: aggregate fee to K_BANK_DEPOSIT once, replays and losses safe");
 }finally{
  await db.treasuryTransfer.deleteMany({where:{reference:{in:refs}}});
