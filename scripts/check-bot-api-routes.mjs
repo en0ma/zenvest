@@ -28,6 +28,7 @@ const sandbox=await import("../src/app/api/v1/strategies/[strategyId]/sandbox/tr
 const sandboxSettle=await import("../src/app/api/v1/strategies/[strategyId]/sandbox/settle/route.ts");
 const sandboxSummary=await import("../src/app/api/v1/strategies/[strategyId]/sandbox/summary/route.ts");
 const overview=await import("../src/app/api/bot-manager/overview/route.ts");
+const monthlyAccounting=await import("../src/app/api/bot-manager/accounting/monthly/route.ts");
 const pruneLimits=await import("../src/app/api/internal/prune-bot-api-rate-limits/route.ts");
 const nativeFetch=globalThis.fetch;
 let marketResolved=false;
@@ -97,6 +98,42 @@ try{
  },raw,"POST",{"x-zenvest-strategy-pubkey":secondCreated.strategy_pubkey,
   "idempotency-key":"no-fee-config-0001"}),strategyCtx(secondId));
  assert.equal(noFee.status,409,"sandbox without admin fee policy must reject simulations");
+ const monthlyUrl=(sid,month="2026-01")=>"http://ci.local/api/bot-manager/accounting/monthly?strategy_id="+encodeURIComponent(sid)+"&month="+month;
+ assert.equal((await monthlyAccounting.GET(req(monthlyUrl(strangerStrategyId||"not-owned"),null,null,"GET"))).status,403,
+  "monthly statements are restricted to owner");
+ assert.equal((await monthlyAccounting.GET(req(monthlyUrl(secondId,"2026-13"),null,null,"GET"))).status,400);
+ const periodOpen=await monthlyAccounting.GET(req(monthlyUrl(secondId,"2099-01"),null,null,"GET"));
+ assert.equal((await periodOpen.json()).status,"OPEN_PERIOD");
+ const emptyMonth=await monthlyAccounting.GET(req(monthlyUrl(secondId),null,null,"GET"));
+ assert.equal((await emptyMonth.json()).status,"NO_VERIFIED_TRADES");
+ const monthlyTradeId="ci_bot_monthly_verified_trade";
+ await db.strategyTrade.create({data:{
+  id:monthlyTradeId,strategyId:secondId,marketTradeName:"CI monthly bookkeeping",marketTradeId:"ci-accounting-verified",
+  status:"SETTLED",settledAt:new Date("2026-01-10T12:00:00Z"),
+  realizedPnlUsdcMicros:10_000_000n,appliedManagerProfitPercentage:"30.0000",
+  appliedPlatformStrategyPercentage:"20.0000"
+ }});
+ const pendingFees=await monthlyAccounting.GET(req(monthlyUrl(secondId),null,null,"GET"));
+ assert.equal((await pendingFees.json()).status,"PENDING_VERIFIED_COST_EVIDENCE",
+  "verified trade cannot claim net profit without cost evidence");
+ await db.botTradeVerifiedCosts.create({data:{
+  strategyTradeId:monthlyTradeId,venueFeeMicros:1_000_000n,custodyFeeMicros:500_000n,
+  operationalFeeMicros:500_000n,venueEvidenceRef:"ci-venue-proof",
+  custodyEvidenceRef:"ci-custody-proof",operationsEvidenceRef:"ci-ops-proof",
+  verifiedAt:new Date(),grossPreCostVerified:true
+ }});
+ const calculated=await monthlyAccounting.GET(req(monthlyUrl(secondId),null,null,"GET"));
+ assert.equal(calculated.status,200);
+ const statement=await calculated.json();
+ assert.equal(statement.status,"CALCULATED_AWAITING_CUSTODY_RECONCILIATION");
+ assert.equal(statement.payable,false);
+ assert.equal(statement.manager_earnings_usdc_micros,"0");
+ assert.equal(statement.net_profit_usdc_micros,"8000000");
+ assert.equal(statement.hypothetical_manager_share_usdc_micros,"2400000");
+ assert.equal(statement.hypothetical_platform_share_usdc_micros,"1600000");
+ assert.equal(statement.hypothetical_investor_share_usdc_micros,"4000000");
+ assert.equal(await db.botStrategyRevenueAccounting.count({where:{strategyId:secondId}}),0,
+  "monthly preview must not create legacy fee records or payment liabilities");
  assert.notEqual(secondId,strategyId);
  const listed=await strategies.GET(req("/api/v1/strategies",null,raw,"GET"));
  assert.equal(listed.status,200);
@@ -234,6 +271,8 @@ try{
  await db.sandboxPosition.deleteMany({where:{strategyId:{in:[strategyId,strangerStrategyId]}}});
  await db.sandboxAccount.deleteMany({where:{strategyId:{in:[strategyId,strangerStrategyId]}}});
  await db.botApiRateLimit.deleteMany({where:{key:{ownerId:managerId}}});
+ await db.botTradeVerifiedCosts.deleteMany({where:{strategyTrade:{strategyId:{in:[strategyId,strangerStrategyId,...(typeof secondId!=="undefined"?[secondId]:[])]}}}});
+ await db.strategyTrade.deleteMany({where:{id:"ci_bot_monthly_verified_trade"}});
  await db.botTradeIntent.deleteMany({where:{bot:{ownerId:{in:[managerId,strangerId]}}}});
  await db.botApiKey.deleteMany({where:{ownerId:managerId}});
  await db.bot.deleteMany({where:{ownerId:{in:[managerId,strangerId]}}});
