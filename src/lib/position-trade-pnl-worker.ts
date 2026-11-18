@@ -28,6 +28,12 @@ async function settleTrade(id:string){
    }});
    if(previous)return "waiting_for_prior_event";
    if(trade.realizedPnlUsdcMicros===null||!trade.settledAt) return "awaiting_verified_result";
+   // Bot-managed strategies use the new gross-minus-verified-costs policy.
+   // Until provider cost evidence, custody reconciliation and a real fee
+   // reserve exist, do NOT run the legacy platform K_BANK credit or investor
+   // net-P&L posting on these trades. Ordinary strategies are unchanged.
+   if(await tx.bot.findUnique({where:{strategyId:trade.strategyId},select:{id:true}}))
+    return "awaiting_bot_verified_cost_and_custody_reconciliation";
    const rows=trade.positionTradePnls;
    if(!rows.length||rows.some(p=>p.status!=="SNAPSHOTTED"))throw new Error("Missing or invalid frozen investor exposure");
    const total=rows.reduce((n,p)=>n+p.eligibleCapitalUsdcMicros,0n);
