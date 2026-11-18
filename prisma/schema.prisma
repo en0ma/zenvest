@@ -116,6 +116,7 @@ model Strategy {
   sandboxSettlements SandboxSettlement[]
   revenueRateVersions StrategyRevenueRateVersion[]
   admissionOverrides BotAdmissionOverride[]
+  botRevenueAccounting BotStrategyRevenueAccounting[]
   shutdownEventId String? @unique @map("shutdown_event_id") @db.VarChar(64)
   @@index([isActive,isPublic])
   @@map("strategies")
@@ -138,6 +139,9 @@ model StrategyTrade {
   isPnlCalculated Boolean @default(false) @map("is_pnl_calculated")
   eligibleCapitalUsdcMicros BigInt @default(0) @map("eligible_capital_usdc_micros")
   appliedPlatformProfitPercentage Decimal? @map("applied_platform_profit_percentage") @db.Decimal(7,4)
+  appliedManagerProfitPercentage Decimal? @map("applied_manager_profit_percentage") @db.Decimal(7,4)
+  appliedPlatformStrategyPercentage Decimal? @map("applied_platform_strategy_percentage") @db.Decimal(7,4)
+  botRevenueAccounting BotStrategyRevenueAccounting?
   yesContracts Int @default(0) @map("yes_contracts")
   noContracts Int @default(0) @map("no_contracts")
   yesCostUsdcMicros BigInt @default(0) @map("yes_cost_usdc_micros")
@@ -866,4 +870,29 @@ model BotAdmissionOverride {
  createdAt DateTime @default(now()) @map("created_at")
  @@index([strategyId,createdAt])
  @@map("bot_admission_overrides")
+}
+
+/** Non-payable candidate splits calculated only after verified strategy P&L.
+ * Existing investor balance and K_BANK postings remain unchanged. */
+model BotStrategyRevenueAccounting {
+ id String @id @default(cuid())
+ strategyId String @map("strategy_id") @db.VarChar(64)
+ strategy Strategy @relation(fields:[strategyId],references:[id],onDelete:Restrict)
+ strategyTradeId String @unique @map("strategy_trade_id") @db.VarChar(64)
+ strategyTrade StrategyTrade @relation(fields:[strategyTradeId],references:[id],onDelete:Restrict)
+ ownerId String @map("owner_id")
+ grossVerifiedPnlMicros BigInt @map("gross_verified_pnl_micros")
+ existingPlatformFeeMicros BigInt @map("existing_platform_fee_micros")
+ existingInvestorNetMicros BigInt @map("existing_investor_net_micros")
+ managerPct Decimal @map("manager_pct") @db.Decimal(7,4)
+ platformPct Decimal @map("platform_pct") @db.Decimal(7,4)
+ candidateManagerMicros BigInt @map("candidate_manager_micros")
+ candidatePlatformMicros BigInt @map("candidate_platform_micros")
+ candidateInvestorMicros BigInt @map("candidate_investor_micros")
+ status String @default("POLICY_PENDING_NO_PAYOUT") @db.VarChar(40)
+ settledAt DateTime @map("settled_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ @@index([ownerId,settledAt])
+ @@index([strategyId,settledAt])
+ @@map("bot_strategy_revenue_accounting")
 }
