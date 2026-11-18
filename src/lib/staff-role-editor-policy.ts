@@ -1,5 +1,5 @@
 import {STAFF_PERMISSIONS} from "./staff-permissions.ts";
-export const RESERVED_ROLES=["user","super-admin"] as const;
+export const RESERVED_ROLES=["user","super-admin","bot"] as const;
 export const ROLE_KEY_PATTERN=/^[a-z][a-z0-9-]{2,39}$/;
 const investorBaseline=new Set<string>(["account:access","portfolio:read:own","wallet:read:own","deposits:create:own","withdrawals:create:own","allocations:create:own"]);
 /** Admin role editor may only grant existing, supported staff capabilities.

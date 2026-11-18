@@ -50,7 +50,7 @@ try{
   }});
   await prisma.strategy.create({data:{
    id:strategyId,name:"CI HTTP Authenticated Strategy",description:"Ephemeral authenticated HTTP fixture",
-   isActive:true,isPublic:true,kalshiWalletAddress:"11111111111111111111111111111111",
+   status:"TRADING",isActive:true,isPublic:true,kalshiWalletAddress:"11111111111111111111111111111111",
    minAllocationUsdcMicros:1000000n,maxAllocationUsdcMicros:10000000n,
    availableCapacityUsdcMicros:10000000n
   }});

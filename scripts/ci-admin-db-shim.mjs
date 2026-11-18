@@ -1,8 +1,8 @@
-export const state={deny:false,actor:"ci-maker",existing:true,decision:"PENDING",logs:[],actions:[],granted:[],freshRequired:false,revocations:0,sessionBumps:0,reviewerRoles:[],policyChanges:0,roleEdits:0,roleCatalog:{support:["users:read"],operations:["users:read","wallets:operate"],finance:["balances:read"],auditor:["audit:read"],user:["account:access"],"super-admin":["roles:manage"]},reviewerRoleByActor:{"ci-maker":"operations","ci-checker":"super-admin","ci-admin":"super-admin"}};
+export const state={deny:false,actor:"ci-maker",existing:true,decision:"PENDING",logs:[],actions:[],granted:[],freshRequired:false,revocations:0,sessionBumps:0,reviewerRoles:[],policyChanges:0,roleEdits:0,roleCatalog:{support:["users:read"],operations:["users:read","wallets:operate"],finance:["balances:read"],auditor:["audit:read"],user:["account:access"],"super-admin":["roles:manage"],bot:["bots:manage:own"]},reviewerRoleByActor:{"ci-maker":"operations","ci-checker":"super-admin","ci-admin":"super-admin"}};
 const list=()=>[{id:"ci-id",userId:"ci-user",walletId:"ci-wallet",handle:"ci",unallocated:1000000n,amountUsdcMicros:1000000n,status:"PENDING",key:"support"}];
 const lookup={findMany:async()=>list(),findUnique:async()=>state.existing?{id:"ci-id",isActive:true,emailVerifiedAt:new Date(),status:state.decision,createdAt:new Date(),requestedBy:"ci-maker",resource:"users",operation:"write",targetId:"ci-user"}:null};
 export const prisma={
- user:{...lookup,update:async()=>{state.sessionBumps++;return {}},updateMany:async()=>{state.sessionBumps++;return {count:1}},findMany:async()=>[{id:"ci-id",handle:"ci",email:"ci@example.invalid",isActive:true}]},
+ user:{...lookup,findUnique:async({where})=>where.handle!==undefined?(where.handle==="trader42"?{id:"ci-bot-user",handle:"trader42",isActive:true,emailVerifiedAt:new Date()}:null):lookup.findUnique(),update:async()=>{state.sessionBumps++;return {}},updateMany:async()=>{state.sessionBumps++;return {count:1}},findMany:async()=>[{id:"ci-id",handle:"ci",email:"ci@example.invalid",isActive:true}]},
  blockchainDeposit:{...lookup},
  withdrawal:{...lookup},
  investorDepositWallet:{...lookup},
@@ -18,6 +18,10 @@ export const prisma={
   findMany:async()=>[{role:{key:state.reviewerRoleByActor[state.actor]??"user",grants:[{permission:{key:"audit:read"}}]}}],
   create:async()=>({}),deleteMany:async()=>{state.revocations++;return {count:1}}},
  staffApprovalPolicy:{findUnique:async()=>({additionalRoleKeys:state.reviewerRoles}),upsert:async({create,update})=>{state.reviewerRoles=[...(update.additionalRoleKeys??create.additionalRoleKeys)];state.policyChanges++;return {}}},
+ bot:{count:async()=>0},
+ botApiKey:{updateMany:async()=>({count:1})},
+ $queryRaw:async()=>[{id:"ci-bot-user"}],
+ botManagerNotice:{create:async()=>({})},
  staffAudit:{...lookup,create:async({data})=>{state.logs.push(data);return data}},
  staffAction:{...lookup,findMany:async()=>[{id:"ci-action",resource:"users",operation:"write",status:"PENDING"}],create:async({data})=>{const value={id:"ci-action",status:"PENDING",...data};state.actions.push(value);return value},updateMany:async({where,data})=>{if(state.decision!=="PENDING")return {count:0};state.decision=data.status;return {count:1}}},
  $transaction:async(fn)=>fn(prisma),

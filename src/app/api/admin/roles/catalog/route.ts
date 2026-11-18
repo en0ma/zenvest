@@ -18,7 +18,7 @@ export async function GET(){
   const actor=await requireStaffPermission("roles:manage");
   if(!await onlySuperAdmin(actor))return Response.json({error:"Super Admin required"},{status:403});
   const [roles,permissions]=await Promise.all([prisma.role.findMany({orderBy:{key:"asc"},include:{grants:{include:{permission:true}},_count:{select:{members:true}}}}),prisma.permission.findMany({where:{key:{in:[...EDITABLE_ROLE_PERMISSIONS]}},select:{key:true,description:true}})]);
-  return Response.json({roles:roles.map(role=>({key:role.key,editable:role.key!=="user"&&role.key!=="super-admin",
+  return Response.json({roles:roles.map(role=>({key:role.key,editable:!["user","super-admin","bot"].includes(role.key),
    permissionKeys:role.grants.map(g=>g.permission.key).sort(),memberCount:role._count.members})),
    editablePermissions:permissions},{headers:{"Cache-Control":"no-store"}});
  }catch(error){return staffWriteError(error)}
