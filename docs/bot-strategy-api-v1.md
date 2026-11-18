@@ -81,3 +81,11 @@ PR #90 is draft. **No live deployment, merge or production migration is authoriz
 ### API limiter retention
 
 The 60-request-per-minute fixed-window limiter remains fail-closed. A CRON_SECRET-protected, read-only-to-API-clients maintenance route `GET /api/internal/prune-bot-api-rate-limits` runs daily at 04:30 UTC and deletes **at most 1,000 windows older than 30 days per run**. It does not reset current windows, change API key permissions, or erase trade-intent records. Retention is operational housekeeping, not a financial reconciliation or a live trading enablement.
+
+## Manager strategy accounting — non-payable provisional ledger
+
+For each bot-owned strategy, the existing verified trade P&L worker freezes **manager and platform strategy percentages at the investor-exposure snapshot**, not when settlement eventually arrives. After independent venue settlement, the same serializable transaction that applies the existing investor net P&L and platform K_BANK fee writes **one immutable `bot_strategy_revenue_accounting` record per trade**. It captures verified gross P&L, the **already-posted legacy platform fee**, actual existing investor net P&L, frozen percentages and candidate manager/platform/investor scenario amounts. A database constraint enforces the candidate amounts conserve the gross and status stays `POLICY_PENDING_NO_PAYOUT`.
+
+**The candidate shares are illustrative, not payable, accrued, realized income or new charges.** They do not move money, change investor equity, add a second K_BANK fee, issue statements, or post wallet transfers. Loss or zero gross settlement generates zero positive fee candidates. The manager overview shows recent entries only to that manager, clearly distinguished from verified live investor P&L. Sandbox and unexecuted intents cannot create these records.
+
+Outstanding decisions before recognizing revenue: whether the two strategy shares **replace or include** the existing `platformProfitPercentage` fee; whether venue fee costs are already embedded in verified gross P&L; high-water mark and loss carryforward requirements; how realized profit is aggregated for a strategy; payout interval, withholding and custody/treasury source; and exact investor residual treatment. Do not enable payout until reconciliation is defined and tested.
