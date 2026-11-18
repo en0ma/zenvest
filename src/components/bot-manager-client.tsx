@@ -10,10 +10,6 @@ type Overview={
   pending_allocation_usdc_micros:string;pending_deallocation_usdc_micros:string;unresolved_trade_count:number;
   manager_profit_pct:string;platform_profit_pct:string;
   pooled_returns:Array<{status:string;source_verified:boolean;destination_verified:boolean}>;
-  provisional_revenue:Array<{strategy_trade_id:string;status:string;settled_at:string;
-   verified_gross_pnl_micros:string;previously_posted_platform_fee_micros:string;
-   candidate_manager_micros:string;candidate_platform_micros:string;
-   candidate_investor_micros:string;frozen_manager_pct:string;frozen_platform_pct:string}>;
  }>;
  api_keys:Array<{id:string;api_calls_last_hour:number;rate_limited_last_hour:number;limit_per_minute:number}>;
  manager_revenue:{status:string;statements:unknown[];payout_history:unknown[]};
@@ -142,22 +138,55 @@ export function BotManagerClient(){
      <p>Manager profit share: {s.manager_profit_pct}%</p>
      <p>Platform profit share: {s.platform_profit_pct}%</p>
     </div>
-    {s.provisional_revenue.length>0&&<div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs">
-     <h4 className="font-semibold">Unpaid strategy accounting scenarios</h4>
-     <p>Illustrative splits of verified settlements only. These are not earned revenue, withdrawals, investor balances, or amounts held in custody. The pre-existing platform fee is reported separately.</p>
-     {s.provisional_revenue.slice(0,10).map(x=><p key={x.strategy_trade_id} className="mt-2">
-      Trade {x.strategy_trade_id}: Gross {usdc(x.verified_gross_pnl_micros)} USDC;
-      existing fee {usdc(x.previously_posted_platform_fee_micros)} USDC;
-      candidate manager {usdc(x.candidate_manager_micros)} USDC ({x.frozen_manager_pct}%);
-      candidate platform {usdc(x.candidate_platform_micros)} USDC ({x.frozen_platform_pct}%).
-     </p>)}
-    </div>}
+    <MonthlyBotAccounting strategyId={s.strategy_id}/>
     {s.pooled_returns.length>0&&<p className="text-xs text-amber-700">Shutdown returns: {s.pooled_returns.map(x=>x.status+" (source "+(x.source_verified?"verified":"pending")+", destination "+(x.destination_verified?"verified":"pending")+")").join("; ")}</p>}
    </article>)}
   </section>
   <section className="rounded-2xl border bg-white p-5">
    <h2 className="font-semibold">Manager revenue statements</h2>
-   <p className="mt-2 text-sm text-slate-600">Verified settled trade results create non-payable accounting scenarios using immutable per-trade percentages, with existing platform fees shown separately. Manager payouts, recognized earnings and statements remain disabled until the financial policy is approved. No new investor deductions or balance credits occur.</p>
+   <p className="mt-2 text-sm text-slate-600">The bot strategy policy replaces the old platform performance fee. The monthly profit basis is verified realized results less venue, custody and operational costs. Monthly gains offset monthly losses, with no high-water mark or loss carryforward. Manager payouts and recognized earnings remain disabled pending custody reconciliation.</p>
   </section>
+ </div>;
+}
+
+type MonthlyAccountingResponse={status:string;error?:string;net_profit_usdc_micros?:string;
+ hypothetical_manager_share_usdc_micros?:string;hypothetical_platform_share_usdc_micros?:string;
+ hypothetical_investor_share_usdc_micros?:string};
+function MonthlyBotAccounting({strategyId}:{strategyId:string}){
+ const now=new Date();
+ const month=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth()-1,1)).toISOString().slice(0,7);
+ const [data,setData]=useState<MonthlyAccountingResponse|null>(null);
+ const [busy,setBusy]=useState(false);
+ async function loadMonthly(){
+  setBusy(true);
+  try{
+   const response=await fetch("/api/bot-manager/accounting/monthly?strategy_id="+encodeURIComponent(strategyId)+
+    "&month="+encodeURIComponent(month),{cache:"no-store"});
+   const body=await response.json() as MonthlyAccountingResponse;
+   setData(response.ok?body:{status:"UNAVAILABLE",error:body.error??"Monthly statement unavailable"});
+  }catch{setData({status:"UNAVAILABLE",error:"Monthly statement unavailable"})}
+  finally{setBusy(false)}
+ }
+ return <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs">
+  <div className="flex items-center justify-between gap-2">
+   <h4 className="font-semibold">Monthly fee-net accounting ({month}, UTC)</h4>
+   <button type="button" disabled={busy} onClick={()=>void loadMonthly()}
+    className="rounded border border-amber-400 px-3 py-1 disabled:opacity-50">
+    {busy?"Checking…":"Check prior month"}
+   </button>
+  </div>
+  <p>Read-only; not a statement of payable manager revenue or funds held in custody.</p>
+  {data&&<div className="mt-2 space-y-1" role="status">
+   <p>Status: <strong>{data.status}</strong></p>
+   {data.error&&<p>{data.error}</p>}
+   {data.net_profit_usdc_micros!==undefined&&<p>Net result: {usdc(data.net_profit_usdc_micros)} USDC</p>}
+   {data.hypothetical_manager_share_usdc_micros!==undefined&&
+    <p>Manager candidate: {usdc(data.hypothetical_manager_share_usdc_micros)} USDC</p>}
+   {data.hypothetical_platform_share_usdc_micros!==undefined&&
+    <p>Platform candidate: {usdc(data.hypothetical_platform_share_usdc_micros)} USDC</p>}
+   {data.hypothetical_investor_share_usdc_micros!==undefined&&
+    <p>Investor candidate: {usdc(data.hypothetical_investor_share_usdc_micros)} USDC</p>}
+   <p>Payable: No — custody reconciliation and disbursements remain disabled.</p>
+  </div>}
  </div>;
 }
