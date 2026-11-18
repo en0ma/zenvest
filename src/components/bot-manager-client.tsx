@@ -10,6 +10,10 @@ type Overview={
   pending_allocation_usdc_micros:string;pending_deallocation_usdc_micros:string;unresolved_trade_count:number;
   manager_profit_pct:string;platform_profit_pct:string;
   pooled_returns:Array<{status:string;source_verified:boolean;destination_verified:boolean}>;
+  provisional_revenue:Array<{strategy_trade_id:string;status:string;settled_at:string;
+   verified_gross_pnl_micros:string;previously_posted_platform_fee_micros:string;
+   candidate_manager_micros:string;candidate_platform_micros:string;
+   candidate_investor_micros:string;frozen_manager_pct:string;frozen_platform_pct:string}>;
  }>;
  api_keys:Array<{id:string;api_calls_last_hour:number;rate_limited_last_hour:number;limit_per_minute:number}>;
  manager_revenue:{status:string;statements:unknown[];payout_history:unknown[]};
@@ -138,12 +142,22 @@ export function BotManagerClient(){
      <p>Manager profit share: {s.manager_profit_pct}%</p>
      <p>Platform profit share: {s.platform_profit_pct}%</p>
     </div>
+    {s.provisional_revenue.length>0&&<div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs">
+     <h4 className="font-semibold">Unpaid strategy accounting scenarios</h4>
+     <p>Illustrative splits of verified settlements only. These are not earned revenue, withdrawals, investor balances, or amounts held in custody. The pre-existing platform fee is reported separately.</p>
+     {s.provisional_revenue.slice(0,10).map(x=><p key={x.strategy_trade_id} className="mt-2">
+      Trade {x.strategy_trade_id}: Gross {usdc(x.verified_gross_pnl_micros)} USDC;
+      existing fee {usdc(x.previously_posted_platform_fee_micros)} USDC;
+      candidate manager {usdc(x.candidate_manager_micros)} USDC ({x.frozen_manager_pct}%);
+      candidate platform {usdc(x.candidate_platform_micros)} USDC ({x.frozen_platform_pct}%).
+     </p>)}
+    </div>}
     {s.pooled_returns.length>0&&<p className="text-xs text-amber-700">Shutdown returns: {s.pooled_returns.map(x=>x.status+" (source "+(x.source_verified?"verified":"pending")+", destination "+(x.destination_verified?"verified":"pending")+")").join("; ")}</p>}
    </article>)}
   </section>
   <section className="rounded-2xl border bg-white p-5">
    <h2 className="font-semibold">Manager revenue statements</h2>
-   <p className="mt-2 text-sm text-slate-600">Strategy profit-sharing percentages are configured and versioned. Verified manager payouts and statements remain disabled until financial settlement and loss treatment are finalized. No earnings are being claimed or credited.</p>
+   <p className="mt-2 text-sm text-slate-600">Verified settled trade results create non-payable accounting scenarios using immutable per-trade percentages, with existing platform fees shown separately. Manager payouts, recognized earnings and statements remain disabled until the financial policy is approved. No new investor deductions or balance credits occur.</p>
   </section>
  </div>;
 }
