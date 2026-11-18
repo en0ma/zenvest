@@ -142,6 +142,7 @@ model StrategyTrade {
   appliedManagerProfitPercentage Decimal? @map("applied_manager_profit_percentage") @db.Decimal(7,4)
   appliedPlatformStrategyPercentage Decimal? @map("applied_platform_strategy_percentage") @db.Decimal(7,4)
   botRevenueAccounting BotStrategyRevenueAccounting?
+  botVerifiedCosts BotTradeVerifiedCosts?
   yesContracts Int @default(0) @map("yes_contracts")
   noContracts Int @default(0) @map("no_contracts")
   yesCostUsdcMicros BigInt @default(0) @map("yes_cost_usdc_micros")
@@ -895,4 +896,22 @@ model BotStrategyRevenueAccounting {
  @@index([ownerId,settledAt])
  @@index([strategyId,settledAt])
  @@map("bot_strategy_revenue_accounting")
+}
+
+/** No public/admin writer. A future authenticated provider verification flow
+ * must prove all three costs and that gross P&L is PRE-COST. Until then
+ * monthly reporting is explicitly PENDING_VERIFIED_COST_EVIDENCE. */
+model BotTradeVerifiedCosts {
+ strategyTradeId String @id @map("strategy_trade_id") @db.VarChar(64)
+ strategyTrade StrategyTrade @relation(fields:[strategyTradeId],references:[id],onDelete:Restrict)
+ venueFeeMicros BigInt @map("venue_fee_micros")
+ custodyFeeMicros BigInt @map("custody_fee_micros")
+ operationalFeeMicros BigInt @map("operational_fee_micros")
+ grossPreCostVerified Boolean @default(false) @map("gross_pre_cost_verified")
+ venueEvidenceRef String @map("venue_evidence_ref") @db.VarChar(180)
+ custodyEvidenceRef String @map("custody_evidence_ref") @db.VarChar(180)
+ operationsEvidenceRef String @map("operations_evidence_ref") @db.VarChar(180)
+ verifiedAt DateTime? @map("verified_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ @@map("bot_trade_verified_costs")
 }
