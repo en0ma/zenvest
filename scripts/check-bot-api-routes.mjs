@@ -271,7 +271,7 @@ try{
  await db.sandboxPosition.deleteMany({where:{strategyId:{in:[strategyId,strangerStrategyId]}}});
  await db.sandboxAccount.deleteMany({where:{strategyId:{in:[strategyId,strangerStrategyId]}}});
  await db.botApiRateLimit.deleteMany({where:{key:{ownerId:managerId}}});
- await db.botTradeVerifiedCosts.deleteMany({where:{strategyTrade:{strategyId:{in:[strategyId,strangerStrategyId,...(typeof secondId!=="undefined"?[secondId]:[])]}}}});
+ await db.botTradeVerifiedCosts.deleteMany({where:{strategyTradeId:"ci_bot_monthly_verified_trade"}});
  await db.strategyTrade.deleteMany({where:{id:"ci_bot_monthly_verified_trade"}});
  await db.botTradeIntent.deleteMany({where:{bot:{ownerId:{in:[managerId,strangerId]}}}});
  await db.botApiKey.deleteMany({where:{ownerId:managerId}});
