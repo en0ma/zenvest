@@ -28,6 +28,7 @@ const sandbox=await import("../src/app/api/v1/strategies/[strategyId]/sandbox/tr
 const sandboxSettle=await import("../src/app/api/v1/strategies/[strategyId]/sandbox/settle/route.ts");
 const sandboxSummary=await import("../src/app/api/v1/strategies/[strategyId]/sandbox/summary/route.ts");
 const overview=await import("../src/app/api/bot-manager/overview/route.ts");
+const pruneLimits=await import("../src/app/api/internal/prune-bot-api-rate-limits/route.ts");
 const nativeFetch=globalThis.fetch;
 let marketResolved=false;
 globalThis.fetch=async(url)=>{
@@ -184,6 +185,44 @@ try{
   assert.equal(response.status,200);
  }
  assert.equal(throttled,true,"shared manager key must be rate limited");
+ // Rate limit retention must preserve today's live window and recent audit data,
+ // including rejected requests, while pruning old windows in bounded batches.
+ const oldWindow=new Date(Date.now()-31*24*60*60*1000);
+ const recentWindow=new Date(Date.now()-29*24*60*60*1000);
+ await db.botApiRateLimit.create({data:{keyId,windowStart:oldWindow,requestCount:7,rejectedCount:2}});
+ await db.botApiRateLimit.create({data:{keyId,windowStart:recentWindow,requestCount:4,rejectedCount:1}});
+ const liveWindow=new Date(Math.floor(Date.now()/60000)*60000);
+ const activeBefore=await db.botApiRateLimit.findUniqueOrThrow({where:{keyId_windowStart:{keyId,windowStart:liveWindow}}});
+ const previousCronSecret=process.env.CRON_SECRET;
+ process.env.CRON_SECRET="ci-prune-bot-limiter-secret";
+ try{
+  const path="/api/internal/prune-bot-api-rate-limits";
+  const noAuth=await pruneLimits.GET(req(path,null,null,"GET"));
+  assert.equal(noAuth.status,401,"unauthenticated cleanup must be forbidden");
+  const invalid=await pruneLimits.GET(req(path,null,null,"GET",{authorization:"Bearer wrong"}));
+  assert.equal(invalid.status,401,"incorrect cleanup cron secret must be forbidden");
+  assert.ok(await db.botApiRateLimit.findUnique({where:{keyId_windowStart:{keyId,windowStart:oldWindow}}}),
+    "unauthorized cleanup cannot delete a window");
+  const valid=await pruneLimits.GET(req(path,null,null,"GET",{
+   authorization:"Bearer ci-prune-bot-limiter-secret"
+  }));
+  assert.equal(valid.status,200,"authorized cleanup succeeds");
+  assert.equal((await valid.json()).deleted,1,"only expired windows are removed");
+  assert.equal(await db.botApiRateLimit.findUnique({where:{keyId_windowStart:{keyId,windowStart:oldWindow}}}),null);
+  assert.ok(await db.botApiRateLimit.findUnique({where:{keyId_windowStart:{keyId,windowStart:recentWindow}}}),
+    "recent rate-limit history is retained");
+  const activeAfter=await db.botApiRateLimit.findUniqueOrThrow({where:{keyId_windowStart:{keyId,windowStart:liveWindow}}});
+  assert.equal(activeAfter.requestCount,activeBefore.requestCount,"active limiter accounting remains unchanged");
+  assert.equal(activeAfter.rejectedCount,activeBefore.rejectedCount,"live rejection counters remain unchanged");
+  const repeat=await pruneLimits.GET(req(path,null,null,"GET",{
+   authorization:"Bearer ci-prune-bot-limiter-secret"
+  }));
+  assert.equal((await repeat.json()).deleted,0,"cleanup is idempotent");
+ }finally{
+  if(previousCronSecret===undefined)delete process.env.CRON_SECRET;
+  else process.env.CRON_SECRET=previousCronSecret;
+ }
+
  assert.equal((await managerKey.DELETE(req("/api/bot-manager/keys/"+keyId,{},null,"DELETE"),keyCtx(keyId))).status,200);
  assert.equal((await strategies.GET(req("/api/v1/strategies",null,raw,"GET"))).status,401,"revoked key cannot access any strategy");
  assert.equal((await db.botTradeIntent.count({where:{strategyId}})),2,"unexecuted intents never become verified trades");

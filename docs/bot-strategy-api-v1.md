@@ -77,3 +77,7 @@ TRADING also requires Kalshi and Blockradar wallet configuration, separate **pro
 Live authenticated Kalshi order execution, independently verified custody binding and treasury funding, production-grade price marks/unrealized P&L, approved venue fee model, loss carryforward/revenue recognition, manager revenue accrual/payout reconciliation and full financial concurrency tests are not done. Existing platform-fee P&L posting must not be stacked on the new manager/platform profit split without explicit financial rules.
 
 PR #90 is draft. **No live deployment, merge or production migration is authorized.**
+
+### API limiter retention
+
+The 60-request-per-minute fixed-window limiter remains fail-closed. A CRON_SECRET-protected, read-only-to-API-clients maintenance route `GET /api/internal/prune-bot-api-rate-limits` runs daily at 04:30 UTC and deletes **at most 1,000 windows older than 30 days per run**. It does not reset current windows, change API key permissions, or erase trade-intent records. Retention is operational housekeeping, not a financial reconciliation or a live trading enablement.
