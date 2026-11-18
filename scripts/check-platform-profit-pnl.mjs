@@ -11,13 +11,17 @@ if(!process.env.DATABASE_URL?.includes("zenvest_ci"))throw Error("Disposable CI 
 const db=new PrismaClient();
 const {processPositionTradePnl}=await import("../src/lib/position-trade-pnl-worker.ts");
 const strategyId="ci_platform_profit_strategy";
+const ownerId="ci_bot_revenue_owner";
 const userIds=["ci_platform_profit_user_a","ci_platform_profit_user_b"];
 const refs=["trade-platform-profit:ci_platform_profit_gain","trade-platform-profit:ci_platform_profit_loss"];
 let originalKBank;
 try{
  const bank=await db.treasury.findUniqueOrThrow({where:{kind:"K_BANK"}});
  originalKBank=bank.amount;
- await db.strategy.create({data:{id:strategyId,name:"CI Platform Profit Attribution",description:"2-participant fee split",platformProfitPercentage:"20.0000"}});
+ await db.user.create({data:{id:ownerId,name:"CI Bot Revenue Owner",email:"ci-bot-revenue-owner@example.invalid",passwordHash:"ci-only"}});
+ await db.strategy.create({data:{id:strategyId,name:"CI Platform Profit Attribution",description:"2-participant fee split",
+  platformProfitPercentage:"20.0000",managerProfitPercentage:"30.0000",platformStrategyPercentage:"20.0000"}});
+ await db.bot.create({data:{ownerId,strategyId,name:"CI Revenue Bot"}});
  for(const [i,id] of userIds.entries()){
   await db.user.create({data:{id,name:"CI PNL "+i,email:"ci-platform-profit-"+i+"@example.invalid",passwordHash:"ci-only"}});
   await db.investorPosition.create({data:{userId:id,strategyId,allocatedUsdcMicros:i===0?6_000_000n:4_000_000n,status:"OPEN"}});
@@ -27,6 +31,14 @@ try{
  const gain=await createTrade("ci_platform_profit_gain");
  let results=await processPositionTradePnl();
  assert.ok(results.includes("prepare:"+gain.id+":ready"),"trade must freeze all eligible participants");
+ const frozen=await db.strategyTrade.findUniqueOrThrow({where:{id:gain.id}});
+ assert.equal(frozen.appliedManagerProfitPercentage?.toFixed(4),"30.0000");
+ assert.equal(frozen.appliedPlatformStrategyPercentage?.toFixed(4),"20.0000");
+ assert.equal(await db.botStrategyRevenueAccounting.count({where:{strategyId}}),0,
+  "pre-settlement cannot create manager revenue accounting");
+ await db.strategy.update({where:{id:strategyId},data:{
+  managerProfitPercentage:"10.0000",platformStrategyPercentage:"15.0000"
+ }});
  let rows=await db.positionTradePnl.findMany({where:{strategyTradeId:gain.id}});
  assert.equal(rows.length,2,"both investor allocations participate in the event");
  assert.equal(rows.reduce((n,r)=>n+r.eligibleCapitalUsdcMicros,0n),10_000_000n);
@@ -40,6 +52,17 @@ try{
  assert.equal(rows.reduce((n,r)=>n+(r.grossPnlUsdcMicros??0n),0n),10_000_000n);
  assert.equal(rows.reduce((n,r)=>n+(r.platformFeeUsdcMicros??0n),0n),2_000_000n);
  assert.equal(rows.reduce((n,r)=>n+(r.netPnlUsdcMicros??0n),0n),8_000_000n);
+ const accounting=await db.botStrategyRevenueAccounting.findUniqueOrThrow({where:{strategyTradeId:gain.id}});
+ assert.equal(accounting.status,"POLICY_PENDING_NO_PAYOUT");
+ assert.equal(accounting.ownerId,ownerId);
+ assert.equal(accounting.managerPct.toFixed(4),"30.0000","snapshot must survive admin percentage changes");
+ assert.equal(accounting.platformPct.toFixed(4),"20.0000");
+ assert.equal(accounting.grossVerifiedPnlMicros,10_000_000n);
+ assert.equal(accounting.existingPlatformFeeMicros,2_000_000n);
+ assert.equal(accounting.existingInvestorNetMicros,8_000_000n);
+ assert.equal(accounting.candidateManagerMicros,3_000_000n);
+ assert.equal(accounting.candidatePlatformMicros,2_000_000n);
+ assert.equal(accounting.candidateInvestorMicros,5_000_000n);
  assert.ok(rows.every(r=>r.status==="SETTLED"));
  assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"K_BANK"}})).amount,originalKBank+2_000_000n);
  const entry=await db.treasuryTransfer.findUniqueOrThrow({where:{reference:refs[0]}});
@@ -51,28 +74,38 @@ try{
  }
  await processPositionTradePnl();
  assert.equal(await db.treasuryTransfer.count({where:{reference:refs[0]}}),1,"replay must never mint bank profit twice");
+ assert.equal(await db.botStrategyRevenueAccounting.count({where:{strategyId}}),1,"replay cannot duplicate manager accounting");
  assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"K_BANK"}})).amount,originalKBank+2_000_000n);
  const loss=await createTrade("ci_platform_profit_loss");
  results=await processPositionTradePnl();
  assert.ok(results.includes("prepare:"+loss.id+":ready"));
+ const lossFrozen=await db.strategyTrade.findUniqueOrThrow({where:{id:loss.id}});
+ assert.equal(lossFrozen.appliedManagerProfitPercentage?.toFixed(4),"10.0000");
+ assert.equal(lossFrozen.appliedPlatformStrategyPercentage?.toFixed(4),"15.0000");
  await db.strategyTrade.update({where:{id:loss.id},data:{status:"SETTLED",settledAt:new Date(),realizedPnlUsdcMicros:-5_000_000n}});
  results=await processPositionTradePnl();
  assert.ok(results.includes("settle:"+loss.id+":settled"));
  rows=await db.positionTradePnl.findMany({where:{strategyTradeId:loss.id}});
  assert.equal(rows.reduce((n,r)=>n+(r.grossPnlUsdcMicros??0n),0n),-5_000_000n);
  assert.equal(rows.reduce((n,r)=>n+(r.platformFeeUsdcMicros??0n),0n),0n);
+ const lost=await db.botStrategyRevenueAccounting.findUniqueOrThrow({where:{strategyTradeId:loss.id}});
+ assert.equal(lost.candidateManagerMicros,0n);
+ assert.equal(lost.candidatePlatformMicros,0n);
+ assert.equal(lost.candidateInvestorMicros,-5_000_000n);
  assert.equal(await db.treasuryTransfer.count({where:{reference:refs[1]}}),0);
  assert.equal((await db.treasury.findUniqueOrThrow({where:{kind:"K_BANK"}})).amount,originalKBank+2_000_000n,
   "loss cannot mint K_BANK profit");
  console.log("Two-participant P&L attribution verified: aggregate fee to K_BANK_DEPOSIT once, replays and losses safe");
 }finally{
  await db.treasuryTransfer.deleteMany({where:{reference:{in:refs}}});
+ await db.botStrategyRevenueAccounting.deleteMany({where:{strategyId}});
  await db.positionTradePnl.deleteMany({where:{strategyTrade:{strategyId}}});
  await db.investorActivity.deleteMany({where:{userId:{in:userIds}}});
  await db.strategyTrade.deleteMany({where:{strategyId}});
  await db.investorPosition.deleteMany({where:{strategyId}});
+ await db.bot.deleteMany({where:{strategyId}});
  await db.strategy.deleteMany({where:{id:strategyId}});
- await db.user.deleteMany({where:{id:{in:userIds}}});
+ await db.user.deleteMany({where:{id:{in:[...userIds,ownerId]}}});
  if(originalKBank!==undefined)await db.treasury.update({where:{kind:"K_BANK"},data:{amount:originalKBank}});
  await db.$disconnect();
 }
