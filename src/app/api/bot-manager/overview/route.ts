@@ -14,7 +14,7 @@ export async function GET(){
   }}},orderBy:{createdAt:"desc"}});
  const keys=await prisma.botApiKey.findMany({where:{ownerId},select:{id:true,label:true,keyPrefix:true,revokedAt:true,lastUsedAt:true}});
  const strategyIds=bots.map(x=>x.strategyId);
- const [positions,pnl,fills,settlements,pending,unsettled,returnEvents,rateRows,versions]=await Promise.all([
+ const [positions,pnl,fills,settlements,pending,unsettled,returnEvents,rateRows,versions,revenue]=await Promise.all([
   prisma.investorPosition.groupBy({by:["strategyId"],where:{strategyId:{in:strategyIds},status:{in:["OPEN","CLOSING"]}},
    _sum:{allocatedUsdcMicros:true},_count:{_all:true}}),
   prisma.positionTradePnl.findMany({where:{strategyTrade:{strategyId:{in:strategyIds}},status:"SETTLED"},
@@ -33,7 +33,14 @@ export async function GET(){
   prisma.botApiRateLimit.findMany({where:{keyId:{in:keys.map(x=>x.id)},windowStart:{
    gte:new Date(Date.now()-3600000)}},select:{keyId:true,requestCount:true,rejectedCount:true,windowStart:true}}),
   prisma.strategyRevenueRateVersion.findMany({where:{strategyId:{in:strategyIds}},
-   select:{strategyId:true,managerPct:true,platformPct:true,effectiveAt:true},orderBy:{effectiveAt:"desc"},take:100})
+   select:{strategyId:true,managerPct:true,platformPct:true,effectiveAt:true},orderBy:{effectiveAt:"desc"},take:100}),
+  prisma.botStrategyRevenueAccounting.findMany({where:{strategyId:{in:strategyIds},ownerId},
+   orderBy:[{settledAt:"desc"},{id:"desc"}],take:100,select:{
+    strategyId:true,strategyTradeId:true,status:true,settledAt:true,
+    grossVerifiedPnlMicros:true,existingPlatformFeeMicros:true,existingInvestorNetMicros:true,
+    candidateManagerMicros:true,candidatePlatformMicros:true,candidateInvestorMicros:true,
+    managerPct:true,platformPct:true
+   }})
  ]);
  const strategyData=bots.map(({strategy:s,...bot})=>{
   const position=positions.find(x=>x.strategyId===s.id);
@@ -71,6 +78,16 @@ export async function GET(){
     status:x.status,source_verified:x.sourceConfirmed,destination_verified:x.destinationConfirmed,
     amount_usdc_micros:x.amountUsdcMicros.toString()
    })),
+   provisional_revenue:revenue.filter(x=>x.strategyId===s.id).map(x=>({
+    strategy_trade_id:x.strategyTradeId,status:x.status,settled_at:x.settledAt,
+    verified_gross_pnl_micros:x.grossVerifiedPnlMicros.toString(),
+    previously_posted_platform_fee_micros:x.existingPlatformFeeMicros.toString(),
+    previously_posted_investor_net_micros:x.existingInvestorNetMicros.toString(),
+    candidate_manager_micros:x.candidateManagerMicros.toString(),
+    candidate_platform_micros:x.candidatePlatformMicros.toString(),
+    candidate_investor_micros:x.candidateInvestorMicros.toString(),
+    frozen_manager_pct:x.managerPct.toFixed(4),frozen_platform_pct:x.platformPct.toFixed(4)
+   })),
    percentage_history:versions.filter(x=>x.strategyId===s.id).map(x=>({
     manager_pct:x.managerPct.toFixed(4),platform_pct:x.platformPct.toFixed(4),effective_at:x.effectiveAt
    }))
@@ -81,7 +98,8 @@ export async function GET(){
   api_keys:keys.map(k=>({...k,api_calls_last_hour:rateRows.filter(r=>r.keyId===k.id).reduce((n,r)=>n+r.requestCount,0),
    rate_limited_last_hour:rateRows.filter(r=>r.keyId===k.id).reduce((n,r)=>n+r.rejectedCount,0),
    limit_per_minute:60})),
-  manager_revenue:{status:"PAYOUT_NOT_ENABLED",recognized_usdc_micros:"0",
-    statements:[],payout_history:[],note:"Verified manager profit-sharing accrual and custody settlement remain unconnected."}
+  manager_revenue:{status:"POLICY_PENDING_NO_PAYOUT",recognized_usdc_micros:"0",
+    statements:[],payout_history:[],provisional_entries:revenue.length,
+    note:"Candidate splits are accounting illustrations only. Existing platform fee postings remain separate, and no new investor deductions or manager earnings have been posted."}
  },{headers:{"Cache-Control":"no-store"}});
 }
