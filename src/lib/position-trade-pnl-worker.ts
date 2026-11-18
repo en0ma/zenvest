@@ -1,6 +1,7 @@
 import {Prisma} from "@prisma/client";
 import {prisma} from "./db.ts";
 import {distributeWeightedMicros,platformProfitFee} from "./position-pnl-math.ts";
+import {previewBotStrategySplit} from "./bot-manager-revenue-math.ts";
 import {applyVerifiedCapitalBeforeSnapshots,reservePendingDeallocationsBeforeSnapshots} from "./position-capital-application.ts";
 
 const SERIALIZABLE=Prisma.TransactionIsolationLevel.Serializable;
@@ -33,6 +34,9 @@ async function settleTrade(id:string){
    if(total!==trade.eligibleCapitalUsdcMicros||total<=0n)throw new Error("Trade exposure mismatch");
    if(!trade.appliedPlatformProfitPercentage)throw new Error("Missing frozen platform fee rate");
    const gross=trade.realizedPnlUsdcMicros;
+   const bot=await tx.bot.findUnique({where:{strategyId:trade.strategyId},select:{ownerId:true}});
+   if(bot&&(!trade.appliedManagerProfitPercentage||!trade.appliedPlatformStrategyPercentage))
+    throw new Error("Missing frozen manager strategy percentage snapshot");
    const fee=platformProfitFee(gross,trade.appliedPlatformProfitPercentage.toFixed(4));
    const grossShares=distributeWeightedMicros(gross,rows.map(p=>({id:p.id,eligibleCapitalUsdcMicros:p.eligibleCapitalUsdcMicros})));
    const feeShares=distributeWeightedMicros(fee,rows.map(p=>({id:p.id,eligibleCapitalUsdcMicros:p.eligibleCapitalUsdcMicros})));
@@ -76,6 +80,23 @@ async function settleTrade(id:string){
     });
     if(funded.count!==1)throw Error("K_BANK platform profit posting unavailable");
    }
+   if(bot){
+    const managerRate=trade.appliedManagerProfitPercentage!.toFixed(4);
+    const platformRate=trade.appliedPlatformStrategyPercentage!.toFixed(4);
+    const preview=previewBotStrategySplit(gross,fee,managerRate,platformRate);
+    // Atomic with verified P&L posting. This is NOT a credit, fee or claim.
+    await tx.botStrategyRevenueAccounting.create({data:{
+     strategyId:trade.strategyId,strategyTradeId:id,ownerId:bot.ownerId,
+     grossVerifiedPnlMicros:gross,
+     existingPlatformFeeMicros:preview.existingPlatformFee,
+     existingInvestorNetMicros:preview.existingInvestorNet,
+     managerPct:managerRate,platformPct:platformRate,
+     candidateManagerMicros:preview.managerCandidate,
+     candidatePlatformMicros:preview.platformCandidate,
+     candidateInvestorMicros:preview.investorCandidate,
+     settledAt:trade.settledAt!
+    }});
+   }
    const claimed=await tx.strategyTrade.updateMany({where:{id,status:"SETTLED",isPnlCalculated:false},
     data:{isPnlCalculated:true}});
    if(claimed.count!==1)throw new Error("Trade P&L already applied");
@@ -114,7 +135,11 @@ async function prepareTrade(id:string){
     strategyTradeId:id,positionId:p.id,userId:p.userId,eligibleCapitalUsdcMicros:p.allocatedUsdcMicros}))});
    const updated=await tx.strategyTrade.updateMany({where:{id,status:"AWAITING_ALLOCATION"},
     data:{status:"TRADING",eligibleCapitalUsdcMicros:capital,
-     appliedPlatformProfitPercentage:strategy.platformProfitPercentage}});
+     appliedPlatformProfitPercentage:strategy.platformProfitPercentage,
+     ...(await tx.bot.findUnique({where:{strategyId:trade.strategyId},select:{id:true}})?{
+      appliedManagerProfitPercentage:strategy.managerProfitPercentage,
+      appliedPlatformStrategyPercentage:strategy.platformStrategyPercentage
+     }:{})}});
    if(updated.count!==1)throw new Error("Trade authorization raced");
    return "ready";
   });
